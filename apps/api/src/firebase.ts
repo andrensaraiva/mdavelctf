@@ -13,6 +13,8 @@ export function initFirebaseAdmin() {
       process.env.FIREBASE_STORAGE_EMULATOR_HOST || '127.0.0.1:9199';
   }
 
+  const storageBucket = process.env.FIREBASE_STORAGE_BUCKET || `${projectId}.appspot.com`;
+
   if (!admin.apps.length) {
     // Production: use service account JSON from env var
     const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
@@ -22,14 +24,15 @@ export function initFirebaseAdmin() {
         admin.initializeApp({
           credential: admin.credential.cert(serviceAccount),
           projectId,
+          storageBucket,
         });
         console.log('[Firebase] Initialized with service account credentials');
       } catch (err) {
         console.error('[Firebase] Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON:', err);
-        admin.initializeApp({ projectId });
+        admin.initializeApp({ projectId, storageBucket });
       }
     } else {
-      admin.initializeApp({ projectId });
+      admin.initializeApp({ projectId, storageBucket });
     }
   }
 }

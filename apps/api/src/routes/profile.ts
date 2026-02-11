@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { verifyFirebaseToken, AuthRequest } from '../middleware/auth';
-import { getDb } from '../firebase';
+import { getDb, getStorage } from '../firebase';
 
 export const profileRouter = Router();
 
@@ -29,22 +29,62 @@ profileRouter.post('/update', async (req: AuthRequest, res: Response) => {
   return res.json({ success: true, updated: updates });
 });
 
-/* ─── Update Avatar URL ─── */
+/* ─── Upload Avatar (base64 → Firebase Storage) ─── */
 profileRouter.post('/avatar', async (req: AuthRequest, res: Response) => {
   const uid = req.uid!;
-  const { avatarUrl } = req.body;
-  if (!avatarUrl || typeof avatarUrl !== 'string') {
-    return res.status(400).json({ error: 'avatarUrl required' });
+  const { avatarData } = req.body;
+
+  // Support both old field name (avatarUrl with data URI) and new (avatarData)
+  const data: string | undefined = avatarData || req.body.avatarUrl;
+
+  if (!data || typeof data !== 'string') {
+    return res.status(400).json({ error: 'avatarData required (base64 data URI)' });
   }
 
-  // Only allow URLs or data URIs
-  if (!avatarUrl.startsWith('http') && !avatarUrl.startsWith('data:image/')) {
-    return res.status(400).json({ error: 'Invalid avatar URL' });
+  // If it's already a URL (not a data URI), just save it directly
+  if (data.startsWith('http')) {
+    const db = getDb();
+    await db.collection('users').doc(uid).update({ avatarUrl: data.slice(0, 2048) });
+    return res.json({ success: true, avatarUrl: data });
   }
 
-  const db = getDb();
-  await db.collection('users').doc(uid).update({ avatarUrl: avatarUrl.slice(0, 2048) });
-  return res.json({ success: true });
+  // Validate data URI format
+  const match = data.match(/^data:(image\/\w+);base64,(.+)$/);
+  if (!match) {
+    return res.status(400).json({ error: 'Invalid image data URI' });
+  }
+
+  const contentType = match[1];
+  const base64Data = match[2];
+  const buffer = Buffer.from(base64Data, 'base64');
+
+  // Max 1MB
+  if (buffer.byteLength > 1024 * 1024) {
+    return res.status(400).json({ error: 'Image must be under 1MB' });
+  }
+
+  try {
+    const ext = contentType.split('/')[1] || 'png';
+    const filePath = `avatars/${uid}/avatar.${ext}`;
+    const bucket = getStorage().bucket();
+    const file = bucket.file(filePath);
+
+    await file.save(buffer, {
+      metadata: { contentType },
+      public: true,
+    });
+
+    // Make the file publicly accessible and get its URL
+    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+
+    const db = getDb();
+    await db.collection('users').doc(uid).update({ avatarUrl: publicUrl });
+
+    return res.json({ success: true, avatarUrl: publicUrl });
+  } catch (err: any) {
+    console.error('[Avatar Upload]', err);
+    return res.status(500).json({ error: 'Failed to upload avatar' });
+  }
 });
 
 /* ─── Get My Full Profile ─── */
