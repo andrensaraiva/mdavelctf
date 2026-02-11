@@ -197,7 +197,7 @@ gamificationRouter.get('/badges', async (req: AuthRequest, res: Response) => {
 
   if (snap.empty) {
     // Return defaults from shared
-    return res.json({ badges: Object.entries(DEFAULT_BADGES).map(([id, b]) => ({ id, ...b })) });
+    return res.json({ badges: Object.entries(DEFAULT_BADGES).map(([id, b]) => ({ id, ...(b as Record<string, unknown>) })) });
   }
 
   const badges = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
