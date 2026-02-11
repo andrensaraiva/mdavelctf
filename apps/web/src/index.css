@@ -1,0 +1,311 @@
+@import "tailwindcss";
+
+/* ─── Theme CSS Variables (defaults = Cyan preset) ─── */
+:root {
+  --accent: #00f0ff;
+  --accent2: #0077ff;
+  --bg: #0a0e17;
+  --panel-bg: #111827;
+  --text: #e0e7ef;
+  --text-dim: #9daab8;
+  --success: #39ff14;
+  --warning: #ffbf00;
+  --danger: #ff003c;
+  --glow: 0 0 6px var(--accent), 0 0 18px rgba(0, 240, 255, 0.1);
+  --glow2: 0 0 6px var(--accent2), 0 0 18px rgba(0, 119, 255, 0.1);
+  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+}
+
+/* ─── Tailwind v4 theme tokens ─── */
+@theme {
+  --color-accent: var(--accent);
+  --color-accent2: var(--accent2);
+  --color-panel: var(--panel-bg);
+  --color-bg: var(--bg);
+  --color-hud-text: var(--text);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+}
+
+/* ─── Global ─── */
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.65;
+  letter-spacing: 0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (min-width: 768px) {
+  body { font-size: 16px; }
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-body);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+}
+
+code, pre, .font-mono, .terminal-input {
+  font-family: var(--font-mono);
+}
+
+/* ─── HUD Panel (clip-path corners) ─── */
+.hud-panel {
+  background: var(--panel-bg);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  clip-path: polygon(
+    0 12px,
+    12px 0,
+    calc(100% - 12px) 0,
+    100% 12px,
+    100% calc(100% - 12px),
+    calc(100% - 12px) 100%,
+    12px 100%,
+    0 calc(100% - 12px)
+  );
+  box-shadow: var(--glow);
+  position: relative;
+}
+
+.hud-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(0, 240, 255, 0.02) 0%,
+    transparent 50%
+  );
+  pointer-events: none;
+}
+
+/* ─── Neon Button ─── */
+.neon-btn {
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 0.5rem 1.5rem;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: all 0.2s;
+  clip-path: polygon(0 4px, 4px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px));
+}
+
+/* Bigger touch targets on mobile */
+@media (max-width: 768px) {
+  .neon-btn {
+    padding: 0.625rem 1.25rem;
+    font-size: 0.8rem;
+    min-height: 44px;
+  }
+}
+
+.neon-btn:hover {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  box-shadow: var(--glow);
+}
+
+.neon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.neon-btn-solid {
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+  font-weight: 700;
+}
+
+.neon-btn-solid:hover {
+  background: color-mix(in srgb, var(--accent) 85%, white);
+}
+
+/* ─── Glow effects ─── */
+.glow { box-shadow: var(--glow); }
+.glow2 { box-shadow: var(--glow2); }
+.glow-text { text-shadow: 0 0 6px var(--accent), 0 0 12px rgba(0, 240, 255, 0.2); }
+.glow-text2 { text-shadow: 0 0 6px var(--accent2), 0 0 12px rgba(0, 119, 255, 0.2); }
+
+/* ─── Terminal Submit Modal ─── */
+.terminal-modal-overlay {
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(4px);
+}
+
+.terminal-input {
+  background: #0a0a0a;
+  border: 1px solid color-mix(in srgb, var(--accent) 60%, transparent);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  caret-color: var(--accent);
+  border-radius: 2px;
+}
+
+.terminal-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), var(--glow);
+}
+
+.terminal-input::placeholder {
+  color: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--accent) 50%, transparent); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+/* ─── Grid Background ─── */
+.grid-bg {
+  background-image:
+    linear-gradient(rgba(0, 240, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.018) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* ─── HUD Tag ─── */
+.hud-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.65rem;
+  border: 1px solid var(--accent);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  clip-path: polygon(0 3px, 3px 0, calc(100% - 3px) 0, 100% 3px, 100% calc(100% - 3px), calc(100% - 3px) 100%, 3px 100%, 0 calc(100% - 3px));
+}
+
+/* ─── Category colors ─── */
+.cat-web { --accent: #00f0ff; }
+.cat-crypto { --accent: #ffbf00; }
+.cat-forensics { --accent: #ff00ff; }
+.cat-osint { --accent: #39ff14; }
+.cat-pwn { --accent: #ff003c; }
+.cat-rev { --accent: #ff6600; }
+
+/* ─── Rank Table ─── */
+.rank-row:nth-child(odd) {
+  background: rgba(255, 255, 255, 0.02);
+}
+.rank-row:hover {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+/* ─── Live Pulse Animation ─── */
+@keyframes livePulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--success), 0 0 24px rgba(57, 255, 20, 0.3); }
+  50% { opacity: 0.85; box-shadow: 0 0 16px var(--success), 0 0 48px rgba(57, 255, 20, 0.5); }
+}
+.live-pulse {
+  animation: livePulse 2s ease-in-out infinite;
+}
+
+@keyframes liveDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.7); }
+}
+.live-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+  animation: liveDot 1.5s ease-in-out infinite;
+  box-shadow: 0 0 6px var(--success);
+}
+
+/* ─── Rank Podium Sizing ─── */
+.rank-1st { font-size: 1.5rem; }
+.rank-2nd { font-size: 1.25rem; }
+.rank-3rd { font-size: 1.1rem; }
+
+/* ─── Bar Chart ─── */
+.bar-chart-bar {
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 2px;
+}
+
+/* ─── Mini sparkline ─── */
+.sparkline {
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+  height: 32px;
+}
+.sparkline-bar {
+  flex: 1;
+  background: var(--accent);
+  opacity: 0.6;
+  border-radius: 1px 1px 0 0;
+  transition: height 0.3s ease;
+}
+.sparkline-bar:hover {
+  opacity: 1;
+}
+
+/* ─── Mobile responsive tables ─── */
+@media (max-width: 640px) {
+  .responsive-table thead { display: none; }
+  .responsive-table tr {
+    display: flex;
+    flex-direction: column;
+    padding: 0.75rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--accent) 10%, transparent);
+  }
+  .responsive-table td {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.25rem 0;
+    text-align: right;
+  }
+  .responsive-table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.65rem;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    text-align: left;
+  }
+}
+
+/* ─── Chat day separator ─── */
+.chat-day-sep {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.75rem 0;
+}
+.chat-day-sep::before,
+.chat-day-sep::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+.chat-day-sep span {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  white-space: nowrap;
+}

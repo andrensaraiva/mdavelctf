@@ -1,0 +1,29 @@
+{
+  "name": "mdavelctf",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "shared",
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "install:all": "npm install && npm --prefix shared run build",
+    "emu": "firebase emulators:start --project mdavelctf-local --import=./firebase-data --export-on-exit=./firebase-data",
+    "emu:clean": "firebase emulators:start --project mdavelctf-local",
+    "seed": "npx ts-node --project scripts/tsconfig.json scripts/seed.ts",
+    "dev:api": "npm --prefix apps/api run dev",
+    "dev:web": "npm --prefix apps/web run dev",
+    "dev": "concurrently -n emu,api,web -c cyan,green,magenta \"npm run emu:clean\" \"sleep 5 && npm run dev:api\" \"sleep 6 && npm run dev:web\"",
+    "dev:win": "concurrently -n api,web -c green,magenta \"npm run dev:api\" \"npm run dev:web\"",
+    "build": "npm --prefix shared run build && npm --prefix apps/api run build && npm --prefix apps/web run build"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.0.0"
+  }
+}

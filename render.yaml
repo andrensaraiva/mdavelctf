@@ -1,0 +1,63 @@
+# render.yaml — Render Blueprint for MdavelCTF monorepo
+# See https://render.com/docs/blueprint-spec
+
+services:
+  # ─── API (Node.js Web Service) ───
+  - type: web
+    name: mdavelctf-api
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: node apps/api/dist/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "4000"
+      - key: FIREBASE_PROJECT_ID
+        sync: false  # set manually
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false  # set manually — full JSON string
+      - key: PEPPER_SECRET
+        generateValue: true
+      - key: BOOTSTRAP_ADMIN_EMAIL
+        sync: false  # set manually, clear after first boot
+      - key: BOOTSTRAP_ADMIN_PASSWORD
+        sync: false  # set manually, clear after first boot
+      - key: ALLOW_SEED
+        value: "false"
+      - key: SEED_TOKEN
+        generateValue: true
+      - key: CORS_ORIGINS
+        sync: false  # e.g. https://mdavelctf-web.onrender.com
+
+  # ─── Web (Static Site) ───
+  - type: web
+    name: mdavelctf-web
+    runtime: static
+    plan: free
+    buildCommand: npm install && npm run build
+    staticPublishPath: apps/web/dist
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false  # e.g. https://mdavelctf-api.onrender.com
+      - key: VITE_FIREBASE_API_KEY
+        sync: false
+      - key: VITE_FIREBASE_AUTH_DOMAIN
+        sync: false
+      - key: VITE_FIREBASE_PROJECT_ID
+        sync: false
+      - key: VITE_FIREBASE_STORAGE_BUCKET
+        sync: false
+      - key: VITE_FIREBASE_MESSAGING_SENDER_ID
+        sync: false
+      - key: VITE_FIREBASE_APP_ID
+        sync: false

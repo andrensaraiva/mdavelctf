@@ -1,0 +1,100 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Helper functions ───
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.admin == true;
+    }
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // ─── Users ───
+    match /users/{uid} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(uid);
+      allow update: if isOwner(uid) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'disabled']);
+      // Admin can update any user (via Admin SDK, bypasses rules)
+    }
+
+    // ─── Teams ───
+    match /teams/{teamId} {
+      allow read: if isSignedIn();
+      // Writes handled by API server (Admin SDK)
+      allow write: if false;
+
+      match /members/{memberId} {
+        allow read: if isSignedIn();
+        allow write: if false;
+      }
+    }
+
+    // ─── Events ───
+    match /events/{eventId} {
+      allow read: if isSignedIn() && resource.data.published == true;
+      allow write: if false; // Admin SDK only
+
+      // Challenges
+      match /challenges/{challengeId} {
+        allow read: if isSignedIn() && resource.data.published == true;
+        allow write: if false;
+      }
+
+      // Submissions — read only by admin or own submissions
+      match /submissions/{submissionId} {
+        allow read: if isSignedIn() && (isAdmin() || resource.data.uid == request.auth.uid);
+        allow write: if false; // Server only
+      }
+
+      // Solves — readable by signed-in users
+      match /solves/{solveId} {
+        allow read: if isSignedIn();
+        allow write: if false;
+      }
+
+      // Leaderboards — readable by signed-in users
+      match /leaderboards/{boardId} {
+        allow read: if isSignedIn();
+        allow write: if false;
+      }
+
+      // Challenge Secrets — NEVER readable by clients (Admin SDK only)
+      match /challengeSecrets/{secretId} {
+        allow read: if false;
+        allow write: if false;
+      }
+
+      // Analytics — admin only
+      match /analytics/{docId} {
+        allow read: if isAdmin();
+        allow write: if false;
+      }
+    }
+
+    // ─── Leagues ───
+    match /leagues/{leagueId} {
+      allow read: if isSignedIn() && resource.data.published == true;
+      allow write: if false;
+
+      match /standings/{standingId} {
+        allow read: if isSignedIn();
+        allow write: if false;
+      }
+
+      match /analytics/{docId} {
+        allow read: if isAdmin();
+        allow write: if false;
+      }
+    }
+
+    // ─── Audit Logs — admin read only ───
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+  }
+}
