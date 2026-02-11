@@ -35,7 +35,6 @@ services:
   - type: web
     name: mdavelctf-web
     runtime: static
-    plan: free
     buildCommand: npm install && npm run build
     staticPublishPath: apps/web/dist
     headers:
