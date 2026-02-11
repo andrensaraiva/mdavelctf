@@ -3,9 +3,6 @@
     "rules": "firebase/firestore.rules",
     "indexes": "firebase/firestore.indexes.json"
   },
-  "storage": {
-    "rules": "firebase/storage.rules"
-  },
   "emulators": {
     "auth": {
       "port": 9099,
@@ -13,10 +10,6 @@
     },
     "firestore": {
       "port": 8080,
-      "host": "127.0.0.1"
-    },
-    "storage": {
-      "port": 9199,
       "host": "127.0.0.1"
     },
     "ui": {

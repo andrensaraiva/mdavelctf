@@ -115,8 +115,6 @@ PEPPER_SECRET=mdavel-dev-pepper-secret-2026
 PORT=4000
 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099
 FIRESTORE_EMULATOR_HOST=127.0.0.1:8080
-FIREBASE_STORAGE_EMULATOR_HOST=127.0.0.1:9199
-
 # Bootstrap admin (set for first run, remove after)
 BOOTSTRAP_ADMIN_EMAIL=admin@mdavelctf.local
 BOOTSTRAP_ADMIN_PASSWORD=Admin#12345
@@ -247,14 +245,12 @@ MdavelCTF deploys as **two Render services** from a single monorepo using the in
    | `VITE_FIREBASE_API_KEY` | ✅ | Firebase Web API key |
    | `VITE_FIREBASE_AUTH_DOMAIN` | ✅ | e.g. `myproject.firebaseapp.com` |
    | `VITE_FIREBASE_PROJECT_ID` | ✅ | Firebase project ID |
-   | `VITE_FIREBASE_STORAGE_BUCKET` | ✅ | e.g. `myproject.appspot.com` |
    | `VITE_FIREBASE_MESSAGING_SENDER_ID` | ✅ | Firebase messaging sender ID |
    | `VITE_FIREBASE_APP_ID` | ✅ | Firebase app ID |
 
 5. **Deploy Firestore rules:**
    ```bash
    firebase deploy --only firestore:rules,firestore:indexes --project YOUR_PROJECT_ID
-   firebase deploy --only storage --project YOUR_PROJECT_ID
    ```
 
 6. **First boot:**
@@ -271,8 +267,7 @@ MdavelCTF deploys as **two Render services** from a single monorepo using the in
 
 1. Create a Firebase project and enable Auth (Email/Password) + Firestore
 2. Deploy Firestore rules: `firebase deploy --only firestore:rules,firestore:indexes`
-3. Deploy Storage rules: `firebase deploy --only storage`
-4. Set a strong `PEPPER_SECRET` env var for production
+3. Set a strong `PEPPER_SECRET` env var for production
 5. Build: `npm install && npm run build`
 6. Deploy API to any Node.js host (Cloud Run, Railway, etc.)
 7. Deploy `apps/web/dist/` to any static host (Vercel, Netlify, Firebase Hosting, etc.)
