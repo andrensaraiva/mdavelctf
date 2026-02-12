@@ -25,7 +25,15 @@ app.use(helmet());
 
 // CORS: support configured origins or permissive in dev
 const corsOrigins = process.env.CORS_ORIGINS
-  ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim())
+  ? process.env.CORS_ORIGINS.split(',').map((o) => {
+      let origin = o.trim();
+      // Auto-fix missing protocol — CORS requires full origin with https://
+      if (origin && !origin.startsWith('http://') && !origin.startsWith('https://')) {
+        origin = `https://${origin}`;
+      }
+      // Remove trailing slash
+      return origin.replace(/\/+$/, '');
+    })
   : true; // allow all in dev
 console.log('[CORS] origins:', corsOrigins);
 app.use(cors({ origin: corsOrigins, credentials: true }));
