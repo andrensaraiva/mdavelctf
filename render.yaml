@@ -7,7 +7,7 @@ services:
     name: mdavelctf-api
     runtime: node
     plan: free
-    buildCommand: npm install --include=dev && npm --prefix shared run build && echo '=== shared/dist ===' && ls -la shared/dist/ && echo '=== symlink ===' && ls -la node_modules/@mdavelctf/shared/dist/ 2>&1 || true && npm --prefix apps/api run build && npm --prefix apps/web run build
+    buildCommand: npm install --include=dev && npm --prefix shared run build && npm --prefix apps/api run build && npm --prefix apps/web run build
     startCommand: node apps/api/dist/index.js
     envVars:
       - key: NODE_ENV

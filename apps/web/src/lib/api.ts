@@ -16,39 +16,77 @@ async function getHeaders(): Promise<Record<string, string>> {
   return headers;
 }
 
-export async function apiPost<T = any>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: 'POST',
-    headers: await getHeaders(),
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || 'Request failed');
+/** Safely parse JSON from response; returns null for empty bodies */
+async function safeJson(res: Response): Promise<any> {
+  const text = await res.text();
+  if (!text || text.trim().length === 0) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(`Invalid response from server: ${text.slice(0, 200)}`);
   }
-  return res.json();
+}
+
+export async function apiPost<T = any>(path: string, body: unknown): Promise<T> {
+  const url = `${API_BASE}${path}`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: await getHeaders(),
+      body: JSON.stringify(body),
+    });
+  } catch (err: any) {
+    throw new Error(`Network error: could not reach API at ${url}. Check VITE_API_BASE_URL and CORS_ORIGINS.`);
+  }
+  const data = await safeJson(res);
+  if (!res.ok) {
+    throw new Error(data?.error || `Request failed (${res.status} ${res.statusText})`);
+  }
+  if (data === null) {
+    throw new Error(`Empty response from server (${res.status}). Check API logs and CORS_ORIGINS env var.`);
+  }
+  return data;
 }
 
 export async function apiPut<T = any>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: 'PUT',
-    headers: await getHeaders(),
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || 'Request failed');
+  const url = `${API_BASE}${path}`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'PUT',
+      headers: await getHeaders(),
+      body: JSON.stringify(body),
+    });
+  } catch (err: any) {
+    throw new Error(`Network error: could not reach API at ${url}. Check VITE_API_BASE_URL and CORS_ORIGINS.`);
   }
-  return res.json();
+  const data = await safeJson(res);
+  if (!res.ok) {
+    throw new Error(data?.error || `Request failed (${res.status} ${res.statusText})`);
+  }
+  if (data === null) {
+    throw new Error(`Empty response from server (${res.status}). Check API logs and CORS_ORIGINS env var.`);
+  }
+  return data;
 }
 
 export async function apiGet<T = any>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: await getHeaders(),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || 'Request failed');
+  const url = `${API_BASE}${path}`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      headers: await getHeaders(),
+    });
+  } catch (err: any) {
+    throw new Error(`Network error: could not reach API at ${url}. Check VITE_API_BASE_URL and CORS_ORIGINS.`);
   }
-  return res.json();
+  const data = await safeJson(res);
+  if (!res.ok) {
+    throw new Error(data?.error || `Request failed (${res.status} ${res.statusText})`);
+  }
+  if (data === null) {
+    throw new Error(`Empty response from server (${res.status}). Check API logs and CORS_ORIGINS env var.`);
+  }
+  return data;
 }
