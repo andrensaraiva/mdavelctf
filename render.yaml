@@ -33,7 +33,7 @@ services:
 
   # ─── Web (Static Site) ───
   - type: web
-    name: mdavelctf-web
+    name: mdavelctf
     runtime: static
     buildCommand: npm install --include=dev && npm --prefix shared run build && npm --prefix apps/web run build
     staticPublishPath: apps/web/dist
