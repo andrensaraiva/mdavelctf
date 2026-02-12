@@ -59,6 +59,7 @@ export function Navbar() {
               {navLink('/classes', t('nav.classes'))}
               {userDoc?.teamId && navLink(`/team/${userDoc.teamId}`, t('nav.team'))}
               {navLink('/profile', t('nav.profile'))}
+              {navLink('/guide', '📖 Guia')}
               {(userDoc?.role === 'instructor' || userDoc?.role === 'admin') && navLink('/instructor', t('nav.instructor'))}
               {userDoc?.role === 'admin' && navLink('/admin', t('nav.admin'))}
               {/* Role badge */}
@@ -107,6 +108,7 @@ export function Navbar() {
           {navLink('/classes', t('nav.classes'), closeMenu)}
           {userDoc?.teamId && navLink(`/team/${userDoc.teamId}`, t('nav.team'), closeMenu)}
           {navLink('/profile', t('nav.profile'), closeMenu)}
+          {navLink('/guide', '📖 Guia', closeMenu)}
           {(userDoc?.role === 'instructor' || userDoc?.role === 'admin') && navLink('/instructor', t('nav.instructor'), closeMenu)}
           {userDoc?.role === 'admin' && navLink('/admin', t('nav.admin'), closeMenu)}
           <div className="flex items-center gap-2 py-2">

@@ -464,11 +464,13 @@ function InstructorGuide() {
       title: 'Introdução / Getting Started',
       content: (
         <>
-          <p>Como <Code>instrutor</Code>, você pode gerenciar <strong>turmas</strong> e criar <strong>eventos privativos</strong>.</p>
-          <p>As <Code>instructor</Code>, you manage <strong>classes</strong> and create <strong>private events</strong> linked to them.</p>
+          <p>Como <Code>instrutor</Code>, você pode gerenciar <strong>turmas</strong>, criar <strong>eventos</strong> e <strong>desafios</strong> de CTF.</p>
+          <p>As <Code>instructor</Code>, you manage <strong>classes</strong>, create <strong>events</strong> and <strong>challenges</strong> linked to them.</p>
           <ul className="list-disc list-inside space-y-1">
-            <li>Acesse a aba <strong>📚 Turmas</strong> para ver e gerenciar suas turmas</li>
+            <li>Acesse <strong>📚 Turmas</strong> para ver e gerenciar suas turmas</li>
             <li>Use <strong>🏁 Criar Evento</strong> para criar competições para seus alunos</li>
+            <li>Use <strong>🧩 Challenges</strong> para criar desafios nos seus eventos</li>
+            <li>Consulte <strong>📖 Guia</strong> (esta aba) para instruções detalhadas</li>
           </ul>
         </>
       ),
@@ -508,6 +510,37 @@ function InstructorGuide() {
       ),
     },
     {
+      id: 'challenges',
+      icon: '🧩',
+      title: 'Desafios / Challenges',
+      content: (
+        <>
+          <p>Crie <strong>desafios</strong> diretamente nos seus eventos sem precisar de um admin!</p>
+          <ul className="list-disc list-inside space-y-1">
+            <li>Acesse a aba <strong>🧩 Challenges</strong> neste painel</li>
+            <li>Selecione um <strong>evento que você criou</strong> no dropdown</li>
+            <li>Preencha: <strong>título</strong>, <strong>categoria</strong> (WEB, CRYPTO, FORENSICS, OSINT, PWN, REV, MISC, NETWORK, STEGO), <strong>dificuldade</strong> (1-5), <strong>pontos</strong></li>
+            <li>Escreva a <strong>descrição</strong> em Markdown (suporta código, links, imagens)</li>
+            <li>Defina a <strong>flag</strong> (ex: <Code>CTF&#123;minha_flag&#125;</Code>)</li>
+          </ul>
+          <p className="font-bold text-accent mt-3">🏳️ Modos de Flag:</p>
+          <ul className="list-disc list-inside space-y-1">
+            <li><strong>Standard</strong> — Qualquer participante pode resolver. Pontos fixos. (Padrão)</li>
+            <li><strong>🏆 Unique</strong> — Apenas a 1ª pessoa que resolver ganha os pontos. O desafio é trancado depois.</li>
+            <li><strong>📉 Decay</strong> — Pontos diminuem a cada solve. Mesmo time não resolve 2x. Configure <strong>Min Points</strong> (piso) e <strong>Decay %</strong> (redução por solve).</li>
+          </ul>
+          <p className="text-accent/60 text-xs mt-2">
+            Exemplo Decay: 100pts com 10% decay → 100, 90, 81, 73... até o piso.
+          </p>
+          <p className="font-bold text-accent mt-3">Alterar flag existente:</p>
+          <ul className="list-disc list-inside space-y-1">
+            <li>Clique no botão <strong>🔑 Set Flag</strong> ao lado do desafio na lista</li>
+            <li>Digite a nova flag e confirme (é hasheada com HMAC-SHA256 + PEPPER)</li>
+          </ul>
+        </>
+      ),
+    },
+    {
       id: 'workflow',
       icon: '📋',
       title: 'Fluxo de Trabalho / Workflow',
@@ -518,10 +551,11 @@ function InstructorGuide() {
             <li>Crie uma <strong>turma</strong> e compartilhe o código de convite</li>
             <li>Espere os alunos entrarem na turma</li>
             <li>Crie um <strong>evento privado</strong> vinculado à turma</li>
-            <li>Adicione <strong>desafios</strong> ao evento na aba 🧩 Challenges</li>
-            <li>Acompanhe o progresso pelo <strong>placar</strong></li>
+            <li>Vá para a aba <strong>🧩 Challenges</strong> e crie desafios no evento</li>
+            <li>Defina as <strong>flags</strong> e escolha o <strong>modo</strong> (Standard, Unique, Decay)</li>
+            <li>Acompanhe o progresso pelo <strong>placar</strong> (<Code>/scoreboard</Code>)</li>
           </ol>
-          <p className="text-accent/60 text-xs mt-2">1. Create class → 2. Share code → 3. Create event → 4. Add challenges → 5. Monitor scores</p>
+          <p className="text-accent/60 text-xs mt-2">1. Create class → 2. Share code → 3. Create event → 4. Create challenges → 5. Set flags & modes → 6. Monitor scores</p>
         </>
       ),
     },
@@ -536,7 +570,11 @@ function InstructorGuide() {
             <li>Use <strong>equipes do evento</strong> para trabalhos em grupo</li>
             <li>O <strong>placar</strong> mostra ranking individual e por equipe</li>
             <li>Alunos podem trocar de <strong>idioma</strong> no navbar (PT-BR / EN)</li>
-            <li>Combine com o admin para criar <strong>desafios</strong> avançados ou use a aba 🧩 Challenges para criar os seus</li>
+            <li>Use <strong>🏆 Unique</strong> para competições de velocidade (primeiro a resolver ganha)</li>
+            <li>Use <strong>📉 Decay</strong> para equilibrar pontos quando muitos resolvem</li>
+            <li>Configure <strong>Min Points</strong> alto (ex: 50%) no Decay para evitar pontuações muito baixas</li>
+            <li>Combine categorias (WEB, CRYPTO, FORENSICS...) para treinar habilidades variadas</li>
+            <li>Dificuldade 1-2 para iniciantes, 3-5 para avançados — ajuste os <strong>pontos</strong> proporcionalmente</li>
           </ul>
         </>
       ),

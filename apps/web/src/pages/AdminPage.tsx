@@ -1435,11 +1435,12 @@ function AdminDocs() {
               </div>
               <ul className="list-disc list-inside text-xs space-y-0.5 text-hud-text/60">
                 <li>Acesso total a todas as funcionalidades</li>
-                <li>Criar/editar eventos, ligas, desafios</li>
-                <li>Gerenciar usuários (ativar/desativar)</li>
+                <li>Criar/editar eventos, ligas, desafios (qualquer evento)</li>
+                <li>Gerenciar usuários: alterar roles, desativar, excluir</li>
                 <li>Semear badges e quests</li>
                 <li>Visualizar logs de submissões</li>
                 <li>Criar turmas e eventos (como instrutor)</li>
+                <li>Configurar modos de flag: Standard, Unique, Decay</li>
               </ul>
             </div>
             <div className="p-3 border border-accent2/30 bg-accent2/5">
@@ -1451,6 +1452,8 @@ function AdminDocs() {
                 <li>Criar e gerenciar turmas (classes)</li>
                 <li>Gerar código de convite para alunos</li>
                 <li>Criar eventos públicos ou privados (vinculados a turmas)</li>
+                <li>Criar e gerenciar <strong>desafios</strong> nos seus próprios eventos</li>
+                <li>Configurar flags e modos de flag (Standard, Unique, Decay)</li>
                 <li>Remover membros de suas turmas</li>
                 <li>Acesso ao painel do instrutor (<Code>/instructor</Code>)</li>
               </ul>
@@ -1553,18 +1556,51 @@ function AdminDocs() {
           </p>
           <h4 className="font-bold text-accent mt-3">Categorias disponíveis:</h4>
           <div className="flex gap-2 flex-wrap mt-1">
-            {['WEB', 'CRYPTO', 'FORENSICS', 'OSINT', 'PWN', 'REV'].map((cat) => (
+            {['WEB', 'CRYPTO', 'FORENSICS', 'OSINT', 'PWN', 'REV', 'MISC', 'NETWORK', 'STEGO'].map((cat) => (
               <HudTag key={cat}>{cat}</HudTag>
             ))}
           </div>
+
+          <h4 className="font-bold text-accent mt-3">🏳️ Modos de Flag / Flag Modes:</h4>
+          <div className="space-y-2 mt-2">
+            <div className="p-2 border border-accent/20">
+              <span className="font-bold text-accent text-xs">Standard</span>
+              <span className="text-xs text-hud-text/50 ml-2">Qualquer número de jogadores pode resolver. Pontos fixos. (Padrão)</span>
+            </div>
+            <div className="p-2 border border-warning/20">
+              <span className="font-bold text-warning text-xs">🏆 Unique</span>
+              <span className="text-xs text-hud-text/50 ml-2">Apenas a 1ª pessoa que resolver ganha os pontos. O desafio é "trancado" depois.</span>
+            </div>
+            <div className="p-2 border border-accent2/20">
+              <span className="font-bold text-accent2 text-xs">📉 Decay</span>
+              <span className="text-xs text-hud-text/50 ml-2">Pontos diminuem a cada solve. Mesmo time não pode resolver duas vezes.</span>
+            </div>
+          </div>
+          <Tip>
+            No modo <strong>Decay</strong>, configure:
+            <strong> Min Points</strong> (piso de pontuação) e
+            <strong> Decay %</strong> (porcentagem perdida por solve).
+            Ex: 100pts com 10% decay → 100, 90, 81, 73... até o piso.
+          </Tip>
+
           <h4 className="font-bold text-accent mt-3">Como criar (Admin):</h4>
           <div className="space-y-2">
             <Step n={1}><span>Aba <strong>"Challenges"</strong> neste painel</span></Step>
             <Step n={2}><span>Selecione o <strong>evento</strong> no dropdown</span></Step>
             <Step n={3}><span>Preencha: título, categoria, dificuldade (1-5), pontos, descrição (Markdown)</span></Step>
-            <Step n={4}><span>Defina a <strong>flag</strong> (ex: <Code>CTF&#123;minha_flag&#125;</Code>)</span></Step>
-            <Step n={5}><span>Clique em <strong>"Create Challenge"</strong></span></Step>
+            <Step n={4}><span>Escolha o <strong>Flag Mode</strong> (Standard, Unique ou Decay)</span></Step>
+            <Step n={5}><span>Defina a <strong>flag</strong> (ex: <Code>CTF&#123;minha_flag&#125;</Code>)</span></Step>
+            <Step n={6}><span>Clique em <strong>"Create Challenge"</strong></span></Step>
           </div>
+
+          <h4 className="font-bold text-accent mt-3">Como criar (Instrutor):</h4>
+          <div className="space-y-2">
+            <Step n={1}><span>Acesse <Code>/instructor</Code> → aba <strong>🧩 Challenges</strong></span></Step>
+            <Step n={2}><span>Selecione o evento no dropdown (apenas eventos que você criou)</span></Step>
+            <Step n={3}><span>Preencha os dados: título, categoria, dificuldade, pontos, flag</span></Step>
+            <Step n={4}><span>Escolha o <strong>Flag Mode</strong> e clique <strong>"Create Challenge"</strong></span></Step>
+          </div>
+
           <Tip>
             A flag é hasheada com HMAC-SHA256 + PEPPER. Ninguém (nem admins) pode ver a flag original depois de definida.
             A comparação é case-insensitive por padrão.
@@ -1572,9 +1608,11 @@ function AdminDocs() {
           <h4 className="font-bold text-accent mt-3">Campos do desafio:</h4>
           <ul className="list-disc list-inside text-xs space-y-0.5 text-hud-text/60">
             <li><strong>title:</strong> Nome do desafio</li>
-            <li><strong>category:</strong> WEB, CRYPTO, FORENSICS, OSINT, PWN, REV</li>
+            <li><strong>category:</strong> WEB, CRYPTO, FORENSICS, OSINT, PWN, REV, MISC, NETWORK, STEGO</li>
             <li><strong>difficulty:</strong> 1 (fácil) a 5 (muito difícil)</li>
-            <li><strong>pointsFixed:</strong> Pontos concedidos ao resolver</li>
+            <li><strong>pointsFixed:</strong> Pontos concedidos ao resolver (base para decay)</li>
+            <li><strong>flagMode:</strong> Standard (padrão), Unique (1ª pessoa), Decay (pontos diminuem)</li>
+            <li><strong>decayConfig:</strong> Min Points + Decay % (apenas para mode Decay)</li>
             <li><strong>descriptionMd:</strong> Descrição em Markdown (suporta código, links, imagens)</li>
             <li><strong>tags:</strong> Tags para filtragem (ex: sqli, xss, buffer-overflow)</li>
             <li><strong>attachments:</strong> Arquivos anexos (nome, URL, tamanho)</li>
@@ -1660,8 +1698,10 @@ function AdminDocs() {
 
           <h4 className="font-bold text-accent mt-3">🏅 XP e Níveis</h4>
           <ul className="list-disc list-inside text-xs space-y-0.5 text-hud-text/60">
-            <li>XP é concedido ao resolver desafios</li>
-            <li>Níveis aumentam progressivamente</li>
+            <li>XP é concedido ao resolver desafios: <strong>2x os pontos</strong> do desafio (mínimo 10 XP)</li>
+            <li>Fórmula do nível: <Code>level = 1 + floor(sqrt(xp / 200))</Code></li>
+            <li>Badges também concedem XP bônus (50 a 500 XP dependendo da raridade)</li>
+            <li>Quests completadas dão XP adicional</li>
             <li>Barra de progresso visível em <Code>/home</Code> e <Code>/profile</Code></li>
           </ul>
 
@@ -1715,10 +1755,17 @@ function AdminDocs() {
 
           <h4 className="font-bold text-accent mt-3">3. Adicionando Desafios</h4>
           <div className="space-y-2">
-            <Step n={1}><span>Peça a um admin para criar desafios (ou use sua conta admin)</span></Step>
-            <Step n={2}><span>Na aba <strong>"Challenges"</strong> do admin, selecione o evento</span></Step>
-            <Step n={3}><span>Crie desafios com descrição em Markdown, dificuldade e flags</span></Step>
+            <Step n={1}><span>Acesse <Code>/instructor</Code> → aba <strong>🧩 Challenges</strong></span></Step>
+            <Step n={2}><span>Selecione o evento que você criou no dropdown</span></Step>
+            <Step n={3}><span>Preencha: título, categoria, dificuldade, pontos, descrição (Markdown)</span></Step>
+            <Step n={4}><span>Escolha o <strong>Flag Mode</strong>: Standard, Unique (1ª pessoa) ou Decay (pontos decrescem)</span></Step>
+            <Step n={5}><span>Defina a <strong>flag</strong> (ex: <Code>CTF&#123;minha_flag&#125;</Code>)</span></Step>
+            <Step n={6}><span>Clique <strong>"Create Challenge"</strong></span></Step>
           </div>
+          <Tip>
+            Instrutores agora podem criar desafios diretamente nos seus próprios eventos, sem precisar de um admin.
+            Use o botão <strong>"Set Flag"</strong> para alterar a flag de um desafio já criado.
+          </Tip>
 
           <h4 className="font-bold text-accent mt-3">4. Acompanhamento</h4>
           <ul className="list-disc list-inside text-xs space-y-0.5 text-hud-text/60">
