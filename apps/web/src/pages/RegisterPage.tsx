@@ -50,7 +50,7 @@ export default function RegisterPage() {
           <img
             src="/brand/logo.png"
             alt="MdavelCTF"
-            className="w-20 h-20 object-contain mx-auto mb-4 drop-shadow-[0_0_12px_var(--accent)]"
+            className="w-32 h-32 object-contain mx-auto mb-4 drop-shadow-[0_0_16px_var(--accent)]"
           />
           <h1 className="text-2xl font-bold text-accent glow-text tracking-widest">
             MdavelCTF
