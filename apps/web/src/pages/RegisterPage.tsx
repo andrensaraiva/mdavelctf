@@ -47,6 +47,11 @@ export default function RegisterPage() {
     <div className="min-h-screen grid-bg flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
+          <img
+            src="/brand/logo.png"
+            alt="MdavelCTF"
+            className="w-20 h-20 object-contain mx-auto mb-4 drop-shadow-[0_0_12px_var(--accent)]"
+          />
           <h1 className="text-2xl font-bold text-accent glow-text tracking-widest">
             MdavelCTF
           </h1>

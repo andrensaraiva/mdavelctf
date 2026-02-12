@@ -34,9 +34,11 @@ export default function LoginPage() {
     <div className="min-h-screen grid-bg flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 border-2 border-accent rotate-45 mx-auto mb-4 flex items-center justify-center glow">
-            <span className="text-accent font-bold text-2xl -rotate-45 glow-text">M</span>
-          </div>
+          <img
+            src="/brand/logo.png"
+            alt="MdavelCTF"
+            className="w-20 h-20 object-contain mx-auto mb-4 drop-shadow-[0_0_12px_var(--accent)]"
+          />
           <h1 className="text-2xl font-bold text-accent glow-text tracking-widest">
             MdavelCTF
           </h1>
