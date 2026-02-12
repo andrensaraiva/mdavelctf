@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { verifyFirebaseToken, AuthRequest } from '../middleware/auth';
 import { getDb } from '../firebase';
 import { v4 as uuid } from 'uuid';
+import { asyncHandler } from '../utils/asyncHandler';
 
 export const eventTeamsRouter = Router();
 
@@ -25,7 +26,7 @@ async function checkEventAccess(db: FirebaseFirestore.Firestore, uid: string, ev
 }
 
 /* ─── Create Event Team ─── */
-eventTeamsRouter.post('/create', async (req: AuthRequest, res: Response) => {
+eventTeamsRouter.post('/create', asyncHandler(async (req: AuthRequest, res: Response) => {
   const uid = req.uid!;
   const { eventId, name, tagline, description } = req.body;
   if (!eventId || !name || typeof name !== 'string' || name.length < 2 || name.length > 30) {
@@ -79,10 +80,10 @@ eventTeamsRouter.post('/create', async (req: AuthRequest, res: Response) => {
 
   await batch.commit();
   return res.json({ teamId, joinCode, eventId });
-});
+}));
 
 /* ─── Join Event Team ─── */
-eventTeamsRouter.post('/join', async (req: AuthRequest, res: Response) => {
+eventTeamsRouter.post('/join', asyncHandler(async (req: AuthRequest, res: Response) => {
   const uid = req.uid!;
   const { eventId, joinCode } = req.body;
   if (!eventId || !joinCode) return res.status(400).json({ error: 'eventId and joinCode required' });
@@ -131,10 +132,10 @@ eventTeamsRouter.post('/join', async (req: AuthRequest, res: Response) => {
 
   await batch.commit();
   return res.json({ teamId, teamName: teamData.name, eventId });
-});
+}));
 
 /* ─── Leave Event Team ─── */
-eventTeamsRouter.post('/leave', async (req: AuthRequest, res: Response) => {
+eventTeamsRouter.post('/leave', asyncHandler(async (req: AuthRequest, res: Response) => {
   const uid = req.uid!;
   const { eventId } = req.body;
   if (!eventId) return res.status(400).json({ error: 'eventId required' });
@@ -178,10 +179,10 @@ eventTeamsRouter.post('/leave', async (req: AuthRequest, res: Response) => {
 
   await batch.commit();
   return res.json({ success: true });
-});
+}));
 
 /* ─── Get My Event Team ─── */
-eventTeamsRouter.get('/me', async (req: AuthRequest, res: Response) => {
+eventTeamsRouter.get('/me', asyncHandler(async (req: AuthRequest, res: Response) => {
   const uid = req.uid!;
   const eventId = req.query.eventId as string;
   if (!eventId) return res.status(400).json({ error: 'eventId query param required' });
@@ -220,4 +221,4 @@ eventTeamsRouter.get('/me', async (req: AuthRequest, res: Response) => {
   }
 
   return res.json({ team: null });
-});
+}));

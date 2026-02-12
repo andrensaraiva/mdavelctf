@@ -6,6 +6,7 @@ import { getEventStatus } from '../utils/event';
 import { EventDoc, SubmitFlagResponse, xpToLevel } from '@mdavelctf/shared';
 import { FieldValue } from 'firebase-admin/firestore';
 import { checkAndAwardBadges, updateQuestProgress } from './gamification';
+import { asyncHandler } from '../utils/asyncHandler';
 
 export const submitRouter = Router();
 
@@ -17,7 +18,7 @@ const RATE_LIMIT_MAX = 10;
 submitRouter.post(
   '/submit-flag',
   verifyFirebaseToken,
-  async (req: AuthRequest, res: Response) => {
+  asyncHandler(async (req: AuthRequest, res: Response) => {
     const uid = req.uid!;
     const userDoc = req.userDoc!;
     const { eventId, challengeId, flagText } = req.body;
@@ -285,7 +286,7 @@ submitRouter.post(
       console.error('[submit-flag]', err);
       return res.status(500).json({ error: 'Internal server error' });
     }
-  },
+  }),
 );
 
 async function updateLeaderboards(

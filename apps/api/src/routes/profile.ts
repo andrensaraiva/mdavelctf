@@ -1,13 +1,14 @@
 import { Router, Response } from 'express';
 import { verifyFirebaseToken, AuthRequest } from '../middleware/auth';
 import { getDb } from '../firebase';
+import { asyncHandler } from '../utils/asyncHandler';
 
 export const profileRouter = Router();
 
 profileRouter.use(verifyFirebaseToken);
 
 /* ─── Update Profile ─── */
-profileRouter.post('/update', async (req: AuthRequest, res: Response) => {
+profileRouter.post('/update', asyncHandler(async (req: AuthRequest, res: Response) => {
   const uid = req.uid!;
   const db = getDb();
 
@@ -27,10 +28,10 @@ profileRouter.post('/update', async (req: AuthRequest, res: Response) => {
 
   await db.collection('users').doc(uid).update(updates);
   return res.json({ success: true, updated: updates });
-});
+}));
 
 /* ─── Update Avatar (base64 data URI saved to Firestore) ─── */
-profileRouter.post('/avatar', async (req: AuthRequest, res: Response) => {
+profileRouter.post('/avatar', asyncHandler(async (req: AuthRequest, res: Response) => {
   const uid = req.uid!;
   const { avatarUrl } = req.body;
 
@@ -51,20 +52,20 @@ profileRouter.post('/avatar', async (req: AuthRequest, res: Response) => {
   const db = getDb();
   await db.collection('users').doc(uid).update({ avatarUrl });
   return res.json({ success: true });
-});
+}));
 
 /* ─── Get My Full Profile ─── */
-profileRouter.get('/me', async (req: AuthRequest, res: Response) => {
+profileRouter.get('/me', asyncHandler(async (req: AuthRequest, res: Response) => {
   const uid = req.uid!;
   const db = getDb();
   const snap = await db.collection('users').doc(uid).get();
   if (!snap.exists) return res.status(404).json({ error: 'User not found' });
 
   return res.json({ profile: { uid, ...snap.data() } });
-});
+}));
 
 /* ─── Get Public Profile (any user) ─── */
-profileRouter.get('/:uid', async (req: AuthRequest, res: Response) => {
+profileRouter.get('/:uid', asyncHandler(async (req: AuthRequest, res: Response) => {
   const targetUid = req.params.uid;
   const db = getDb();
   const snap = await db.collection('users').doc(targetUid).get();
@@ -89,4 +90,4 @@ profileRouter.get('/:uid', async (req: AuthRequest, res: Response) => {
       createdAt: data.createdAt,
     },
   });
-});
+}));

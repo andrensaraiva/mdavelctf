@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { getAuth, getDb } from '../firebase';
+import { asyncHandler } from '../utils/asyncHandler';
 
 export interface AuthRequest extends Request {
   uid?: string;
@@ -75,7 +76,7 @@ export function requireInstructorOrAdmin(
  * req.params.eventId or req.body.eventId. Must be used AFTER verifyFirebaseToken.
  */
 export function requireEventOwnerOrAdmin(paramKey = 'eventId') {
-  return async (req: AuthRequest, res: Response, next: NextFunction) => {
+  return asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
     if (req.userRole === 'admin') return next();
 
     const eventId = req.params[paramKey] || req.body[paramKey] || req.query[paramKey] as string;
@@ -97,5 +98,5 @@ export function requireEventOwnerOrAdmin(paramKey = 'eventId') {
     }
 
     return res.status(403).json({ error: 'You do not have access to this event' });
-  };
+  });
 }

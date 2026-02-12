@@ -5,6 +5,7 @@ import { hashFlag, normalizeFlag } from '../utils/crypto';
 import { writeAuditLog } from '../utils/audit';
 import { DEFAULT_BADGES } from '@mdavelctf/shared';
 import { clearSeedData, runSeed } from '../utils/seedData';
+import { asyncHandler } from '../utils/asyncHandler';
 
 export const adminRouter = Router();
 
@@ -13,14 +14,14 @@ adminRouter.use(verifyFirebaseToken);
 adminRouter.use(requireAdmin);
 
 /* ─── Admin Config (public config for the admin UI) ─── */
-adminRouter.get('/config', async (_req: AuthRequest, res: Response) => {
+adminRouter.get('/config', asyncHandler(async (_req: AuthRequest, res: Response) => {
   return res.json({
     allowSeedUI: process.env.ALLOW_SEED === 'true',
   });
-});
+}));
 
 /* ─── Events ─── */
-adminRouter.post('/event', async (req: AuthRequest, res: Response) => {
+adminRouter.post('/event', asyncHandler(async (req: AuthRequest, res: Response) => {
   const { name, startsAt, endsAt, timezone, published, leagueId, visibility, classId, ownerId, teamMode, requireClassMembership } = req.body;
   if (!name || !startsAt || !endsAt) {
     return res.status(400).json({ error: 'name, startsAt, endsAt required' });
@@ -44,9 +45,9 @@ adminRouter.post('/event', async (req: AuthRequest, res: Response) => {
   await ref.set(data);
   await writeAuditLog(req.uid!, 'CREATE_EVENT', `events/${ref.id}`, null, data);
   return res.json({ id: ref.id, ...data });
-});
+}));
 
-adminRouter.put('/event/:eventId', async (req: AuthRequest, res: Response) => {
+adminRouter.put('/event/:eventId', asyncHandler(async (req: AuthRequest, res: Response) => {
   const { eventId } = req.params;
   const db = getDb();
   const ref = db.collection('events').doc(eventId);
@@ -62,10 +63,10 @@ adminRouter.put('/event/:eventId', async (req: AuthRequest, res: Response) => {
   await ref.update(updates);
   await writeAuditLog(req.uid!, 'UPDATE_EVENT', `events/${eventId}`, before, updates);
   return res.json({ id: eventId, ...updates });
-});
+}));
 
 /* ─── Leagues ─── */
-adminRouter.post('/league', async (req: AuthRequest, res: Response) => {
+adminRouter.post('/league', asyncHandler(async (req: AuthRequest, res: Response) => {
   const { name, startsAt, endsAt, published, eventIds } = req.body;
   if (!name) return res.status(400).json({ error: 'name required' });
   const db = getDb();
@@ -81,9 +82,9 @@ adminRouter.post('/league', async (req: AuthRequest, res: Response) => {
   await ref.set(data);
   await writeAuditLog(req.uid!, 'CREATE_LEAGUE', `leagues/${ref.id}`, null, data);
   return res.json({ id: ref.id, ...data });
-});
+}));
 
-adminRouter.put('/league/:leagueId', async (req: AuthRequest, res: Response) => {
+adminRouter.put('/league/:leagueId', asyncHandler(async (req: AuthRequest, res: Response) => {
   const { leagueId } = req.params;
   const db = getDb();
   const ref = db.collection('leagues').doc(leagueId);
@@ -99,10 +100,10 @@ adminRouter.put('/league/:leagueId', async (req: AuthRequest, res: Response) => 
   await ref.update(updates);
   await writeAuditLog(req.uid!, 'UPDATE_LEAGUE', `leagues/${leagueId}`, before, updates);
   return res.json({ id: leagueId, ...updates });
-});
+}));
 
 /* ─── Challenges ─── */
-adminRouter.post('/challenge', async (req: AuthRequest, res: Response) => {
+adminRouter.post('/challenge', asyncHandler(async (req: AuthRequest, res: Response) => {
   const {
     eventId, title, category, difficulty, pointsFixed,
     tags, descriptionMd, published, attachments,
@@ -127,9 +128,9 @@ adminRouter.post('/challenge', async (req: AuthRequest, res: Response) => {
   await ref.set(data);
   await writeAuditLog(req.uid!, 'CREATE_CHALLENGE', `events/${eventId}/challenges/${ref.id}`, null, data);
   return res.json({ id: ref.id, eventId, ...data });
-});
+}));
 
-adminRouter.put('/challenge/:challengeId', async (req: AuthRequest, res: Response) => {
+adminRouter.put('/challenge/:challengeId', asyncHandler(async (req: AuthRequest, res: Response) => {
   const { challengeId } = req.params;
   const { eventId } = req.body;
   if (!eventId) return res.status(400).json({ error: 'eventId required' });
@@ -151,10 +152,10 @@ adminRouter.put('/challenge/:challengeId', async (req: AuthRequest, res: Respons
   await ref.update(updates);
   await writeAuditLog(req.uid!, 'UPDATE_CHALLENGE', `events/${eventId}/challenges/${challengeId}`, before, updates);
   return res.json({ id: challengeId, ...updates });
-});
+}));
 
 /* ─── Set Flag ─── */
-adminRouter.post('/challenge/:challengeId/set-flag', async (req: AuthRequest, res: Response) => {
+adminRouter.post('/challenge/:challengeId/set-flag', asyncHandler(async (req: AuthRequest, res: Response) => {
   const { challengeId } = req.params;
   const { eventId, flagText, caseSensitive } = req.body;
   if (!eventId || !flagText) {
@@ -182,10 +183,10 @@ adminRouter.post('/challenge/:challengeId/set-flag', async (req: AuthRequest, re
   );
 
   return res.json({ success: true });
-});
+}));
 
 /* ─── Submission Logs (cursor-based) ─── */
-adminRouter.get('/logs/submissions', async (req: AuthRequest, res: Response) => {
+adminRouter.get('/logs/submissions', asyncHandler(async (req: AuthRequest, res: Response) => {
   const { eventId, challengeId, uid, correctOnly, cursor, limit: limitStr } = req.query;
   if (!eventId) return res.status(400).json({ error: 'eventId required' });
 
@@ -235,10 +236,10 @@ adminRouter.get('/logs/submissions', async (req: AuthRequest, res: Response) => 
 
   const nextCursor = snap.docs.length === pageLimit ? snap.docs[snap.docs.length - 1].data().submittedAt : null;
   return res.json({ submissions: enriched, nextCursor });
-});
+}));
 
 /* ─── Solve Logs (cursor-based) ─── */
-adminRouter.get('/logs/solves', async (req: AuthRequest, res: Response) => {
+adminRouter.get('/logs/solves', asyncHandler(async (req: AuthRequest, res: Response) => {
   const { eventId, cursor, limit: limitStr } = req.query;
   if (!eventId) return res.status(400).json({ error: 'eventId required' });
 
@@ -283,29 +284,29 @@ adminRouter.get('/logs/solves', async (req: AuthRequest, res: Response) => {
 
   const nextCursor = snap.docs.length === pageLimit ? snap.docs[snap.docs.length - 1].data().solvedAt : null;
   return res.json({ solves: enriched, nextCursor });
-});
+}));
 
 /* ─── Disable / Enable User ─── */
-adminRouter.post('/user/:uid/disable', async (req: AuthRequest, res: Response) => {
+adminRouter.post('/user/:uid/disable', asyncHandler(async (req: AuthRequest, res: Response) => {
   const targetUid = req.params.uid;
   const db = getDb();
   const before = (await db.collection('users').doc(targetUid).get()).data();
   await db.collection('users').doc(targetUid).update({ disabled: true });
   await writeAuditLog(req.uid!, 'DISABLE_USER', `users/${targetUid}`, before, { disabled: true });
   return res.json({ success: true });
-});
+}));
 
-adminRouter.post('/user/:uid/enable', async (req: AuthRequest, res: Response) => {
+adminRouter.post('/user/:uid/enable', asyncHandler(async (req: AuthRequest, res: Response) => {
   const targetUid = req.params.uid;
   const db = getDb();
   const before = (await db.collection('users').doc(targetUid).get()).data();
   await db.collection('users').doc(targetUid).update({ disabled: false });
   await writeAuditLog(req.uid!, 'ENABLE_USER', `users/${targetUid}`, before, { disabled: false });
   return res.json({ success: true });
-});
+}));
 
 /* ─── Seed Default Badges ─── */
-adminRouter.post('/badges/seed-default', async (req: AuthRequest, res: Response) => {
+adminRouter.post('/badges/seed-default', asyncHandler(async (req: AuthRequest, res: Response) => {
   const db = getDb();
   const batch = db.batch();
   let count = 0;
@@ -318,10 +319,10 @@ adminRouter.post('/badges/seed-default', async (req: AuthRequest, res: Response)
   await batch.commit();
   await writeAuditLog(req.uid!, 'SEED_BADGES', 'badges/*', null, { count });
   return res.json({ success: true, count });
-});
+}));
 
 /* ─── Seed Default Quests ─── */
-adminRouter.post('/quests/seed-default', async (req: AuthRequest, res: Response) => {
+adminRouter.post('/quests/seed-default', asyncHandler(async (req: AuthRequest, res: Response) => {
   const db = getDb();
   const now = new Date();
   const weekEnd = new Date(now.getTime() + 7 * 86400000);
@@ -361,10 +362,10 @@ adminRouter.post('/quests/seed-default', async (req: AuthRequest, res: Response)
   await batch.commit();
   await writeAuditLog(req.uid!, 'SEED_QUESTS', 'quests/*', null, { count: defaultQuests.length });
   return res.json({ success: true, count: defaultQuests.length });
-});
+}));
 
 /* ─── Dashboard Summary ─── */
-adminRouter.get('/dashboard/summary', async (req: AuthRequest, res: Response) => {
+adminRouter.get('/dashboard/summary', asyncHandler(async (req: AuthRequest, res: Response) => {
   const db = getDb();
 
   const usersSnap = await db.collection('users').get();
@@ -497,10 +498,10 @@ adminRouter.get('/dashboard/summary', async (req: AuthRequest, res: Response) =>
     liveEventName,
     liveEventEndsAt,
   });
-});
+}));
 
 /* ─── Clear Seed Data (keep admin only) ─── */
-adminRouter.post('/seed/clear', async (req: AuthRequest, res: Response) => {
+adminRouter.post('/seed/clear', asyncHandler(async (req: AuthRequest, res: Response) => {
   // Require ALLOW_SEED=true or valid SEED_TOKEN
   if (!isSeedAllowed(req)) {
     return res.status(403).json({ error: 'Seed operations not allowed. Set ALLOW_SEED=true or provide valid SEED_TOKEN header.' });
@@ -513,10 +514,10 @@ adminRouter.post('/seed/clear', async (req: AuthRequest, res: Response) => {
     console.error('[CLEAR_SEED]', err);
     return res.status(500).json({ error: err.message || 'Failed to clear seed data' });
   }
-});
+}));
 
 /* ─── Re-Seed Demo Data ─── */
-adminRouter.post('/seed/run', async (req: AuthRequest, res: Response) => {
+adminRouter.post('/seed/run', asyncHandler(async (req: AuthRequest, res: Response) => {
   // Require ALLOW_SEED=true or valid SEED_TOKEN
   if (!isSeedAllowed(req)) {
     return res.status(403).json({ error: 'Seed operations not allowed. Set ALLOW_SEED=true or provide valid SEED_TOKEN header.' });
@@ -530,7 +531,7 @@ adminRouter.post('/seed/run', async (req: AuthRequest, res: Response) => {
     console.error('[RUN_SEED]', err);
     return res.status(500).json({ error: err.message || 'Failed to run seed' });
   }
-});
+}));
 
 /** Check if seed operations are allowed via env vars or token */
 function isSeedAllowed(req: AuthRequest): boolean {

@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { verifyFirebaseToken, AuthRequest } from '../middleware/auth';
 import { getDb } from '../firebase';
 import { xpToLevel, DEFAULT_BADGES } from '@mdavelctf/shared';
+import { asyncHandler } from '../utils/asyncHandler';
 
 export const gamificationRouter = Router();
 
@@ -191,7 +192,7 @@ export async function updateQuestProgress(
 }
 
 /* ─── GET /gamification/badges — Get badge catalog ─── */
-gamificationRouter.get('/badges', async (req: AuthRequest, res: Response) => {
+gamificationRouter.get('/badges', asyncHandler(async (req: AuthRequest, res: Response) => {
   const db = getDb();
   const snap = await db.collection('badges').get();
 
@@ -202,10 +203,10 @@ gamificationRouter.get('/badges', async (req: AuthRequest, res: Response) => {
 
   const badges = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   return res.json({ badges });
-});
+}));
 
 /* ─── GET /gamification/quests — Get active quests with user progress ─── */
-gamificationRouter.get('/quests', async (req: AuthRequest, res: Response) => {
+gamificationRouter.get('/quests', asyncHandler(async (req: AuthRequest, res: Response) => {
   const uid = req.uid!;
   const db = getDb();
   const now = new Date().toISOString();
@@ -231,10 +232,10 @@ gamificationRouter.get('/quests', async (req: AuthRequest, res: Response) => {
   }
 
   return res.json({ quests });
-});
+}));
 
 /* ─── POST /gamification/recompute-my-stats — Recompute user stats from solves ─── */
-gamificationRouter.post('/recompute-my-stats', async (req: AuthRequest, res: Response) => {
+gamificationRouter.post('/recompute-my-stats', asyncHandler(async (req: AuthRequest, res: Response) => {
   const uid = req.uid!;
   const db = getDb();
 
@@ -287,4 +288,4 @@ gamificationRouter.post('/recompute-my-stats', async (req: AuthRequest, res: Res
   const newBadges = await checkAndAwardBadges(db, uid);
 
   return res.json({ stats, newBadges });
-});
+}));

@@ -2,11 +2,12 @@ import { Router, Response } from 'express';
 import { verifyFirebaseToken, AuthRequest } from '../middleware/auth';
 import { getDb } from '../firebase';
 import { v4 as uuid } from 'uuid';
+import { asyncHandler } from '../utils/asyncHandler';
 
 export const teamRouter = Router();
 
 // Create team
-teamRouter.post('/create', verifyFirebaseToken, async (req: AuthRequest, res: Response) => {
+teamRouter.post('/create', verifyFirebaseToken, asyncHandler(async (req: AuthRequest, res: Response) => {
   const uid = req.uid!;
   const { name } = req.body;
   if (!name || typeof name !== 'string' || name.length < 2 || name.length > 30) {
@@ -41,10 +42,10 @@ teamRouter.post('/create', verifyFirebaseToken, async (req: AuthRequest, res: Re
   await batch.commit();
 
   return res.json({ teamId, joinCode });
-});
+}));
 
 // Join team
-teamRouter.post('/join', verifyFirebaseToken, async (req: AuthRequest, res: Response) => {
+teamRouter.post('/join', verifyFirebaseToken, asyncHandler(async (req: AuthRequest, res: Response) => {
   const uid = req.uid!;
   const { joinCode } = req.body;
   if (!joinCode) return res.status(400).json({ error: 'joinCode required' });
@@ -78,10 +79,10 @@ teamRouter.post('/join', verifyFirebaseToken, async (req: AuthRequest, res: Resp
   await batch.commit();
 
   return res.json({ teamId, teamName: teamData.name });
-});
+}));
 
 // Leave team
-teamRouter.post('/leave', verifyFirebaseToken, async (req: AuthRequest, res: Response) => {
+teamRouter.post('/leave', verifyFirebaseToken, asyncHandler(async (req: AuthRequest, res: Response) => {
   const uid = req.uid!;
   const db = getDb();
   const userDoc = req.userDoc!;
@@ -112,10 +113,10 @@ teamRouter.post('/leave', verifyFirebaseToken, async (req: AuthRequest, res: Res
 
   await batch.commit();
   return res.json({ success: true });
-});
+}));
 
 // Rotate join code (captain only)
-teamRouter.post('/rotate-code', verifyFirebaseToken, async (req: AuthRequest, res: Response) => {
+teamRouter.post('/rotate-code', verifyFirebaseToken, asyncHandler(async (req: AuthRequest, res: Response) => {
   const uid = req.uid!;
   const db = getDb();
   const userDoc = req.userDoc!;
@@ -132,10 +133,10 @@ teamRouter.post('/rotate-code', verifyFirebaseToken, async (req: AuthRequest, re
   await db.collection('teams').doc(teamId).update({ joinCode: newCode });
 
   return res.json({ joinCode: newCode });
-});
+}));
 
 // Update team (captain only)
-teamRouter.post('/update', verifyFirebaseToken, async (req: AuthRequest, res: Response) => {
+teamRouter.post('/update', verifyFirebaseToken, asyncHandler(async (req: AuthRequest, res: Response) => {
   const uid = req.uid!;
   const db = getDb();
   const userDoc = req.userDoc!;
@@ -167,10 +168,10 @@ teamRouter.post('/update', verifyFirebaseToken, async (req: AuthRequest, res: Re
 
   await db.collection('teams').doc(teamId).update(updates);
   return res.json({ success: true, updated: updates });
-});
+}));
 
 // Send team chat message
-teamRouter.post('/chat/send', verifyFirebaseToken, async (req: AuthRequest, res: Response) => {
+teamRouter.post('/chat/send', verifyFirebaseToken, asyncHandler(async (req: AuthRequest, res: Response) => {
   const uid = req.uid!;
   const db = getDb();
   const userDoc = req.userDoc!;
@@ -192,10 +193,10 @@ teamRouter.post('/chat/send', verifyFirebaseToken, async (req: AuthRequest, res:
   });
 
   return res.json({ success: true, messageId: msgRef.id });
-});
+}));
 
 // Get team chat (cursor-based)
-teamRouter.get('/chat', verifyFirebaseToken, async (req: AuthRequest, res: Response) => {
+teamRouter.get('/chat', verifyFirebaseToken, asyncHandler(async (req: AuthRequest, res: Response) => {
   const uid = req.uid!;
   const db = getDb();
   const userDoc = req.userDoc!;
@@ -220,10 +221,10 @@ teamRouter.get('/chat', verifyFirebaseToken, async (req: AuthRequest, res: Respo
   const messages = snap.docs.map((d) => ({ id: d.id, ...d.data() })).reverse();
   const nextCursor = snap.docs.length === limit ? snap.docs[snap.docs.length - 1].data().createdAt : null;
   return res.json({ messages, nextCursor });
-});
+}));
 
 // Get my team
-teamRouter.get('/me', verifyFirebaseToken, async (req: AuthRequest, res: Response) => {
+teamRouter.get('/me', verifyFirebaseToken, asyncHandler(async (req: AuthRequest, res: Response) => {
   const uid = req.uid!;
   const db = getDb();
   const userDoc = req.userDoc!;
@@ -257,10 +258,10 @@ teamRouter.get('/me', verifyFirebaseToken, async (req: AuthRequest, res: Respons
   return res.json({
     team: { id: teamId, ...teamSnap.data(), members },
   });
-});
+}));
 
 // Get team recent activity (solves by members)
-teamRouter.get('/activity', verifyFirebaseToken, async (req: AuthRequest, res: Response) => {
+teamRouter.get('/activity', verifyFirebaseToken, asyncHandler(async (req: AuthRequest, res: Response) => {
   const db = getDb();
   const userDoc = req.userDoc!;
   if (!userDoc.teamId) return res.status(400).json({ error: 'Not in a team' });
@@ -322,4 +323,4 @@ teamRouter.get('/activity', verifyFirebaseToken, async (req: AuthRequest, res: R
   // Sort by solvedAt desc and take limit
   allSolves.sort((a, b) => b.solvedAt.localeCompare(a.solvedAt));
   return res.json({ activity: allSolves.slice(0, limit) });
-});
+}));

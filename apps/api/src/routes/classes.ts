@@ -3,13 +3,14 @@ import { verifyFirebaseToken, requireInstructorOrAdmin, AuthRequest } from '../m
 import { getDb } from '../firebase';
 import { v4 as uuid } from 'uuid';
 import { FieldValue } from 'firebase-admin/firestore';
+import { asyncHandler } from '../utils/asyncHandler';
 
 export const classesRouter = Router();
 
 classesRouter.use(verifyFirebaseToken);
 
 /* ─── Create Class (instructor/admin) ─── */
-classesRouter.post('/create', requireInstructorOrAdmin, async (req: AuthRequest, res: Response) => {
+classesRouter.post('/create', requireInstructorOrAdmin, asyncHandler(async (req: AuthRequest, res: Response) => {
   const uid = req.uid!;
   const { name, description } = req.body;
   if (!name || typeof name !== 'string' || name.length < 2 || name.length > 60) {
@@ -51,10 +52,10 @@ classesRouter.post('/create', requireInstructorOrAdmin, async (req: AuthRequest,
 
   await batch.commit();
   return res.json({ classId, ...classData });
-});
+}));
 
 /* ─── Join Class (any authenticated user) ─── */
-classesRouter.post('/join', async (req: AuthRequest, res: Response) => {
+classesRouter.post('/join', asyncHandler(async (req: AuthRequest, res: Response) => {
   const uid = req.uid!;
   const { inviteCode } = req.body;
   if (!inviteCode || typeof inviteCode !== 'string') {
@@ -92,10 +93,10 @@ classesRouter.post('/join', async (req: AuthRequest, res: Response) => {
 
   await batch.commit();
   return res.json({ classId, className: classDoc.data().name });
-});
+}));
 
 /* ─── Remove Member (instructor/admin of class) ─── */
-classesRouter.post('/:classId/remove-member', requireInstructorOrAdmin, async (req: AuthRequest, res: Response) => {
+classesRouter.post('/:classId/remove-member', requireInstructorOrAdmin, asyncHandler(async (req: AuthRequest, res: Response) => {
   const { classId } = req.params;
   const { uid: targetUid } = req.body;
   if (!targetUid) return res.status(400).json({ error: 'uid required' });
@@ -118,10 +119,10 @@ classesRouter.post('/:classId/remove-member', requireInstructorOrAdmin, async (r
 
   await batch.commit();
   return res.json({ success: true });
-});
+}));
 
 /* ─── My Classes (all roles) ─── */
-classesRouter.get('/my', async (req: AuthRequest, res: Response) => {
+classesRouter.get('/my', asyncHandler(async (req: AuthRequest, res: Response) => {
   const uid = req.uid!;
   const db = getDb();
 
@@ -145,10 +146,10 @@ classesRouter.get('/my', async (req: AuthRequest, res: Response) => {
   }
 
   return res.json({ classes });
-});
+}));
 
 /* ─── Get Class Details ─── */
-classesRouter.get('/:classId', async (req: AuthRequest, res: Response) => {
+classesRouter.get('/:classId', asyncHandler(async (req: AuthRequest, res: Response) => {
   const { classId } = req.params;
   const uid = req.uid!;
   const db = getDb();
@@ -195,10 +196,10 @@ classesRouter.get('/:classId', async (req: AuthRequest, res: Response) => {
     events,
     isOwner,
   });
-});
+}));
 
 /* ─── Rotate Invite Code (owner/admin) ─── */
-classesRouter.post('/:classId/rotate-code', requireInstructorOrAdmin, async (req: AuthRequest, res: Response) => {
+classesRouter.post('/:classId/rotate-code', requireInstructorOrAdmin, asyncHandler(async (req: AuthRequest, res: Response) => {
   const { classId } = req.params;
   const db = getDb();
 
@@ -213,4 +214,4 @@ classesRouter.post('/:classId/rotate-code', requireInstructorOrAdmin, async (req
   await db.collection('classes').doc(classId).update({ inviteCode: newCode });
 
   return res.json({ inviteCode: newCode });
-});
+}));
