@@ -185,31 +185,46 @@ adminRouter.post('/challenge/:challengeId/set-flag', asyncHandler(async (req: Au
   return res.json({ success: true });
 }));
 
-/* ─── Submission Logs (cursor-based) ─── */
+/* ─── Submission Logs (cursor-based, cross-event if no eventId) ─── */
 adminRouter.get('/logs/submissions', asyncHandler(async (req: AuthRequest, res: Response) => {
   const { eventId, challengeId, uid, correctOnly, cursor, limit: limitStr } = req.query;
-  if (!eventId) return res.status(400).json({ error: 'eventId required' });
 
   const db = getDb();
   const pageLimit = Math.min(Number(limitStr) || 50, 100);
 
-  let query: FirebaseFirestore.Query = db
-    .collection('events')
-    .doc(eventId as string)
-    .collection('submissions')
-    .orderBy('submittedAt', 'desc');
+  // If eventId provided, query single event; otherwise aggregate across all events
+  const eventIds: string[] = [];
+  if (eventId) {
+    eventIds.push(eventId as string);
+  } else {
+    const eventsSnap = await db.collection('events').get();
+    eventsSnap.docs.forEach((d) => eventIds.push(d.id));
+  }
 
-  if (challengeId) query = query.where('challengeId', '==', challengeId);
-  if (uid) query = query.where('uid', '==', uid);
-  if (correctOnly === 'true') query = query.where('isCorrect', '==', true);
-  if (cursor) query = query.startAfter(cursor as string);
+  let allResults: any[] = [];
+  for (const eid of eventIds) {
+    let query: FirebaseFirestore.Query = db
+      .collection('events')
+      .doc(eid)
+      .collection('submissions')
+      .orderBy('submittedAt', 'desc');
 
-  query = query.limit(pageLimit);
-  const snap = await query.get();
-  const results = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    if (challengeId) query = query.where('challengeId', '==', challengeId);
+    if (uid) query = query.where('uid', '==', uid);
+    if (correctOnly === 'true') query = query.where('isCorrect', '==', true);
+    if (cursor) query = query.startAfter(cursor as string);
+
+    query = query.limit(pageLimit);
+    const snap = await query.get();
+    allResults.push(...snap.docs.map((d) => ({ id: d.id, eventId: eid, ...d.data() })));
+  }
+
+  // Sort by submittedAt desc and take pageLimit
+  allResults.sort((a, b) => (b.submittedAt || '').localeCompare(a.submittedAt || ''));
+  allResults = allResults.slice(0, pageLimit);
 
   // Resolve display names
-  const uidSet = new Set(results.map((r: any) => r.uid));
+  const uidSet = new Set(allResults.map((r: any) => r.uid));
   const nameMap: Record<string, string> = {};
   for (const u of uidSet) {
     try {
@@ -219,47 +234,63 @@ adminRouter.get('/logs/submissions', asyncHandler(async (req: AuthRequest, res: 
   }
 
   // Resolve challenge titles
-  const cidSet = new Set(results.map((r: any) => r.challengeId));
+  const cidEventSet = new Set(allResults.map((r: any) => `${r.eventId}|${r.challengeId}`));
   const chalMap: Record<string, string> = {};
-  for (const c of cidSet) {
+  for (const key of cidEventSet) {
+    const [eId, cId] = key.split('|');
     try {
-      const cSnap = await db.collection('events').doc(eventId as string).collection('challenges').doc(c).get();
-      chalMap[c] = cSnap.data()?.title || c.slice(0, 8);
-    } catch { chalMap[c] = c.slice(0, 8); }
+      const cSnap = await db.collection('events').doc(eId).collection('challenges').doc(cId).get();
+      chalMap[cId] = cSnap.data()?.title || cId.slice(0, 8);
+    } catch { chalMap[cId] = cId.slice(0, 8); }
   }
 
-  const enriched = results.map((r: any) => ({
+  const enriched = allResults.map((r: any) => ({
     ...r,
     displayName: nameMap[r.uid] || r.uid?.slice(0, 8),
     challengeTitle: chalMap[r.challengeId] || r.challengeId?.slice(0, 8),
   }));
 
-  const nextCursor = snap.docs.length === pageLimit ? snap.docs[snap.docs.length - 1].data().submittedAt : null;
+  const nextCursor = enriched.length === pageLimit && enriched.length > 0
+    ? enriched[enriched.length - 1].submittedAt
+    : null;
   return res.json({ submissions: enriched, nextCursor });
 }));
 
-/* ─── Solve Logs (cursor-based) ─── */
+/* ─── Solve Logs (cursor-based, cross-event if no eventId) ─── */
 adminRouter.get('/logs/solves', asyncHandler(async (req: AuthRequest, res: Response) => {
   const { eventId, cursor, limit: limitStr } = req.query;
-  if (!eventId) return res.status(400).json({ error: 'eventId required' });
 
   const db = getDb();
   const pageLimit = Math.min(Number(limitStr) || 50, 100);
 
-  let query: FirebaseFirestore.Query = db
-    .collection('events')
-    .doc(eventId as string)
-    .collection('solves')
-    .orderBy('solvedAt', 'desc');
+  const eventIds: string[] = [];
+  if (eventId) {
+    eventIds.push(eventId as string);
+  } else {
+    const eventsSnap = await db.collection('events').get();
+    eventsSnap.docs.forEach((d) => eventIds.push(d.id));
+  }
 
-  if (cursor) query = query.startAfter(cursor as string);
-  query = query.limit(pageLimit);
+  let allResults: any[] = [];
+  for (const eid of eventIds) {
+    let query: FirebaseFirestore.Query = db
+      .collection('events')
+      .doc(eid)
+      .collection('solves')
+      .orderBy('solvedAt', 'desc');
 
-  const snap = await query.get();
-  const results = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    if (cursor) query = query.startAfter(cursor as string);
+    query = query.limit(pageLimit);
+
+    const snap = await query.get();
+    allResults.push(...snap.docs.map((d) => ({ id: d.id, eventId: eid, ...d.data() })));
+  }
+
+  allResults.sort((a, b) => (b.solvedAt || '').localeCompare(a.solvedAt || ''));
+  allResults = allResults.slice(0, pageLimit);
 
   // Resolve display names & challenge titles
-  const uidSet = new Set(results.map((r: any) => r.uid));
+  const uidSet = new Set(allResults.map((r: any) => r.uid));
   const nameMap: Record<string, string> = {};
   for (const u of uidSet) {
     try {
@@ -267,22 +298,25 @@ adminRouter.get('/logs/solves', asyncHandler(async (req: AuthRequest, res: Respo
       nameMap[u] = uSnap.data()?.displayName || u.slice(0, 8);
     } catch { nameMap[u] = u.slice(0, 8); }
   }
-  const cidSet = new Set(results.map((r: any) => r.challengeId));
+  const cidEventSet = new Set(allResults.map((r: any) => `${r.eventId}|${r.challengeId}`));
   const chalMap: Record<string, string> = {};
-  for (const c of cidSet) {
+  for (const key of cidEventSet) {
+    const [eId, cId] = key.split('|');
     try {
-      const cSnap = await db.collection('events').doc(eventId as string).collection('challenges').doc(c).get();
-      chalMap[c] = cSnap.data()?.title || c.slice(0, 8);
-    } catch { chalMap[c] = c.slice(0, 8); }
+      const cSnap = await db.collection('events').doc(eId).collection('challenges').doc(cId).get();
+      chalMap[cId] = cSnap.data()?.title || cId.slice(0, 8);
+    } catch { chalMap[cId] = cId.slice(0, 8); }
   }
 
-  const enriched = results.map((r: any) => ({
+  const enriched = allResults.map((r: any) => ({
     ...r,
     displayName: nameMap[r.uid] || r.uid?.slice(0, 8),
     challengeTitle: chalMap[r.challengeId] || r.challengeId?.slice(0, 8),
   }));
 
-  const nextCursor = snap.docs.length === pageLimit ? snap.docs[snap.docs.length - 1].data().solvedAt : null;
+  const nextCursor = enriched.length === pageLimit && enriched.length > 0
+    ? enriched[enriched.length - 1].solvedAt
+    : null;
   return res.json({ solves: enriched, nextCursor });
 }));
 
@@ -303,6 +337,78 @@ adminRouter.post('/user/:uid/enable', asyncHandler(async (req: AuthRequest, res:
   await db.collection('users').doc(targetUid).update({ disabled: false });
   await writeAuditLog(req.uid!, 'ENABLE_USER', `users/${targetUid}`, before, { disabled: false });
   return res.json({ success: true });
+}));
+
+/* ─── Change User Role ─── */
+adminRouter.post('/user/:uid/role', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const targetUid = req.params.uid;
+  const { role } = req.body;
+  const validRoles = ['participant', 'instructor', 'admin'];
+  if (!role || !validRoles.includes(role)) {
+    return res.status(400).json({ error: `role must be one of: ${validRoles.join(', ')}` });
+  }
+  // Prevent removing own admin
+  if (targetUid === req.uid && role !== 'admin') {
+    return res.status(400).json({ error: 'Cannot remove your own admin role' });
+  }
+  const db = getDb();
+  const auth = getAuth();
+  const before = (await db.collection('users').doc(targetUid).get()).data();
+  await db.collection('users').doc(targetUid).update({ role });
+  // Sync admin custom claim
+  await auth.setCustomUserClaims(targetUid, { admin: role === 'admin' });
+  await writeAuditLog(req.uid!, 'CHANGE_ROLE', `users/${targetUid}`, before, { role });
+  return res.json({ success: true, role });
+}));
+
+/* ─── Delete User ─── */
+adminRouter.post('/user/:uid/delete', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const targetUid = req.params.uid;
+  if (targetUid === req.uid) {
+    return res.status(400).json({ error: 'Cannot delete yourself' });
+  }
+  const db = getDb();
+  const auth = getAuth();
+  const before = (await db.collection('users').doc(targetUid).get()).data();
+  // Remove from Firebase Auth
+  try { await auth.deleteUser(targetUid); } catch {}
+  // Remove Firestore doc
+  await db.collection('users').doc(targetUid).delete();
+  await writeAuditLog(req.uid!, 'DELETE_USER', `users/${targetUid}`, before, null);
+  return res.json({ success: true });
+}));
+
+/* ─── List All Events (admin) ─── */
+adminRouter.get('/events', asyncHandler(async (_req: AuthRequest, res: Response) => {
+  const db = getDb();
+  const snap = await db.collection('events').get();
+  const events = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  return res.json({ events });
+}));
+
+/* ─── List All Leagues (admin) ─── */
+adminRouter.get('/leagues', asyncHandler(async (_req: AuthRequest, res: Response) => {
+  const db = getDb();
+  const snap = await db.collection('leagues').get();
+  const leagues = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  return res.json({ leagues });
+}));
+
+/* ─── List Challenges for an Event (admin) ─── */
+adminRouter.get('/events/:eventId/challenges', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { eventId } = req.params;
+  const db = getDb();
+  const snap = await db.collection('events').doc(eventId).collection('challenges').get();
+  const challenges = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  return res.json({ challenges });
+}));
+
+/* ─── List All Users (admin) ─── */
+adminRouter.get('/users', asyncHandler(async (_req: AuthRequest, res: Response) => {
+  const db = getDb();
+  const snap = await db.collection('users').get();
+  const users = snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
+  return res.json({ users });
 }));
 
 /* ─── Seed Default Badges ─── */

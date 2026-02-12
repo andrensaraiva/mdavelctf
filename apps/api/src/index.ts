@@ -21,7 +21,13 @@ initFirebaseAdmin();
 const app = express();
 const PORT = Number(process.env.PORT) || 4000;
 
-app.use(helmet());
+app.use(
+  helmet({
+    // Allow cross-origin requests from the frontend domain
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    crossOriginOpenerPolicy: { policy: 'unsafe-none' },
+  }),
+);
 
 // CORS: support configured origins or permissive in dev
 const corsOrigins = process.env.CORS_ORIGINS
@@ -36,7 +42,17 @@ const corsOrigins = process.env.CORS_ORIGINS
     })
   : true; // allow all in dev
 console.log('[CORS] origins:', corsOrigins);
-app.use(cors({ origin: corsOrigins, credentials: true }));
+
+const corsConfig = {
+  origin: corsOrigins,
+  credentials: true,
+  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+
+// Explicit preflight handler — respond to OPTIONS before other middleware
+app.options('*', cors(corsConfig));
+app.use(cors(corsConfig));
 
 app.use(express.json({ limit: '1mb' }));
 
@@ -67,6 +83,14 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   };
 
   next();
+});
+
+// Root health check — Render pings GET / to verify the service is alive
+app.get('/', (_req: Request, res: Response) => {
+  res.json({ status: 'ok', build: BUILD_TAG, time: new Date().toISOString() });
+});
+app.head('/', (_req: Request, res: Response) => {
+  res.sendStatus(200);
 });
 
 // Diagnostic test endpoint — no auth, no Firestore

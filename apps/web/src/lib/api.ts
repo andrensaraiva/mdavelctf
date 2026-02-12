@@ -6,9 +6,12 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL
   ? `${import.meta.env.VITE_API_BASE_URL}/api`
   : '/api';
 
-async function getHeaders(): Promise<Record<string, string>> {
+async function getHeaders(includeContentType = true): Promise<Record<string, string>> {
   const user = auth.currentUser;
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const headers: Record<string, string> = {};
+  if (includeContentType) {
+    headers['Content-Type'] = 'application/json';
+  }
   if (user) {
     const token = await user.getIdToken();
     headers['Authorization'] = `Bearer ${token}`;
@@ -75,8 +78,9 @@ export async function apiGet<T = any>(path: string): Promise<T> {
   const url = `${API_BASE}${path}`;
   let res: Response;
   try {
+    // Don't send Content-Type on GET (avoids unnecessary CORS preflight)
     res = await fetch(url, {
-      headers: await getHeaders(),
+      headers: await getHeaders(false),
     });
   } catch (err: any) {
     throw new Error(`Network error: could not reach API at ${url}. Check VITE_API_BASE_URL and CORS_ORIGINS.`);

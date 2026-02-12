@@ -16,11 +16,31 @@ interface ClassSummary {
   isOwner: boolean;
 }
 
+interface EventSummary {
+  id: string;
+  name: string;
+  startsAt: string;
+  endsAt: string;
+  visibility: string;
+  classId?: string;
+  published: boolean;
+}
+
+interface Challenge {
+  id: string;
+  title: string;
+  category: string;
+  difficulty: number;
+  pointsFixed: number;
+  published: boolean;
+}
+
 export default function InstructorDashboard() {
   const { t } = useTranslation();
   const { userDoc } = useAuth();
   const [classes, setClasses] = useState<ClassSummary[]>([]);
-  const [tab, setTab] = useState<'classes' | 'create-event' | 'guide'>('classes');
+  const [events, setEvents] = useState<EventSummary[]>([]);
+  const [tab, setTab] = useState<'classes' | 'create-event' | 'challenges' | 'guide'>('classes');
 
   // Create event form
   const [eventName, setEventName] = useState('');
@@ -31,14 +51,43 @@ export default function InstructorDashboard() {
   const [linkedClassId, setLinkedClassId] = useState('');
   const [msg, setMsg] = useState('');
 
+  // Challenge management
+  const [selectedEventId, setSelectedEventId] = useState('');
+  const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [chalMsg, setChalMsg] = useState('');
+  // New challenge form
+  const [chalTitle, setChalTitle] = useState('');
+  const [chalCategory, setChalCategory] = useState('Web');
+  const [chalDifficulty, setChalDifficulty] = useState(1);
+  const [chalPoints, setChalPoints] = useState(100);
+  const [chalDesc, setChalDesc] = useState('');
+  const [chalFlag, setChalFlag] = useState('');
+  const [chalCaseSensitive, setChalCaseSensitive] = useState(false);
+  const [chalPublished, setChalPublished] = useState(true);
+
   useEffect(() => {
     (async () => {
       try {
         const res = await apiGet('/classes/my');
         setClasses((res.classes || []).filter((c: ClassSummary) => c.isOwner));
       } catch {}
+      try {
+        const res = await apiGet('/classes/instructor/events');
+        setEvents(res.events || []);
+      } catch {}
     })();
   }, []);
+
+  // Load challenges when event selected
+  useEffect(() => {
+    if (!selectedEventId) { setChallenges([]); return; }
+    (async () => {
+      try {
+        const res = await apiGet(`/classes/instructor/events/${selectedEventId}/challenges`);
+        setChallenges(res.challenges || []);
+      } catch { setChallenges([]); }
+    })();
+  }, [selectedEventId]);
 
   if (userDoc?.role !== 'instructor' && userDoc?.role !== 'admin') {
     return (
@@ -52,7 +101,7 @@ export default function InstructorDashboard() {
 
   const handleCreateEvent = async () => {
     try {
-      await apiPost('/admin/event', {
+      const res = await apiPost('/classes/instructor/event', {
         name: eventName,
         startsAt: new Date(startsAt).toISOString(),
         endsAt: new Date(endsAt).toISOString(),
@@ -66,13 +115,53 @@ export default function InstructorDashboard() {
       setEventName('');
       setStartsAt('');
       setEndsAt('');
+      setEvents((prev) => [...prev, { id: res.id, name: res.name, startsAt: res.startsAt, endsAt: res.endsAt, visibility: res.visibility, classId: res.classId, published: res.published }]);
       setTimeout(() => setMsg(''), 3000);
     } catch (e: any) { setMsg(e.message); }
+  };
+
+  const handleCreateChallenge = async () => {
+    if (!selectedEventId || !chalTitle || !chalCategory) {
+      setChalMsg('Select an event and fill in title + category');
+      return;
+    }
+    try {
+      const res = await apiPost('/classes/instructor/challenge', {
+        eventId: selectedEventId,
+        title: chalTitle,
+        category: chalCategory,
+        difficulty: chalDifficulty,
+        pointsFixed: chalPoints,
+        descriptionMd: chalDesc,
+        published: chalPublished,
+        flagText: chalFlag || undefined,
+        caseSensitive: chalCaseSensitive,
+      });
+      setChallenges((prev) => [...prev, { id: res.id, title: res.title, category: res.category, difficulty: res.difficulty, pointsFixed: res.pointsFixed, published: res.published }]);
+      setChalMsg('Challenge created!');
+      setChalTitle('');
+      setChalDesc('');
+      setChalFlag('');
+      setChalPoints(100);
+      setChalDifficulty(1);
+      setTimeout(() => setChalMsg(''), 3000);
+    } catch (e: any) { setChalMsg(e.message); }
+  };
+
+  const handleSetFlag = async (challengeId: string) => {
+    const flagText = prompt('Enter the flag value:');
+    if (!flagText) return;
+    try {
+      await apiPost(`/classes/instructor/challenge/${challengeId}/set-flag`, { eventId: selectedEventId, flagText, caseSensitive: false });
+      setChalMsg('Flag updated!');
+      setTimeout(() => setChalMsg(''), 3000);
+    } catch (e: any) { setChalMsg(e.message); }
   };
 
   const tabs = [
     { key: 'classes' as const, label: t('instructor.myClasses'), icon: '📚' },
     { key: 'create-event' as const, label: t('instructor.createEvent'), icon: '🏁' },
+    { key: 'challenges' as const, label: 'Challenges', icon: '🧩' },
     { key: 'guide' as const, label: t('admin.guide'), icon: '📖' },
   ];
 
@@ -196,6 +285,108 @@ export default function InstructorDashboard() {
         </HudPanel>
       )}
 
+      {/* Challenges Tab */}
+      {tab === 'challenges' && (
+        <div className="space-y-4">
+          {/* Event selector */}
+          <HudPanel title="Select Event">
+            <select
+              value={selectedEventId}
+              onChange={(e) => setSelectedEventId(e.target.value)}
+              className="terminal-input w-full px-3 py-2 text-sm"
+            >
+              <option value="">-- Select an event --</option>
+              {events.map((ev) => (
+                <option key={ev.id} value={ev.id}>{ev.name} ({ev.visibility})</option>
+              ))}
+            </select>
+          </HudPanel>
+
+          {selectedEventId && (
+            <>
+              {/* Existing challenges */}
+              <HudPanel title={`Challenges (${challenges.length})`}>
+                {challenges.length === 0 ? (
+                  <p className="text-center text-hud-text/30 py-4 text-sm">No challenges yet. Create one below.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {challenges.map((ch) => (
+                      <div key={ch.id} className="flex items-center justify-between border border-accent/15 px-3 py-2">
+                        <div className="flex items-center gap-3">
+                          <HudTag color={ch.published ? 'var(--success)' : 'var(--warning)'}>{ch.published ? 'Live' : 'Draft'}</HudTag>
+                          <span className="text-sm font-bold text-accent">{ch.title}</span>
+                          <span className="text-xs text-hud-text/40">{ch.category}</span>
+                          <span className="text-xs text-hud-text/40">⭐{ch.difficulty}</span>
+                          <span className="text-xs text-hud-text/40">{ch.pointsFixed}pts</span>
+                        </div>
+                        <NeonButton size="sm" onClick={() => handleSetFlag(ch.id)}>Set Flag</NeonButton>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </HudPanel>
+
+              {/* Create challenge form */}
+              <HudPanel title="Create Challenge">
+                <div className="space-y-3">
+                  <input
+                    value={chalTitle}
+                    onChange={(e) => setChalTitle(e.target.value)}
+                    placeholder="Challenge title"
+                    className="terminal-input w-full px-3 py-2 text-sm"
+                  />
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div>
+                      <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Category</label>
+                      <select value={chalCategory} onChange={(e) => setChalCategory(e.target.value)} className="terminal-input w-full px-3 py-2 text-sm">
+                        {['Web', 'Crypto', 'Forensics', 'Rev', 'Pwn', 'Misc', 'OSINT', 'Network', 'Stego'].map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Difficulty</label>
+                      <select value={chalDifficulty} onChange={(e) => setChalDifficulty(Number(e.target.value))} className="terminal-input w-full px-3 py-2 text-sm">
+                        {[1, 2, 3, 4, 5].map((d) => (<option key={d} value={d}>{d}</option>))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Points</label>
+                      <input type="number" value={chalPoints} onChange={(e) => setChalPoints(Number(e.target.value))} className="terminal-input w-full px-3 py-2 text-sm" />
+                    </div>
+                    <div className="flex items-end gap-2">
+                      <label className="flex items-center gap-1 text-xs text-accent/70">
+                        <input type="checkbox" checked={chalPublished} onChange={(e) => setChalPublished(e.target.checked)} />
+                        Published
+                      </label>
+                      <label className="flex items-center gap-1 text-xs text-accent/70">
+                        <input type="checkbox" checked={chalCaseSensitive} onChange={(e) => setChalCaseSensitive(e.target.checked)} />
+                        Case Sensitive
+                      </label>
+                    </div>
+                  </div>
+                  <textarea
+                    value={chalDesc}
+                    onChange={(e) => setChalDesc(e.target.value)}
+                    placeholder="Description (markdown supported)"
+                    rows={4}
+                    className="terminal-input w-full px-3 py-2 text-sm"
+                  />
+                  <input
+                    value={chalFlag}
+                    onChange={(e) => setChalFlag(e.target.value)}
+                    placeholder="Flag (e.g. CTF{example_flag})"
+                    className="terminal-input w-full px-3 py-2 text-sm font-mono"
+                  />
+                  <NeonButton size="sm" variant="solid" onClick={handleCreateChallenge}>Create Challenge</NeonButton>
+                  {chalMsg && <p className="text-accent text-xs mt-2">{chalMsg}</p>}
+                </div>
+              </HudPanel>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Guide Tab */}
       {tab === 'guide' && <InstructorGuide />}
     </div>
@@ -297,10 +488,10 @@ function InstructorGuide() {
             <li>Crie uma <strong>turma</strong> e compartilhe o código de convite</li>
             <li>Espere os alunos entrarem na turma</li>
             <li>Crie um <strong>evento privado</strong> vinculado à turma</li>
-            <li>Peça ao <strong>admin</strong> para adicionar desafios ao evento</li>
+            <li>Adicione <strong>desafios</strong> ao evento na aba 🧩 Challenges</li>
             <li>Acompanhe o progresso pelo <strong>placar</strong></li>
           </ol>
-          <p className="text-accent/60 text-xs mt-2">1. Create class → 2. Share code → 3. Create event → 4. Admin adds challenges → 5. Monitor scores</p>
+          <p className="text-accent/60 text-xs mt-2">1. Create class → 2. Share code → 3. Create event → 4. Add challenges → 5. Monitor scores</p>
         </>
       ),
     },
@@ -315,7 +506,7 @@ function InstructorGuide() {
             <li>Use <strong>equipes do evento</strong> para trabalhos em grupo</li>
             <li>O <strong>placar</strong> mostra ranking individual e por equipe</li>
             <li>Alunos podem trocar de <strong>idioma</strong> no navbar (PT-BR / EN)</li>
-            <li>Combine com o admin para criar <strong>desafios</strong> adequados ao nível da turma</li>
+            <li>Combine com o admin para criar <strong>desafios</strong> avançados ou use a aba 🧩 Challenges para criar os seus</li>
           </ul>
         </>
       ),

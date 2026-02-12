@@ -1,9 +1,11 @@
 import { Router, Response } from 'express';
-import { verifyFirebaseToken, requireInstructorOrAdmin, AuthRequest } from '../middleware/auth';
+import { verifyFirebaseToken, requireInstructorOrAdmin, requireEventOwnerOrAdmin, AuthRequest } from '../middleware/auth';
 import { getDb } from '../firebase';
 import { v4 as uuid } from 'uuid';
 import { FieldValue } from 'firebase-admin/firestore';
 import { asyncHandler } from '../utils/asyncHandler';
+import { hashFlag, normalizeFlag } from '../utils/crypto';
+import { writeAuditLog } from '../utils/audit';
 
 export const classesRouter = Router();
 
@@ -126,15 +128,26 @@ classesRouter.get('/my', asyncHandler(async (req: AuthRequest, res: Response) =>
   const uid = req.uid!;
   const db = getDb();
 
-  const classIds: string[] = req.userDoc?.classIds || [];
-  if (classIds.length === 0) return res.json({ classes: [] });
+  // Collect class IDs from user doc AND from membership subcollections
+  const classIdSet = new Set<string>(req.userDoc?.classIds || []);
+
+  // Also scan all classes where user is a member (handles missing classIds field)
+  const allClassesSnap = await db.collectionGroup('members')
+    .where('uid', '==', uid)
+    .get();
+  for (const mDoc of allClassesSnap.docs) {
+    // Path: classes/{classId}/members/{uid}
+    const classId = mDoc.ref.parent.parent?.id;
+    if (classId) classIdSet.add(classId);
+  }
+
+  if (classIdSet.size === 0) return res.json({ classes: [] });
 
   const classes: any[] = [];
-  for (const cid of classIds) {
+  for (const cid of classIdSet) {
     const snap = await db.collection('classes').doc(cid).get();
     if (snap.exists) {
       const data = snap.data()!;
-      // Get member count
       const membersSnap = await db.collection('classes').doc(cid).collection('members').get();
       classes.push({
         id: cid,
@@ -191,7 +204,7 @@ classesRouter.get('/:classId', asyncHandler(async (req: AuthRequest, res: Respon
   const events = eventsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
   return res.json({
-    class: { id: classId, ...classData },
+    class: { id: classId, ...classData, memberCount: membersSnap.size },
     members,
     events,
     isOwner,
@@ -214,4 +227,198 @@ classesRouter.post('/:classId/rotate-code', requireInstructorOrAdmin, asyncHandl
   await db.collection('classes').doc(classId).update({ inviteCode: newCode });
 
   return res.json({ inviteCode: newCode });
+}));
+
+/* ══════════ Instructor Event / Challenge Management ══════════ */
+
+/* ─── List instructor's own events ─── */
+classesRouter.get('/instructor/events', requireInstructorOrAdmin, asyncHandler(async (req: AuthRequest, res: Response) => {
+  const uid = req.uid!;
+  const db = getDb();
+
+  // Events this user directly owns
+  let events: any[] = [];
+  const ownedSnap = await db.collection('events').where('ownerId', '==', uid).get();
+  events = ownedSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+  // Events linked to classes this instructor owns
+  const classSnap = await db.collection('classes').where('ownerInstructorId', '==', uid).get();
+  for (const cDoc of classSnap.docs) {
+    const linkedSnap = await db.collection('events').where('classId', '==', cDoc.id).get();
+    for (const eDoc of linkedSnap.docs) {
+      if (!events.some((e) => e.id === eDoc.id)) {
+        events.push({ id: eDoc.id, ...eDoc.data() });
+      }
+    }
+  }
+
+  return res.json({ events });
+}));
+
+/* ─── List challenges for an event (instructor must own the event) ─── */
+classesRouter.get('/instructor/events/:eventId/challenges', requireInstructorOrAdmin, asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { eventId } = req.params;
+  const uid = req.uid!;
+  const db = getDb();
+
+  // Verify ownership
+  const eventSnap = await db.collection('events').doc(eventId).get();
+  if (!eventSnap.exists) return res.status(404).json({ error: 'Event not found' });
+  const eventData = eventSnap.data()!;
+
+  const isOwner = eventData.ownerId === uid;
+  const isAdmin = req.userRole === 'admin';
+  let classOwner = false;
+  if (eventData.classId) {
+    const cSnap = await db.collection('classes').doc(eventData.classId).get();
+    if (cSnap.exists && cSnap.data()?.ownerInstructorId === uid) classOwner = true;
+  }
+  if (!isOwner && !isAdmin && !classOwner) {
+    return res.status(403).json({ error: 'Not authorized for this event' });
+  }
+
+  const snap = await db.collection('events').doc(eventId).collection('challenges').get();
+  const challenges = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  return res.json({ challenges });
+}));
+
+/* ─── Create challenge (instructor must own the event) ─── */
+classesRouter.post('/instructor/challenge', requireInstructorOrAdmin, asyncHandler(async (req: AuthRequest, res: Response) => {
+  const {
+    eventId, title, category, difficulty, pointsFixed,
+    tags, descriptionMd, published, attachments, flagText, caseSensitive,
+  } = req.body;
+  if (!eventId || !title || !category) {
+    return res.status(400).json({ error: 'eventId, title, category required' });
+  }
+
+  const uid = req.uid!;
+  const db = getDb();
+
+  // Verify ownership
+  const eventSnap = await db.collection('events').doc(eventId).get();
+  if (!eventSnap.exists) return res.status(404).json({ error: 'Event not found' });
+  const eventData = eventSnap.data()!;
+
+  const isOwner = eventData.ownerId === uid;
+  const isAdmin = req.userRole === 'admin';
+  let classOwner = false;
+  if (eventData.classId) {
+    const cSnap = await db.collection('classes').doc(eventData.classId).get();
+    if (cSnap.exists && cSnap.data()?.ownerInstructorId === uid) classOwner = true;
+  }
+  if (!isOwner && !isAdmin && !classOwner) {
+    return res.status(403).json({ error: 'Not authorized for this event' });
+  }
+
+  const ref = db.collection('events').doc(eventId).collection('challenges').doc();
+  const data = {
+    title,
+    category: category.toUpperCase(),
+    difficulty: difficulty || 1,
+    pointsFixed: pointsFixed || 100,
+    tags: tags || [],
+    descriptionMd: descriptionMd || '',
+    attachments: attachments || [],
+    published: published ?? true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  await ref.set(data);
+  await writeAuditLog(uid, 'CREATE_CHALLENGE', `events/${eventId}/challenges/${ref.id}`, null, data);
+
+  // Set flag if provided
+  if (flagText) {
+    const cs = caseSensitive === true;
+    const normalized = normalizeFlag(flagText, cs);
+    const flagHash = hashFlag(normalized);
+    await db.collection('events').doc(eventId).collection('challengeSecrets').doc(ref.id).set({
+      flagHash,
+      caseSensitive: cs,
+      createdAt: new Date().toISOString(),
+    });
+  }
+
+  return res.json({ id: ref.id, eventId, ...data });
+}));
+
+/* ─── Set flag for a challenge (instructor must own the event) ─── */
+classesRouter.post('/instructor/challenge/:challengeId/set-flag', requireInstructorOrAdmin, asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { challengeId } = req.params;
+  const { eventId, flagText, caseSensitive } = req.body;
+  if (!eventId || !flagText) {
+    return res.status(400).json({ error: 'eventId and flagText required' });
+  }
+
+  const uid = req.uid!;
+  const db = getDb();
+
+  // Verify ownership
+  const eventSnap = await db.collection('events').doc(eventId).get();
+  if (!eventSnap.exists) return res.status(404).json({ error: 'Event not found' });
+  const eventData = eventSnap.data()!;
+
+  const isOwner = eventData.ownerId === uid;
+  const isAdmin = req.userRole === 'admin';
+  let classOwner = false;
+  if (eventData.classId) {
+    const cSnap = await db.collection('classes').doc(eventData.classId).get();
+    if (cSnap.exists && cSnap.data()?.ownerInstructorId === uid) classOwner = true;
+  }
+  if (!isOwner && !isAdmin && !classOwner) {
+    return res.status(403).json({ error: 'Not authorized for this event' });
+  }
+
+  const cs = caseSensitive === true;
+  const normalized = normalizeFlag(flagText, cs);
+  const flagHash = hashFlag(normalized);
+
+  const ref = db.collection('events').doc(eventId).collection('challengeSecrets').doc(challengeId);
+  await ref.set({
+    flagHash,
+    caseSensitive: cs,
+    createdAt: new Date().toISOString(),
+  });
+
+  await writeAuditLog(uid, 'SET_FLAG', `events/${eventId}/challengeSecrets/${challengeId}`, null, { caseSensitive: cs, hashSet: true });
+  return res.json({ success: true });
+}));
+
+/* ─── Create event (instructor or admin) ─── */
+classesRouter.post('/instructor/event', requireInstructorOrAdmin, asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { name, startsAt, endsAt, timezone, published, leagueId, visibility, classId, teamMode, requireClassMembership } = req.body;
+  if (!name || !startsAt || !endsAt) {
+    return res.status(400).json({ error: 'name, startsAt, endsAt required' });
+  }
+
+  const uid = req.uid!;
+  const db = getDb();
+
+  // If linking to a class, verify user owns it
+  if (classId) {
+    const cSnap = await db.collection('classes').doc(classId).get();
+    if (!cSnap.exists) return res.status(404).json({ error: 'Class not found' });
+    if (cSnap.data()?.ownerInstructorId !== uid && req.userRole !== 'admin') {
+      return res.status(403).json({ error: 'Not authorized for this class' });
+    }
+  }
+
+  const ref = db.collection('events').doc();
+  const data: Record<string, any> = {
+    name,
+    startsAt,
+    endsAt,
+    timezone: timezone || 'UTC',
+    published: published ?? true,
+    leagueId: leagueId || null,
+    visibility: visibility || 'private',
+    classId: classId || null,
+    ownerId: uid,
+    teamMode: teamMode || 'eventTeams',
+    requireClassMembership: requireClassMembership ?? (visibility === 'private'),
+    createdAt: new Date().toISOString(),
+  };
+  await ref.set(data);
+  await writeAuditLog(uid, 'CREATE_EVENT', `events/${ref.id}`, null, data);
+  return res.json({ id: ref.id, ...data });
 }));

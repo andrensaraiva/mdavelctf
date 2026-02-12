@@ -48,7 +48,7 @@ export default function ClassDetailPage() {
     if (!classId) return;
     try {
       const res = await apiGet(`/classes/${classId}`);
-      setClassData(res.classDoc);
+      setClassData(res.class || res.classDoc);
       setMembers(res.members || []);
       setEvents(res.events || []);
     } catch (e: any) {

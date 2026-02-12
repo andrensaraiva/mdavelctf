@@ -1,6 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { collection, getDocs, query, orderBy, doc, getDoc } from 'firebase/firestore';
-import { db } from '../firebase';
 import { HudPanel } from '../components/HudPanel';
 import { NeonButton } from '../components/NeonButton';
 import { HudTag } from '../components/HudTag';
@@ -109,31 +107,15 @@ function AdminOverview() {
         setSummary(s);
       } catch {}
 
-      const eSnap = await getDocs(collection(db, 'events'));
-      const evts = eSnap.docs.map((d) => ({ id: d.id, ...(d.data() as EventDoc) }));
-      setEvents(evts);
+      try {
+        const eRes = await apiGet('/admin/events');
+        const evts = (eRes.events || []).map((d: any) => ({ ...d } as EventDoc & { id: string }));
+        setEvents(evts);
 
-      const lSnap = await getDocs(collection(db, 'leagues'));
-      const lgs = lSnap.docs.map((d) => ({ id: d.id, ...(d.data() as LeagueDoc) }));
-      setLeagues(lgs);
-
-      const aMap: Record<string, EventAnalyticsSummary> = {};
-      for (const evt of evts) {
-        try {
-          const snap = await getDoc(doc(db, 'events', evt.id, 'analytics', 'summary'));
-          if (snap.exists()) aMap[evt.id] = snap.data() as EventAnalyticsSummary;
-        } catch {}
-      }
-      setAnalytics(aMap);
-
-      const laMap: Record<string, LeagueAnalyticsSummary> = {};
-      for (const lg of lgs) {
-        try {
-          const snap = await getDoc(doc(db, 'leagues', lg.id, 'analytics', 'summary'));
-          if (snap.exists()) laMap[lg.id] = snap.data() as LeagueAnalyticsSummary;
-        } catch {}
-      }
-      setLeagueAnalytics(laMap);
+        const lRes = await apiGet('/admin/leagues');
+        const lgs = (lRes.leagues || []).map((d: any) => ({ ...d } as LeagueDoc & { id: string }));
+        setLeagues(lgs);
+      } catch {}
     })();
   }, []);
 
@@ -467,8 +449,10 @@ function AdminEvents() {
   const [msg, setMsg] = useState('');
 
   const load = async () => {
-    const snap = await getDocs(collection(db, 'events'));
-    setEvents(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    try {
+      const res = await apiGet('/admin/events');
+      setEvents(res.events || []);
+    } catch {}
   };
   useEffect(() => { load(); }, []);
 
@@ -526,8 +510,10 @@ function AdminLeagues() {
   const [msg, setMsg] = useState('');
 
   const load = async () => {
-    const snap = await getDocs(collection(db, 'leagues'));
-    setLeagues(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    try {
+      const res = await apiGet('/admin/leagues');
+      setLeagues(res.leagues || []);
+    } catch {}
   };
   useEffect(() => { load(); }, []);
 
@@ -583,15 +569,19 @@ function AdminChallenges() {
 
   useEffect(() => {
     (async () => {
-      const snap = await getDocs(collection(db, 'events'));
-      setEvents(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      try {
+        const res = await apiGet('/admin/events');
+        setEvents(res.events || []);
+      } catch {}
     })();
   }, []);
 
   const loadChallenges = async (eid: string) => {
     if (!eid) return;
-    const snap = await getDocs(collection(db, 'events', eid, 'challenges'));
-    setChallenges(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    try {
+      const res = await apiGet(`/admin/events/${eid}/challenges`);
+      setChallenges(res.challenges || []);
+    } catch {}
   };
 
   const handleCreate = async () => {
@@ -670,13 +660,16 @@ function AdminChallenges() {
 /* ─── Users Tab ─── */
 function AdminUsers() {
   const [users, setUsers] = useState<any[]>([]);
+  const [roleChange, setRoleChange] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    (async () => {
-      const snap = await getDocs(collection(db, 'users'));
-      setUsers(snap.docs.map((d) => ({ uid: d.id, ...d.data() })));
-    })();
-  }, []);
+  const load = async () => {
+    try {
+      const res = await apiGet('/admin/users');
+      setUsers(res.users || []);
+    } catch {}
+  };
+
+  useEffect(() => { load(); }, []);
 
   const toggleDisable = async (uid: string, disabled: boolean) => {
     try {
@@ -687,28 +680,63 @@ function AdminUsers() {
     } catch {}
   };
 
+  const handleRoleChange = async (uid: string, newRole: string) => {
+    try {
+      await apiPost(`/admin/user/${uid}/role`, { role: newRole });
+      setUsers((prev) =>
+        prev.map((u) => (u.uid === uid ? { ...u, role: newRole } : u)),
+      );
+    } catch {}
+  };
+
+  const handleDelete = async (uid: string, displayName: string) => {
+    if (!confirm(`Delete user "${displayName}"? This cannot be undone.`)) return;
+    try {
+      await apiPost(`/admin/user/${uid}/delete`, {});
+      setUsers((prev) => prev.filter((u) => u.uid !== uid));
+    } catch {}
+  };
+
   return (
     <HudPanel title="Users">
       <div className="space-y-2">
         {users.map((u) => (
-          <div key={u.uid} className="flex items-center justify-between p-3 border border-accent/20 hover:border-accent/40 transition-colors">
+          <div key={u.uid} className="flex items-center justify-between p-3 border border-accent/20 hover:border-accent/40 transition-colors gap-2 flex-wrap">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-accent/20 flex items-center justify-center text-sm font-bold text-accent">
+              <div className="w-9 h-9 rounded-full bg-accent/20 flex items-center justify-center text-sm font-bold text-accent flex-shrink-0">
                 {(u.displayName || '?')[0].toUpperCase()}
               </div>
               <div>
                 <span className="font-bold text-sm">{u.displayName}</span>
-                <HudTag className="ml-2" color={u.role === 'admin' ? 'var(--warning)' : 'var(--accent)'}>{u.role}</HudTag>
+                <span className="text-xs text-hud-text/30 ml-2">{u.uid.slice(0, 8)}</span>
                 {u.disabled && <HudTag className="ml-1" color="var(--danger)">DISABLED</HudTag>}
               </div>
             </div>
-            <NeonButton
-              size="sm"
-              variant={u.disabled ? 'outline' : 'danger'}
-              onClick={() => toggleDisable(u.uid, u.disabled)}
-            >
-              {u.disabled ? 'Enable' : 'Disable'}
-            </NeonButton>
+            <div className="flex items-center gap-2 flex-wrap">
+              <select
+                value={u.role}
+                onChange={(e) => handleRoleChange(u.uid, e.target.value)}
+                className="terminal-input px-2 py-1 text-xs"
+              >
+                <option value="participant">participant</option>
+                <option value="instructor">instructor</option>
+                <option value="admin">admin</option>
+              </select>
+              <NeonButton
+                size="sm"
+                variant={u.disabled ? 'outline' : 'danger'}
+                onClick={() => toggleDisable(u.uid, u.disabled)}
+              >
+                {u.disabled ? 'Enable' : 'Disable'}
+              </NeonButton>
+              <NeonButton
+                size="sm"
+                variant="danger"
+                onClick={() => handleDelete(u.uid, u.displayName)}
+              >
+                Delete
+              </NeonButton>
+            </div>
           </div>
         ))}
       </div>
@@ -790,8 +818,8 @@ function AdminQuests() {
 
   const loadQuests = async () => {
     try {
-      const snap = await getDocs(collection(db, 'quests'));
-      setQuests(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      const res = await apiGet('/gamification/quests');
+      setQuests(res.quests || []);
     } catch {}
   };
 
