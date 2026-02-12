@@ -565,6 +565,9 @@ function AdminChallenges() {
   const [points, setPoints] = useState('100');
   const [desc, setDesc] = useState('');
   const [flagText, setFlagText] = useState('');
+  const [flagMode, setFlagMode] = useState<'standard' | 'unique' | 'decay'>('standard');
+  const [decayMin, setDecayMin] = useState('50');
+  const [decayPercent, setDecayPercent] = useState('10');
   const [msg, setMsg] = useState('');
 
   useEffect(() => {
@@ -593,6 +596,13 @@ function AdminChallenges() {
         descriptionMd: desc,
         tags: [],
         published: true,
+        flagMode,
+        ...(flagMode === 'decay' ? {
+          decayConfig: {
+            minPoints: Number(decayMin) || 50,
+            decayPercent: Number(decayPercent) || 10,
+          },
+        } : {}),
       });
       if (flagText) {
         await apiPost(`/admin/challenge/${res.id}/set-flag`, {
@@ -631,6 +641,28 @@ function AdminChallenges() {
         </div>
         <textarea value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Description (Markdown)" className="terminal-input px-3 py-2 text-sm w-full h-20" />
         <input value={flagText} onChange={(e) => setFlagText(e.target.value)} placeholder="Flag (e.g. CTF{...})" className="terminal-input px-3 py-2 text-sm w-full" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div>
+            <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Flag Mode</label>
+            <select value={flagMode} onChange={(e) => setFlagMode(e.target.value as any)} className="terminal-input px-3 py-2 text-sm w-full">
+              <option value="standard">Standard (multiple solves)</option>
+              <option value="unique">Unique (first solves only)</option>
+              <option value="decay">Decay (points decrease)</option>
+            </select>
+          </div>
+          {flagMode === 'decay' && (
+            <>
+              <div>
+                <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Min Points</label>
+                <input value={decayMin} onChange={(e) => setDecayMin(e.target.value)} type="number" className="terminal-input px-3 py-2 text-sm w-full" />
+              </div>
+              <div>
+                <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Decay % per solve</label>
+                <input value={decayPercent} onChange={(e) => setDecayPercent(e.target.value)} type="number" className="terminal-input px-3 py-2 text-sm w-full" />
+              </div>
+            </>
+          )}
+        </div>
       </div>
       <NeonButton size="sm" variant="solid" onClick={handleCreate}>Create Challenge</NeonButton>
       {msg && <p className="text-accent text-xs mt-2">{msg}</p>}
@@ -640,6 +672,8 @@ function AdminChallenges() {
           <div key={c.id} className="flex items-center justify-between p-4 border border-accent/20 hover:border-accent/40 transition-colors">
             <div className="flex items-center gap-3">
               <HudTag>{c.category}</HudTag>
+              {c.flagMode === 'unique' && <span className="text-[10px] px-1.5 py-0.5 bg-warning/10 border border-warning/30 text-warning uppercase">🏆 Unique</span>}
+              {c.flagMode === 'decay' && <span className="text-[10px] px-1.5 py-0.5 bg-accent/10 border border-accent/30 text-accent uppercase">📉 Decay</span>}
               <div>
                 <span className="font-bold text-sm">{c.title}</span>
                 <div className="flex gap-2 mt-0.5">

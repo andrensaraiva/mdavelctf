@@ -140,14 +140,31 @@ export default function EventPage() {
               <div
                 className={`hud-panel p-4 h-full transition-all hover:scale-[1.02] ${
                   solved ? 'opacity-60' : ''
-                }`}
+                } ${chal.flagMode === 'unique' && chal.lockedBy ? 'opacity-40 pointer-events-none' : ''}`}
                 style={{ borderColor: `${color}44` }}
               >
                 <div className="flex items-center justify-between mb-2">
-                  <HudTag color={color}>{chal.category}</HudTag>
-                  <span className="text-lg font-bold" style={{ color }}>
-                    {chal.pointsFixed}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <HudTag color={color}>{chal.category}</HudTag>
+                    {(chal.flagMode === 'unique') && (
+                      <span className="text-[10px] px-1.5 py-0.5 bg-warning/10 border border-warning/30 text-warning uppercase tracking-wider" title="Only one person can solve this">
+                        🏆 Unique
+                      </span>
+                    )}
+                    {(chal.flagMode === 'decay') && (
+                      <span className="text-[10px] px-1.5 py-0.5 bg-accent/10 border border-accent/30 text-accent uppercase tracking-wider" title="Points decrease with each solve">
+                        📉 Decay
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <span className="text-lg font-bold" style={{ color }}>
+                      {chal.pointsFixed}
+                    </span>
+                    {chal.flagMode === 'decay' && chal.solveCount ? (
+                      <div className="text-[10px] text-hud-text/40">{chal.solveCount} solves</div>
+                    ) : null}
+                  </div>
                 </div>
                 <h3 className="font-bold text-sm mb-2">
                   {solved && <span className="text-success mr-1">✓</span>}

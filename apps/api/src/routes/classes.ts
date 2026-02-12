@@ -287,6 +287,7 @@ classesRouter.post('/instructor/challenge', requireInstructorOrAdmin, asyncHandl
   const {
     eventId, title, category, difficulty, pointsFixed,
     tags, descriptionMd, published, attachments, flagText, caseSensitive,
+    flagMode, decayConfig,
   } = req.body;
   if (!eventId || !title || !category) {
     return res.status(400).json({ error: 'eventId, title, category required' });
@@ -312,7 +313,7 @@ classesRouter.post('/instructor/challenge', requireInstructorOrAdmin, asyncHandl
   }
 
   const ref = db.collection('events').doc(eventId).collection('challenges').doc();
-  const data = {
+  const data: Record<string, any> = {
     title,
     category: category.toUpperCase(),
     difficulty: difficulty || 1,
@@ -321,9 +322,17 @@ classesRouter.post('/instructor/challenge', requireInstructorOrAdmin, asyncHandl
     descriptionMd: descriptionMd || '',
     attachments: attachments || [],
     published: published ?? true,
+    flagMode: flagMode || 'standard',
+    solveCount: 0,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
+  if (flagMode === 'decay' && decayConfig) {
+    data.decayConfig = {
+      minPoints: decayConfig.minPoints || 50,
+      decayPercent: decayConfig.decayPercent || 10,
+    };
+  }
   await ref.set(data);
   await writeAuditLog(uid, 'CREATE_CHALLENGE', `events/${eventId}/challenges/${ref.id}`, null, data);
 

@@ -158,6 +158,20 @@ export interface EventDoc {
 }
 
 /* ─── Challenge ─── */
+/**
+ * flagMode:
+ *  - 'standard' (default): multiple users/teams can solve, fixed points
+ *  - 'unique': only the first person to solve gets points, then it locks
+ *  - 'decay': multiple solves allowed, but points decrease per solve.
+ *             Same team cannot solve twice (different member of same team blocked).
+ */
+export type ChallengeFlagMode = 'standard' | 'unique' | 'decay';
+
+export interface ChallengeDecayConfig {
+  minPoints: number;   // Minimum points (floor)
+  decayPercent: number; // Percentage lost per solve (e.g. 10 = loses 10% each solve)
+}
+
 export interface ChallengeDoc {
   title: string;
   category: string;
@@ -169,6 +183,12 @@ export interface ChallengeDoc {
   published: boolean;
   createdAt: string;
   updatedAt: string;
+  // Challenge mode (optional, defaults to 'standard')
+  flagMode?: ChallengeFlagMode;
+  decayConfig?: ChallengeDecayConfig;
+  // Runtime counters (updated on solve)
+  solveCount?: number;
+  lockedBy?: string; // uid of solver when flagMode='unique'
 }
 
 export interface AttachmentMeta {
@@ -273,6 +293,8 @@ export interface SubmitFlagResponse {
   attemptsLeft: number;
   cooldownRemaining: number;
   scoreAwarded?: number;
+  locked?: boolean;      // true when unique challenge already solved by someone else
+  teamBlocked?: boolean; // true when decay challenge already solved by a teammate
 }
 
 export interface CreateTeamRequest {

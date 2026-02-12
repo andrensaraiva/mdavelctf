@@ -106,14 +106,14 @@ adminRouter.put('/league/:leagueId', asyncHandler(async (req: AuthRequest, res: 
 adminRouter.post('/challenge', asyncHandler(async (req: AuthRequest, res: Response) => {
   const {
     eventId, title, category, difficulty, pointsFixed,
-    tags, descriptionMd, published, attachments,
+    tags, descriptionMd, published, attachments, flagMode, decayConfig,
   } = req.body;
   if (!eventId || !title || !category) {
     return res.status(400).json({ error: 'eventId, title, category required' });
   }
   const db = getDb();
   const ref = db.collection('events').doc(eventId).collection('challenges').doc();
-  const data = {
+  const data: Record<string, any> = {
     title,
     category: category.toUpperCase(),
     difficulty: difficulty || 1,
@@ -122,9 +122,17 @@ adminRouter.post('/challenge', asyncHandler(async (req: AuthRequest, res: Respon
     descriptionMd: descriptionMd || '',
     attachments: attachments || [],
     published: published ?? false,
+    flagMode: flagMode || 'standard',
+    solveCount: 0,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
+  if (flagMode === 'decay' && decayConfig) {
+    data.decayConfig = {
+      minPoints: decayConfig.minPoints || 50,
+      decayPercent: decayConfig.decayPercent || 10,
+    };
+  }
   await ref.set(data);
   await writeAuditLog(req.uid!, 'CREATE_CHALLENGE', `events/${eventId}/challenges/${ref.id}`, null, data);
   return res.json({ id: ref.id, eventId, ...data });
@@ -145,6 +153,7 @@ adminRouter.put('/challenge/:challengeId', asyncHandler(async (req: AuthRequest,
   const allowed = [
     'title', 'category', 'difficulty', 'pointsFixed',
     'tags', 'descriptionMd', 'published', 'attachments',
+    'flagMode', 'decayConfig',
   ];
   for (const k of allowed) {
     if (req.body[k] !== undefined) updates[k] = req.body[k];

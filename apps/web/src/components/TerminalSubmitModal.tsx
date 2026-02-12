@@ -116,7 +116,11 @@ export function TerminalSubmitModal({
                     ? result.alreadySolved
                       ? '✓ Already solved'
                       : `✓ CORRECT! +${result.scoreAwarded} pts`
-                    : `✗ Wrong flag — ${result.attemptsLeft} attempts left`}
+                    : result.locked
+                      ? '🔒 This challenge has been claimed by another player (unique flag)'
+                      : result.teamBlocked
+                        ? '🚫 A teammate already solved this challenge'
+                        : `✗ Wrong flag — ${result.attemptsLeft} attempts left`}
                 </span>
               )}
               {error && <span className="text-danger">{error}</span>}

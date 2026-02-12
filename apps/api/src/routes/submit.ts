@@ -102,7 +102,10 @@ submitRouter.post(
         }
       }
 
-      // 6. Check if already solved
+      // 6. Determine challenge mode
+      const flagMode = chal.flagMode || 'standard';
+
+      // 6a. Check if already solved by THIS user
       const solveId = `${uid}_${challengeId}`;
       const existingSolve = await db
         .collection('events')
@@ -117,6 +120,45 @@ submitRouter.post(
           attemptsLeft: MAX_ATTEMPTS - attemptCount,
           cooldownRemaining: 0,
         } as SubmitFlagResponse);
+      }
+
+      // 6b. UNIQUE mode — check if ANYONE already solved this challenge
+      if (flagMode === 'unique') {
+        const anySolve = await db
+          .collection('events').doc(eventId)
+          .collection('solves')
+          .where('challengeId', '==', challengeId)
+          .limit(1)
+          .get();
+        if (!anySolve.empty) {
+          return res.json({
+            correct: false,
+            alreadySolved: false,
+            attemptsLeft: MAX_ATTEMPTS - attemptCount,
+            cooldownRemaining: 0,
+            locked: true,
+          } as SubmitFlagResponse);
+        }
+      }
+
+      // 6c. DECAY mode — check if someone from the SAME TEAM already solved
+      if (flagMode === 'decay' && userDoc.teamId) {
+        const teamSolve = await db
+          .collection('events').doc(eventId)
+          .collection('solves')
+          .where('challengeId', '==', challengeId)
+          .where('teamId', '==', userDoc.teamId)
+          .limit(1)
+          .get();
+        if (!teamSolve.empty) {
+          return res.json({
+            correct: false,
+            alreadySolved: false,
+            attemptsLeft: MAX_ATTEMPTS - attemptCount,
+            cooldownRemaining: 0,
+            teamBlocked: true,
+          } as SubmitFlagResponse);
+        }
       }
 
       // 7. Load secret and compare
@@ -165,9 +207,24 @@ submitRouter.post(
 
       // 9. If correct — create solve + update leaderboards
       if (isCorrect) {
-        const pointsAwarded = chal.pointsFixed || 0;
+        let pointsAwarded = chal.pointsFixed || 100;
+
+        // Calculate points based on flag mode
+        if (flagMode === 'decay') {
+          const decayConfig = chal.decayConfig || { minPoints: 50, decayPercent: 10 };
+          const currentSolves = chal.solveCount || 0;
+          // Each solve reduces points by decayPercent
+          const multiplier = Math.pow(1 - (decayConfig.decayPercent / 100), currentSolves);
+          pointsAwarded = Math.max(
+            decayConfig.minPoints,
+            Math.round(pointsAwarded * multiplier),
+          );
+        }
+
         response.scoreAwarded = pointsAwarded;
 
+        // Transaction: create solve + update challenge solve counter
+        let alreadySolvedInTx = false;
         await db.runTransaction(async (tx) => {
           const solveRef = db
             .collection('events')
@@ -176,8 +233,24 @@ submitRouter.post(
             .doc(solveId);
           const solveCheck = await tx.get(solveRef);
           if (solveCheck.exists) {
-            // Already solved (race condition)
+            alreadySolvedInTx = true;
             return;
+          }
+
+          // For unique mode, double-check inside transaction
+          if (flagMode === 'unique') {
+            const chalRef = db.collection('events').doc(eventId).collection('challenges').doc(challengeId);
+            const chalCheck = await tx.get(chalRef);
+            const chalData = chalCheck.data();
+            if (chalData?.lockedBy) {
+              alreadySolvedInTx = true;
+              return;
+            }
+            tx.update(chalRef, { lockedBy: uid, solveCount: 1 });
+          } else {
+            // Increment solve count on the challenge doc
+            const chalRef = db.collection('events').doc(eventId).collection('challenges').doc(challengeId);
+            tx.update(chalRef, { solveCount: FieldValue.increment(1) });
           }
 
           tx.set(solveRef, {
@@ -190,19 +263,33 @@ submitRouter.post(
           });
         });
 
+        if (alreadySolvedInTx) {
+          return res.json({
+            correct: true,
+            alreadySolved: true,
+            attemptsLeft: MAX_ATTEMPTS - (attemptCount + 1),
+            cooldownRemaining: 0,
+          } as SubmitFlagResponse);
+        }
+
         // Update leaderboards (outside transaction for simplicity)
         await updateLeaderboards(db, eventId, event, uid, userDoc);
         await updateAnalytics(db, eventId, challengeId, true);
 
         // ─── Gamification: XP, stats, badges, quests ───
         try {
-          const pointsXp = pointsAwarded * 2;
+          // XP = 2x points, minimum 10 XP per correct solve
+          const pointsXp = Math.max(10, pointsAwarded * 2);
           const userRef = db.collection('users').doc(uid);
           const freshUser = await userRef.get();
+          if (!freshUser.exists) throw new Error('User doc missing');
           const userData = freshUser.data()!;
           const currentXp = userData.xp || 0;
           const newXp = currentXp + pointsXp;
           const newLevel = xpToLevel(newXp);
+          const oldLevel = userData.level || 1;
+
+          console.log(`[gamification] uid=${uid} +${pointsXp}XP (${currentXp}->${newXp}) level ${oldLevel}->${newLevel}`);
 
           // Update stats
           const stats = userData.stats || {};

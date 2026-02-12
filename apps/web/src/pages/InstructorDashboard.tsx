@@ -64,6 +64,9 @@ export default function InstructorDashboard() {
   const [chalFlag, setChalFlag] = useState('');
   const [chalCaseSensitive, setChalCaseSensitive] = useState(false);
   const [chalPublished, setChalPublished] = useState(true);
+  const [chalFlagMode, setChalFlagMode] = useState<'standard' | 'unique' | 'decay'>('standard');
+  const [chalDecayMin, setChalDecayMin] = useState(50);
+  const [chalDecayPercent, setChalDecayPercent] = useState(10);
 
   useEffect(() => {
     (async () => {
@@ -136,6 +139,10 @@ export default function InstructorDashboard() {
         published: chalPublished,
         flagText: chalFlag || undefined,
         caseSensitive: chalCaseSensitive,
+        flagMode: chalFlagMode,
+        ...(chalFlagMode === 'decay' ? {
+          decayConfig: { minPoints: chalDecayMin, decayPercent: chalDecayPercent },
+        } : {}),
       });
       setChallenges((prev) => [...prev, { id: res.id, title: res.title, category: res.category, difficulty: res.difficulty, pointsFixed: res.pointsFixed, published: res.published }]);
       setChalMsg('Challenge created!');
@@ -378,6 +385,29 @@ export default function InstructorDashboard() {
                     placeholder="Flag (e.g. CTF{example_flag})"
                     className="terminal-input w-full px-3 py-2 text-sm font-mono"
                   />
+                  {/* Flag Mode */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div>
+                      <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Flag Mode</label>
+                      <select value={chalFlagMode} onChange={(e) => setChalFlagMode(e.target.value as any)} className="terminal-input w-full px-3 py-2 text-sm">
+                        <option value="standard">Standard</option>
+                        <option value="unique">Unique (1st only)</option>
+                        <option value="decay">Decay (pts decrease)</option>
+                      </select>
+                    </div>
+                    {chalFlagMode === 'decay' && (
+                      <>
+                        <div>
+                          <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Min Points</label>
+                          <input type="number" value={chalDecayMin} onChange={(e) => setChalDecayMin(Number(e.target.value))} className="terminal-input w-full px-3 py-2 text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Decay % per solve</label>
+                          <input type="number" value={chalDecayPercent} onChange={(e) => setChalDecayPercent(Number(e.target.value))} className="terminal-input w-full px-3 py-2 text-sm" />
+                        </div>
+                      </>
+                    )}
+                  </div>
                   <NeonButton size="sm" variant="solid" onClick={handleCreateChallenge}>Create Challenge</NeonButton>
                   {chalMsg && <p className="text-accent text-xs mt-2">{chalMsg}</p>}
                 </div>
