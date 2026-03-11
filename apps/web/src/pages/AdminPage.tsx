@@ -6,7 +6,7 @@ import { StatCard } from '../components/StatCard';
 import { CountdownTimer } from '../components/CountdownTimer';
 import { apiPost, apiPut, apiGet, apiDelete } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
-import { EventDoc, LeagueDoc, EventAnalyticsSummary, LeagueAnalyticsSummary, BadgeDoc, DEFAULT_BADGES, DEFAULT_CLASS_TYPES } from '@mdavelctf/shared';
+import { EventDoc, LeagueDoc, EventAnalyticsSummary, LeagueAnalyticsSummary, BadgeDoc, DEFAULT_BADGES, DEFAULT_CLASS_TYPES, getTagColor } from '@mdavelctf/shared';
 import { useTranslation } from 'react-i18next';
 
 type Tab = 'overview' | 'events' | 'leagues' | 'challenges' | 'users' | 'logs' | 'badges' | 'quests' | 'seed' | 'docs';
@@ -581,7 +581,8 @@ function AdminChallenges() {
   const [eventId, setEventId] = useState('');
   const [challenges, setChallenges] = useState<any[]>([]);
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('WEB');
+  const [category, setCategory] = useState('');
+  const [customCategory, setCustomCategory] = useState('');
   const [difficulty, setDifficulty] = useState('1');
   const [points, setPoints] = useState('100');
   const [desc, setDesc] = useState('');
@@ -598,6 +599,7 @@ function AdminChallenges() {
   const [hintsMap, setHintsMap] = useState<Record<string, any[]>>({});
   const [hintForm, setHintForm] = useState<{ challengeId: string; hintId?: string; title: string; content: string; order: string; penaltyPercent: string } | null>(null);
   const [hintMsg, setHintMsg] = useState('');
+  const [filterTag, setFilterTag] = useState('ALL');
 
   useEffect(() => {
     (async () => {
@@ -619,9 +621,11 @@ function AdminChallenges() {
   const handleCreate = async () => {
     const finalClassType = classType === '__custom__' ? customClassType : classType;
     if (!finalClassType) { setMsg('classType is required'); return; }
+    const finalCategory = category === '__custom__' ? customCategory : category;
+    if (!finalCategory) { setMsg('Tag is required'); return; }
     try {
       const res = await apiPost('/admin/challenge', {
-        eventId, title, category,
+        eventId, title, category: finalCategory,
         difficulty: Number(difficulty),
         pointsFixed: Number(points),
         descriptionMd: desc,
@@ -643,7 +647,7 @@ function AdminChallenges() {
         });
       }
       setMsg('Challenge created');
-      setTitle(''); setDesc(''); setFlagText(''); setClassType(''); setInlineHints([]);
+      setTitle(''); setDesc(''); setFlagText(''); setClassType(''); setCategory(''); setCustomCategory(''); setInlineHints([]);
       loadChallenges(eventId);
     } catch (e: any) { setMsg(e.message); }
   };
@@ -701,11 +705,14 @@ function AdminChallenges() {
         </select>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" className="terminal-input px-3 py-2 text-sm" />
-          <select value={category} onChange={(e) => setCategory(e.target.value)} className="terminal-input px-3 py-2 text-sm">
-            {['WEB', 'CRYPTO', 'FORENSICS', 'OSINT', 'PWN', 'REV'].map((c) => (
-              <option key={c}>{c}</option>
-            ))}
-          </select>
+          <div>
+            <select value={category} onChange={(e) => setCategory(e.target.value)} className="terminal-input px-3 py-2 text-sm w-full">
+              <option value="">Select tag...</option>
+              {DEFAULT_CLASS_TYPES.map((ct) => <option key={ct.value} value={ct.value}>{ct.icon} {ct.label}</option>)}
+              <option value="__custom__">+ Custom tag...</option>
+            </select>
+            {category === '__custom__' && <input value={customCategory} onChange={(e) => setCustomCategory(e.target.value)} placeholder="Tag name" className="terminal-input px-2 py-1 text-sm mt-1 w-full" />}
+          </div>
           <input value={difficulty} onChange={(e) => setDifficulty(e.target.value)} placeholder="Difficulty 1-5" className="terminal-input px-3 py-2 text-sm" type="number" min="1" max="5" />
           <input value={points} onChange={(e) => setPoints(e.target.value)} placeholder="Points" className="terminal-input px-3 py-2 text-sm" type="number" />
         </div>
@@ -766,12 +773,32 @@ function AdminChallenges() {
       <NeonButton size="sm" variant="solid" onClick={handleCreate}>Create Challenge</NeonButton>
       {msg && <p className="text-accent text-xs mt-2">{msg}</p>}
 
-      <div className="mt-6 space-y-2">
-        {challenges.map((c) => (
+      {/* Tag filter */}
+      {challenges.length > 0 && (
+        <div className="mt-4 flex gap-2 flex-wrap">
+          {['ALL', ...new Set(challenges.map((c: any) => c.category))].map((tag) => (
+            <button
+              key={tag}
+              onClick={() => setFilterTag(tag === filterTag ? 'ALL' : tag)}
+              className={`px-3 py-1 text-xs uppercase tracking-widest border transition-colors ${
+                filterTag === tag
+                  ? 'border-accent bg-accent/15 text-accent'
+                  : 'border-accent/20 text-hud-text/50 hover:border-accent/50'
+              }`}
+              style={tag !== 'ALL' ? { borderColor: filterTag === tag ? getTagColor(tag) : undefined, color: filterTag === tag ? getTagColor(tag) : undefined } : {}}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="mt-4 space-y-2">
+        {(filterTag === 'ALL' ? challenges : challenges.filter((c: any) => c.category === filterTag)).map((c: any) => (
           <div key={c.id} className="p-4 border border-accent/20 hover:border-accent/40 transition-colors">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <HudTag>{c.category}</HudTag>
+                <HudTag color={getTagColor(c.category)}>{c.category}</HudTag>
                 {c.flagMode === 'unique' && <span className="text-[10px] px-1.5 py-0.5 bg-warning/10 border border-warning/30 text-warning uppercase">🏆 Unique</span>}
                 {c.flagMode === 'decay' && <span className="text-[10px] px-1.5 py-0.5 bg-accent/10 border border-accent/30 text-accent uppercase">📉 Decay</span>}
                 <div>
@@ -1712,11 +1739,12 @@ function AdminDocs() {
           <p>
             Desafios são os problemas de CTF que os participantes devem resolver submetendo uma flag.
           </p>
-          <h4 className="font-bold text-accent mt-3">Categorias disponíveis:</h4>
+          <h4 className="font-bold text-accent mt-3">Tags disponíveis:</h4>
           <div className="flex gap-2 flex-wrap mt-1">
-            {['WEB', 'CRYPTO', 'FORENSICS', 'OSINT', 'PWN', 'REV', 'MISC', 'NETWORK', 'STEGO'].map((cat) => (
-              <HudTag key={cat}>{cat}</HudTag>
+            {DEFAULT_CLASS_TYPES.map((ct) => (
+              <HudTag key={ct.value} color={getTagColor(ct.value)}>{ct.icon} {ct.label}</HudTag>
             ))}
+            <HudTag>+ Custom</HudTag>
           </div>
 
           <h4 className="font-bold text-accent mt-3">🏳️ Modos de Flag / Flag Modes:</h4>
@@ -1766,7 +1794,7 @@ function AdminDocs() {
           <h4 className="font-bold text-accent mt-3">Campos do desafio:</h4>
           <ul className="list-disc list-inside text-xs space-y-0.5 text-hud-text/60">
             <li><strong>title:</strong> Nome do desafio</li>
-            <li><strong>category:</strong> WEB, CRYPTO, FORENSICS, OSINT, PWN, REV, MISC, NETWORK, STEGO</li>
+            <li><strong>tag:</strong> Mesmas tags das turmas ou tag custom</li>
             <li><strong>difficulty:</strong> 1 (fácil) a 5 (muito difícil)</li>
             <li><strong>pointsFixed:</strong> Pontos concedidos ao resolver (base para decay)</li>
             <li><strong>flagMode:</strong> Standard (padrão), Unique (1ª pessoa), Decay (pontos diminuem)</li>
@@ -1935,7 +1963,7 @@ function AdminDocs() {
           <h4 className="font-bold text-accent mt-3">5. Boas Práticas</h4>
           <ul className="list-disc list-inside text-xs space-y-0.5 text-hud-text/60">
             <li>Comece com desafios de dificuldade 1-2 para novatos</li>
-            <li>Misture categorias (WEB + CRYPTO + FORENSICS) para variedade</li>
+            <li>Misture tags variadas para diversificar os desafios</li>
             <li>Use o modo <Code>eventTeams</Code> para promover colaboração</li>
             <li>Ative as quests semanais para manter o engajamento</li>
             <li>Rotacione o código de convite periodicamente</li>
@@ -1957,7 +1985,7 @@ function AdminDocs() {
           <div className="space-y-2">
             <Step n={1}><span>Em <Code>/home</Code>, veja os eventos <strong>LIVE</strong> (ao vivo)</span></Step>
             <Step n={2}><span>Clique no evento para ver os desafios</span></Step>
-            <Step n={3}><span>Filtre por categoria (WEB, CRYPTO, etc.)</span></Step>
+            <Step n={3}><span>Filtre por tag no evento</span></Step>
             <Step n={4}><span>Leia a descrição, analise o problema e encontre a flag</span></Step>
             <Step n={5}><span>Submeta a flag no formato <Code>CTF&#123;...&#125;</Code></span></Step>
           </div>

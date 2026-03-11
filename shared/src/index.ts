@@ -434,17 +434,23 @@ export interface HintUnlockDoc {
 }
 
 /* ─── Class Type Tags ─── */
-export const DEFAULT_CLASS_TYPES: { value: string; label: string; icon: string }[] = [
-  { value: 'TI', label: 'Tecnologia da Informação', icon: '💻' },
-  { value: 'Administração', label: 'Administração', icon: '📊' },
-  { value: 'Mecânica', label: 'Mecânica', icon: '⚙️' },
-  { value: 'Robótica', label: 'Robótica', icon: '🤖' },
-  { value: 'Redes', label: 'Redes de Computadores', icon: '🌐' },
-  { value: 'Segurança', label: 'Segurança da Informação', icon: '🔒' },
-  { value: 'Multimídia', label: 'Multimídia', icon: '🎬' },
-  { value: 'Jogos', label: 'Desenvolvimento de Jogos', icon: '🎮' },
-  { value: 'Outro', label: 'Outro', icon: '📁' },
+export const DEFAULT_CLASS_TYPES: { value: string; label: string; icon: string; color: string }[] = [
+  { value: 'TI', label: 'Tecnologia da Informação', icon: '💻', color: '#00f0ff' },
+  { value: 'Administração', label: 'Administração', icon: '📊', color: '#ffbf00' },
+  { value: 'Mecânica', label: 'Mecânica', icon: '⚙️', color: '#ff6600' },
+  { value: 'Robótica', label: 'Robótica', icon: '🤖', color: '#39ff14' },
+  { value: 'Redes', label: 'Redes de Computadores', icon: '🌐', color: '#00aaff' },
+  { value: 'Segurança', label: 'Segurança da Informação', icon: '🔒', color: '#ff003c' },
+  { value: 'Multimídia', label: 'Multimídia', icon: '🎬', color: '#ff00ff' },
+  { value: 'Jogos', label: 'Desenvolvimento de Jogos', icon: '🎮', color: '#a855f7' },
+  { value: 'Outro', label: 'Outro', icon: '📁', color: '#888888' },
 ];
+
+/** Get color for a class type tag (returns default for unknown tags) */
+export function getTagColor(tag: string): string {
+  const found = DEFAULT_CLASS_TYPES.find((ct) => ct.value === tag);
+  return found?.color || 'var(--accent)';
+}
 
 /* ─── Course Theme Presets ─── */
 export interface CourseThemePreset {

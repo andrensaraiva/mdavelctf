@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { doc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
-import { EventDoc, ChallengeDoc, EventStatus, SolveDoc } from '@mdavelctf/shared';
+import { EventDoc, ChallengeDoc, EventStatus, SolveDoc, getTagColor } from '@mdavelctf/shared';
 import { HudPanel } from '../components/HudPanel';
 import { HudTag } from '../components/HudTag';
 import { CountdownTimer } from '../components/CountdownTimer';
@@ -16,15 +16,6 @@ function getStatus(e: EventDoc): EventStatus {
   if (now > new Date(e.endsAt).getTime()) return 'ENDED';
   return 'LIVE';
 }
-
-const catColors: Record<string, string> = {
-  WEB: '#00f0ff',
-  CRYPTO: '#ffbf00',
-  FORENSICS: '#ff00ff',
-  OSINT: '#39ff14',
-  PWN: '#ff003c',
-  REV: '#ff6600',
-};
 
 export default function EventPage() {
   const { eventId } = useParams<{ eventId: string }>();
@@ -119,8 +110,8 @@ export default function EventPage() {
                 : 'border-accent/20 text-hud-text/50 hover:border-accent/50'
             }`}
             style={
-              cat !== 'ALL' && catColors[cat]
-                ? { borderColor: filter === cat ? catColors[cat] : undefined }
+              cat !== 'ALL' && getTagColor(cat) !== 'var(--accent)'
+                ? { borderColor: filter === cat ? getTagColor(cat) : undefined }
                 : {}
             }
           >
@@ -133,7 +124,7 @@ export default function EventPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.map((chal) => {
           const solved = mySolves.has(chal.id);
-          const color = catColors[chal.category] || 'var(--accent)';
+          const color = getTagColor(chal.category);
           return (
             <Link
               key={chal.id}

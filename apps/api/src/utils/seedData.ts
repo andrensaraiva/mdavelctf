@@ -247,9 +247,9 @@ export async function runSeed(mode: 'minimal' | 'full' = 'full'): Promise<{ summ
   });
 
   const e1Challenges = [
-    { id: 'e1c1', title: 'Hello Web', category: 'WEB', difficulty: 1, pointsFixed: 50, tags: ['http', 'beginner'], classType: 'Segurança', descriptionMd: '## Hello Web\n\nCheck the page source.', flag: 'CTF{mdavel_warmup_web_01}', hints: [{ title: 'View Source', description: 'Right-click the page and view source code.', penaltyPercent: 10 }] },
-    { id: 'e1c2', title: 'Caesar Salad', category: 'CRYPTO', difficulty: 1, pointsFixed: 75, tags: ['caesar'], classType: 'Segurança', descriptionMd: '## Caesar Salad\n\nDecrypt: `PGS{zqniry_jnezhc_pelcgb_02}`', flag: 'CTF{mdavel_warmup_crypto_02}', hints: [{ title: 'ROT13', description: 'Try rotating the alphabet by 13 positions.', penaltyPercent: 20 }] },
-    { id: 'e1c3', title: 'File Header', category: 'FORENSICS', difficulty: 2, pointsFixed: 100, tags: ['magic-bytes'], classType: 'Segurança', descriptionMd: '## File Header\n\nIdentify: `89 50 4E 47 0D 0A 1A 0A`', flag: 'CTF{mdavel_warmup_forensics_03}', hints: [] },
+    { id: 'e1c1', title: 'Hello Web', category: 'Segurança', difficulty: 1, pointsFixed: 50, tags: ['http', 'beginner'], classType: 'Segurança', descriptionMd: '## Hello Web\n\nCheck the page source.', flag: 'CTF{mdavel_warmup_web_01}', hints: [{ title: 'View Source', description: 'Right-click the page and view source code.', penaltyPercent: 10 }] },
+    { id: 'e1c2', title: 'Caesar Salad', category: 'Segurança', difficulty: 1, pointsFixed: 75, tags: ['caesar'], classType: 'Segurança', descriptionMd: '## Caesar Salad\n\nDecrypt: `PGS{zqniry_jnezhc_pelcgb_02}`', flag: 'CTF{mdavel_warmup_crypto_02}', hints: [{ title: 'ROT13', description: 'Try rotating the alphabet by 13 positions.', penaltyPercent: 20 }] },
+    { id: 'e1c3', title: 'File Header', category: 'Segurança', difficulty: 2, pointsFixed: 100, tags: ['magic-bytes'], classType: 'Segurança', descriptionMd: '## File Header\n\nIdentify: `89 50 4E 47 0D 0A 1A 0A`', flag: 'CTF{mdavel_warmup_forensics_03}', hints: [] },
   ];
   for (const c of e1Challenges) {
     await db.collection('events').doc(event1Id).collection('challenges').doc(c.id).set({
@@ -270,19 +270,19 @@ export async function runSeed(mode: 'minimal' | 'full' = 'full'): Promise<{ summ
   });
 
   const e2Challenges = [
-    { id: 'e2c1', title: 'SQL Injection 101', category: 'WEB', difficulty: 2, pointsFixed: 100, tags: ['sqli'], classType: 'TI', descriptionMd: '## SQL Injection 101\n\nBypass auth.', flag: 'CTF{mdavel_weekly1_web_01}', hints: [
+    { id: 'e2c1', title: 'SQL Injection 101', category: 'TI', difficulty: 2, pointsFixed: 100, tags: ['sqli'], classType: 'TI', descriptionMd: '## SQL Injection 101\n\nBypass auth.', flag: 'CTF{mdavel_weekly1_web_01}', hints: [
       { title: 'Think Input', description: 'Try entering a single quote in the login field.', penaltyPercent: 10 },
       { title: 'Classic Payload', description: 'The classic `\' OR 1=1 --` might help.', penaltyPercent: 25 },
     ]},
-    { id: 'e2c2', title: 'RSA Basics', category: 'CRYPTO', difficulty: 3, pointsFixed: 150, tags: ['rsa'], classType: 'TI', descriptionMd: '## RSA Basics\n\nn=3233, e=17, ct=2790', flag: 'CTF{mdavel_weekly1_crypto_02}', hints: [
+    { id: 'e2c2', title: 'RSA Basics', category: 'TI', difficulty: 3, pointsFixed: 150, tags: ['rsa'], classType: 'TI', descriptionMd: '## RSA Basics\n\nn=3233, e=17, ct=2790', flag: 'CTF{mdavel_weekly1_crypto_02}', hints: [
       { title: 'Small Primes', description: 'n=3233 factors into two small primes. Try dividing!', penaltyPercent: 15 },
       { title: 'Compute d', description: 'p=53, q=61. Now compute d = e^-1 mod (p-1)(q-1).', penaltyPercent: 30 },
     ]},
-    { id: 'e2c3', title: 'Hidden Layers', category: 'FORENSICS', difficulty: 2, pointsFixed: 100, tags: ['steganography'], classType: 'TI', descriptionMd: '## Hidden Layers\n\nExtract hidden message from PNG.', flag: 'CTF{mdavel_weekly1_forensics_03}', hints: [
+    { id: 'e2c3', title: 'Hidden Layers', category: 'Multimídia', difficulty: 2, pointsFixed: 100, tags: ['steganography'], classType: 'TI', descriptionMd: '## Hidden Layers\n\nExtract hidden message from PNG.', flag: 'CTF{mdavel_weekly1_forensics_03}', hints: [
       { title: 'Tool Hint', description: 'Try using `steghide` or `zsteg` on the image.', penaltyPercent: 20 },
     ]},
-    { id: 'e2c4', title: 'GeoGuesser', category: 'OSINT', difficulty: 2, pointsFixed: 100, tags: ['geolocation'], classType: 'TI', descriptionMd: '## GeoGuesser\n\nIdentify the location.', flag: 'CTF{mdavel_weekly1_osint_04}', hints: [] },
-    { id: 'e2c5', title: 'Buffer Overflow 101', category: 'PWN', difficulty: 4, pointsFixed: 200, tags: ['bof'], classType: 'TI', descriptionMd: '## Buffer Overflow 101\n\nOverflow buf and call win().', flag: 'CTF{mdavel_weekly1_pwn_05}', hints: [
+    { id: 'e2c4', title: 'GeoGuesser', category: 'Administração', difficulty: 2, pointsFixed: 100, tags: ['geolocation'], classType: 'TI', descriptionMd: '## GeoGuesser\n\nIdentify the location.', flag: 'CTF{mdavel_weekly1_osint_04}', hints: [] },
+    { id: 'e2c5', title: 'Buffer Overflow 101', category: 'Segurança', difficulty: 4, pointsFixed: 200, tags: ['bof'], classType: 'TI', descriptionMd: '## Buffer Overflow 101\n\nOverflow buf and call win().', flag: 'CTF{mdavel_weekly1_pwn_05}', hints: [
       { title: 'Buffer Size', description: 'The buffer is 64 bytes. What comes after it on the stack?', penaltyPercent: 10 },
       { title: 'Return Address', description: 'Overwrite the return address with the address of `win()`.', penaltyPercent: 20 },
       { title: 'Exact Offset', description: 'Offset is 72 bytes (64 buffer + 8 saved RBP). Address of win: check with `objdump`.', penaltyPercent: 35 },
@@ -307,13 +307,13 @@ export async function runSeed(mode: 'minimal' | 'full' = 'full'): Promise<{ summ
   });
 
   const e3Challenges = [
-    { id: 'e3c1', title: 'XSS Playground', category: 'WEB', difficulty: 3, pointsFixed: 150, tags: ['xss'], classType: 'Redes', descriptionMd: '## XSS Playground\n\nFind reflected XSS.', flag: 'CTF{mdavel_weekly2_web_01}', hints: [{ title: 'Input Fields', description: 'Look for user input reflected in the page without sanitization.', penaltyPercent: 15 }] },
-    { id: 'e3c2', title: 'Vigenère Vault', category: 'CRYPTO', difficulty: 3, pointsFixed: 150, tags: ['vigenere'], classType: 'Redes', descriptionMd: '## Vigenère Vault\n\nBreak the cipher.', flag: 'CTF{mdavel_weekly2_crypto_02}', hints: [] },
-    { id: 'e3c3', title: 'Reverse Me', category: 'REV', difficulty: 4, pointsFixed: 200, tags: ['binary'], classType: 'Redes', descriptionMd: '## Reverse Me\n\nReverse engineer the binary.', flag: 'CTF{mdavel_weekly2_rev_03}', hints: [
+    { id: 'e3c1', title: 'XSS Playground', category: 'Redes', difficulty: 3, pointsFixed: 150, tags: ['xss'], classType: 'Redes', descriptionMd: '## XSS Playground\n\nFind reflected XSS.', flag: 'CTF{mdavel_weekly2_web_01}', hints: [{ title: 'Input Fields', description: 'Look for user input reflected in the page without sanitization.', penaltyPercent: 15 }] },
+    { id: 'e3c2', title: 'Vigenère Vault', category: 'Redes', difficulty: 3, pointsFixed: 150, tags: ['vigenere'], classType: 'Redes', descriptionMd: '## Vigenère Vault\n\nBreak the cipher.', flag: 'CTF{mdavel_weekly2_crypto_02}', hints: [] },
+    { id: 'e3c3', title: 'Reverse Me', category: 'Mecânica', difficulty: 4, pointsFixed: 200, tags: ['binary'], classType: 'Redes', descriptionMd: '## Reverse Me\n\nReverse engineer the binary.', flag: 'CTF{mdavel_weekly2_rev_03}', hints: [
       { title: 'Strings', description: 'Run `strings` on the binary to find readable text.', penaltyPercent: 10 },
       { title: 'Disassemble', description: 'Use Ghidra or IDA to find the comparison function.', penaltyPercent: 25 },
     ]},
-    { id: 'e3c4', title: 'Memory Dump', category: 'FORENSICS', difficulty: 3, pointsFixed: 150, tags: ['volatility'], classType: 'Redes', descriptionMd: '## Memory Dump\n\nAnalyze the memory dump.', flag: 'CTF{mdavel_weekly2_forensics_04}', hints: [] },
+    { id: 'e3c4', title: 'Memory Dump', category: 'Redes', difficulty: 3, pointsFixed: 150, tags: ['volatility'], classType: 'Redes', descriptionMd: '## Memory Dump\n\nAnalyze the memory dump.', flag: 'CTF{mdavel_weekly2_forensics_04}', hints: [] },
   ];
   for (const c of e3Challenges) {
     await db.collection('events').doc(event3Id).collection('challenges').doc(c.id).set({
@@ -401,20 +401,20 @@ export async function runSeed(mode: 'minimal' | 'full' = 'full'): Promise<{ summ
   // ── User profiles ──
   await db.collection('users').doc(user1Uid).update({
     bio: 'CTF beginner turned web security enthusiast.', course: 'Cybersecurity B.Sc.', classGroup: 'CS-2026-A', unit: 'Engineering',
-    xp: 700, level: 2, badges: ['first_solve', 'team_player'], stats: { solvesTotal: 2, correctSubmissions: 2, wrongSubmissions: 1, solvesByCategory: { WEB: 1, CRYPTO: 1 } },
+    xp: 700, level: 2, badges: ['first_solve', 'team_player'], stats: { solvesTotal: 2, correctSubmissions: 2, wrongSubmissions: 1, solvesByCategory: { Segurança: 1, TI: 1 } },
   });
   await db.collection('users').doc(user2Uid).update({
     bio: 'Forensics nerd.', course: 'Computer Science B.Sc.', classGroup: 'CS-2026-B', unit: 'Engineering',
-    xp: 250, level: 2, badges: ['first_solve'], stats: { solvesTotal: 1, correctSubmissions: 1, wrongSubmissions: 1, solvesByCategory: { FORENSICS: 1 } },
+    xp: 250, level: 2, badges: ['first_solve'], stats: { solvesTotal: 1, correctSubmissions: 1, wrongSubmissions: 1, solvesByCategory: { Multimídia: 1 } },
   });
   await db.collection('users').doc(user3Uid).update({
     bio: 'Binary exploitation is my zen.', course: 'Information Security M.Sc.', classGroup: 'IS-2025-A', unit: 'Engineering',
     xp: 1400, level: 3, badges: ['first_solve', 'five_solves', 'three_categories', 'team_player', 'speed_demon'],
-    stats: { solvesTotal: 3, correctSubmissions: 3, wrongSubmissions: 1, solvesByCategory: { WEB: 1, CRYPTO: 1, PWN: 1 } },
+    stats: { solvesTotal: 3, correctSubmissions: 3, wrongSubmissions: 1, solvesByCategory: { TI: 1, Segurança: 1, Redes: 1 } },
   });
   await db.collection('users').doc(user4Uid).update({
     bio: 'OSINT geek.', course: 'Digital Forensics B.Sc.', classGroup: 'DF-2026-A', unit: 'Engineering',
-    xp: 250, level: 2, badges: ['first_solve'], stats: { solvesTotal: 1, correctSubmissions: 1, wrongSubmissions: 0, solvesByCategory: { OSINT: 1 } },
+    xp: 250, level: 2, badges: ['first_solve'], stats: { solvesTotal: 1, correctSubmissions: 1, wrongSubmissions: 0, solvesByCategory: { Administração: 1 } },
   });
   await db.collection('users').doc(adminUid).update({ bio: 'Platform admin.', course: 'Staff', unit: 'IT Department' });
   summary.push('User profiles extended');
@@ -429,12 +429,12 @@ export async function runSeed(mode: 'minimal' | 'full' = 'full'): Promise<{ summ
     five_solves: { name: 'Pentakill', description: 'Solve 5 challenges', icon: '⚔️', rarity: 'common', criteriaKey: 'five_solves', xpReward: 100 },
     ten_solves: { name: 'Veteran Hacker', description: 'Solve 10 challenges', icon: '🎖️', rarity: 'rare', criteriaKey: 'ten_solves', xpReward: 200 },
     twenty_solves: { name: 'Elite Operator', description: 'Solve 20 challenges', icon: '💀', rarity: 'epic', criteriaKey: 'twenty_solves', xpReward: 500 },
-    three_categories: { name: 'Versatile', description: 'Solve in 3 categories', icon: '🔀', rarity: 'rare', criteriaKey: 'three_categories', xpReward: 150 },
-    five_categories: { name: 'Full-Spectrum', description: 'Solve in 5 categories', icon: '🌈', rarity: 'epic', criteriaKey: 'five_categories', xpReward: 300 },
+    three_categories: { name: 'Versatile', description: 'Solve in 3 tags', icon: '🔀', rarity: 'rare', criteriaKey: 'three_categories', xpReward: 150 },
+    five_categories: { name: 'Full-Spectrum', description: 'Solve in 5 tags', icon: '🌈', rarity: 'epic', criteriaKey: 'five_categories', xpReward: 300 },
     team_player: { name: 'Team Player', description: 'Solve 2+ in a team', icon: '🤝', rarity: 'common', criteriaKey: 'team_player', xpReward: 75 },
-    web_master: { name: 'Web Master', description: 'Solve 5 WEB', icon: '🌐', rarity: 'rare', criteriaKey: 'web_master', xpReward: 200 },
-    crypto_breaker: { name: 'Crypto Breaker', description: 'Solve 5 CRYPTO', icon: '🔐', rarity: 'rare', criteriaKey: 'crypto_breaker', xpReward: 200 },
-    forensics_expert: { name: 'Forensics Expert', description: 'Solve 5 FORENSICS', icon: '🔍', rarity: 'rare', criteriaKey: 'forensics_expert', xpReward: 200 },
+    web_master: { name: 'Web Master', description: 'Solve 5 Segurança', icon: '🌐', rarity: 'rare', criteriaKey: 'web_master', xpReward: 200 },
+    crypto_breaker: { name: 'Crypto Breaker', description: 'Solve 5 TI', icon: '🔐', rarity: 'rare', criteriaKey: 'crypto_breaker', xpReward: 200 },
+    forensics_expert: { name: 'Forensics Expert', description: 'Solve 5 Redes', icon: '🔍', rarity: 'rare', criteriaKey: 'forensics_expert', xpReward: 200 },
     speed_demon: { name: 'Speed Demon', description: 'Solve on first attempt', icon: '⚡', rarity: 'common', criteriaKey: 'speed_demon', xpReward: 50 },
     night_owl: { name: 'Night Owl', description: 'Submit after midnight', icon: '🦉', rarity: 'common', criteriaKey: 'night_owl', xpReward: 50 },
   };
@@ -447,8 +447,8 @@ export async function runSeed(mode: 'minimal' | 'full' = 'full'): Promise<{ summ
   const weekEnd = new Date(now + 7 * DAY);
   const quests = [
     { id: 'quest-weekly-warrior', title: 'Weekly Warrior', description: 'Solve 3 challenges this week', activeFrom: new Date(now - 1 * DAY).toISOString(), activeTo: weekEnd.toISOString(), xpReward: 150, rules: { type: 'solve_total', target: 3 } },
-    { id: 'quest-web-hunter', title: 'Web Hunter', description: 'Solve 2 WEB challenges this week', activeFrom: new Date(now - 1 * DAY).toISOString(), activeTo: weekEnd.toISOString(), xpReward: 100, rules: { type: 'solve_category', target: 2, category: 'WEB' } },
-    { id: 'quest-crypto-starter', title: 'Crypto Starter', description: 'Solve 1 CRYPTO challenge this week', activeFrom: new Date(now - 1 * DAY).toISOString(), activeTo: weekEnd.toISOString(), xpReward: 75, rules: { type: 'solve_category', target: 1, category: 'CRYPTO' } },
+    { id: 'quest-web-hunter', title: 'Web Hunter', description: 'Solve 2 Segurança challenges this week', activeFrom: new Date(now - 1 * DAY).toISOString(), activeTo: weekEnd.toISOString(), xpReward: 100, rules: { type: 'solve_category', target: 2, category: 'Segurança' } },
+    { id: 'quest-crypto-starter', title: 'Crypto Starter', description: 'Solve 1 TI challenge this week', activeFrom: new Date(now - 1 * DAY).toISOString(), activeTo: weekEnd.toISOString(), xpReward: 75, rules: { type: 'solve_category', target: 1, category: 'TI' } },
   ];
   for (const q of quests) {
     const { id, ...data } = q;

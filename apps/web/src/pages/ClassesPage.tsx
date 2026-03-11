@@ -6,6 +6,7 @@ import { NeonButton } from '../components/NeonButton';
 import { HudTag } from '../components/HudTag';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { DEFAULT_CLASS_TYPES } from '@mdavelctf/shared';
 
 interface ClassSummary {
   id: string;
@@ -23,6 +24,8 @@ export default function ClassesPage() {
   const [joinCode, setJoinCode] = useState('');
   const [className, setClassName] = useState('');
   const [classDesc, setClassDesc] = useState('');
+  const [classTag, setClassTag] = useState('');
+  const [customClassTag, setCustomClassTag] = useState('');
   const [msg, setMsg] = useState('');
 
   const load = async () => {
@@ -45,17 +48,20 @@ export default function ClassesPage() {
   };
 
   const handleCreate = async () => {
+    const finalTag = classTag === '__custom__' ? customClassTag : classTag;
     try {
-      await apiPost('/classes/create', { name: className, description: classDesc });
+      await apiPost('/classes/create', { name: className, description: classDesc, classType: finalTag || undefined });
       setMsg('Class created!');
       setClassName('');
       setClassDesc('');
+      setClassTag('');
+      setCustomClassTag('');
       await load();
     } catch (e: any) { setMsg(e.message); }
     setTimeout(() => setMsg(''), 3000);
   };
 
-  const isInstructor = userDoc?.role === 'instructor' || userDoc?.role === 'admin';
+  const isInstructor = userDoc?.role === 'instructor' || userDoc?.role === 'admin' || userDoc?.role === 'superadmin';
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
@@ -92,6 +98,17 @@ export default function ClassesPage() {
               placeholder={t('classes.classDescription')}
               className="terminal-input w-full px-3 py-2 text-sm"
             />
+            <div>
+              <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Tag</label>
+              <div className="flex gap-2 items-center">
+                <select value={classTag} onChange={(e) => setClassTag(e.target.value)} className="terminal-input px-3 py-2 text-sm w-full">
+                  <option value="">Select tag...</option>
+                  {DEFAULT_CLASS_TYPES.map((ct) => <option key={ct.value} value={ct.value}>{ct.icon} {ct.label}</option>)}
+                  <option value="__custom__">+ Custom tag...</option>
+                </select>
+                {classTag === '__custom__' && <input value={customClassTag} onChange={(e) => setCustomClassTag(e.target.value)} placeholder="Tag name" className="terminal-input px-3 py-2 text-sm" />}
+              </div>
+            </div>
             <NeonButton size="sm" variant="solid" onClick={handleCreate}>{t('classes.create')}</NeonButton>
           </div>
         </HudPanel>

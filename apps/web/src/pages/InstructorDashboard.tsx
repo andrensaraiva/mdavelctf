@@ -7,7 +7,7 @@ import { HudTag } from '../components/HudTag';
 import { StatCard } from '../components/StatCard';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { DEFAULT_CLASS_TYPES } from '@mdavelctf/shared';
+import { DEFAULT_CLASS_TYPES, getTagColor } from '@mdavelctf/shared';
 
 interface ClassSummary {
   id: string;
@@ -60,7 +60,8 @@ export default function InstructorDashboard() {
   const [chalMsg, setChalMsg] = useState('');
   // New challenge form
   const [chalTitle, setChalTitle] = useState('');
-  const [chalCategory, setChalCategory] = useState('Web');
+  const [chalCategory, setChalCategory] = useState('');
+  const [chalCustomCategory, setChalCustomCategory] = useState('');
   const [chalDifficulty, setChalDifficulty] = useState(1);
   const [chalPoints, setChalPoints] = useState(100);
   const [chalDesc, setChalDesc] = useState('');
@@ -134,8 +135,9 @@ export default function InstructorDashboard() {
 
   const handleCreateChallenge = async () => {
     const finalClassType = chalClassType === '__custom__' ? chalCustomClassType : chalClassType;
-    if (!selectedEventId || !chalTitle || !chalCategory) {
-      setChalMsg('Select an event and fill in title + category');
+    const finalCategory = chalCategory === '__custom__' ? chalCustomCategory : chalCategory;
+    if (!selectedEventId || !chalTitle || !finalCategory) {
+      setChalMsg('Select an event and fill in title + tag');
       return;
     }
     if (!finalClassType) { setChalMsg('classType is required'); return; }
@@ -143,7 +145,7 @@ export default function InstructorDashboard() {
       const res = await apiPost('/classes/instructor/challenge', {
         eventId: selectedEventId,
         title: chalTitle,
-        category: chalCategory,
+        category: finalCategory,
         difficulty: chalDifficulty,
         pointsFixed: chalPoints,
         descriptionMd: chalDesc,
@@ -163,6 +165,8 @@ export default function InstructorDashboard() {
       setChalDesc('');
       setChalFlag('');
       setChalPoints(100);
+      setChalCategory('');
+      setChalCustomCategory('');
       setChalDifficulty(1);
       setChalClassType('');
       setChalInlineHints([]);
@@ -372,12 +376,15 @@ export default function InstructorDashboard() {
                   />
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <div>
-                      <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Category</label>
+                      <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Tag *</label>
                       <select value={chalCategory} onChange={(e) => setChalCategory(e.target.value)} className="terminal-input w-full px-3 py-2 text-sm">
-                        {['Web', 'Crypto', 'Forensics', 'Rev', 'Pwn', 'Misc', 'OSINT', 'Network', 'Stego'].map((c) => (
-                          <option key={c} value={c}>{c}</option>
+                        <option value="">Select tag...</option>
+                        {DEFAULT_CLASS_TYPES.map((ct) => (
+                          <option key={ct.value} value={ct.value}>{ct.icon} {ct.label}</option>
                         ))}
+                        <option value="__custom__">+ Custom tag...</option>
                       </select>
+                      {chalCategory === '__custom__' && <input value={chalCustomCategory} onChange={(e) => setChalCustomCategory(e.target.value)} placeholder="Tag name" className="terminal-input w-full px-2 py-1 text-sm mt-1" />}
                     </div>
                     <div>
                       <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Difficulty</label>
@@ -577,7 +584,7 @@ function InstructorGuide() {
           <ul className="list-disc list-inside space-y-1">
             <li>Acesse a aba <strong>🧩 Challenges</strong> neste painel</li>
             <li>Selecione um <strong>evento que você criou</strong> no dropdown</li>
-            <li>Preencha: <strong>título</strong>, <strong>categoria</strong> (WEB, CRYPTO, FORENSICS, OSINT, PWN, REV, MISC, NETWORK, STEGO), <strong>dificuldade</strong> (1-5), <strong>pontos</strong></li>
+            <li>Preencha: <strong>título</strong>, <strong>tag</strong> (mesmas tags das turmas ou custom), <strong>dificuldade</strong> (1-5), <strong>pontos</strong></li>
             <li>Escreva a <strong>descrição</strong> em Markdown (suporta código, links, imagens)</li>
             <li>Defina a <strong>flag</strong> (ex: <Code>CTF&#123;minha_flag&#125;</Code>)</li>
           </ul>
@@ -631,7 +638,7 @@ function InstructorGuide() {
             <li>Use <strong>🏆 Unique</strong> para competições de velocidade (primeiro a resolver ganha)</li>
             <li>Use <strong>📉 Decay</strong> para equilibrar pontos quando muitos resolvem</li>
             <li>Configure <strong>Min Points</strong> alto (ex: 50%) no Decay para evitar pontuações muito baixas</li>
-            <li>Combine categorias (WEB, CRYPTO, FORENSICS...) para treinar habilidades variadas</li>
+            <li>Combine tags variadas para treinar habilidades diversas</li>
             <li>Dificuldade 1-2 para iniciantes, 3-5 para avançados — ajuste os <strong>pontos</strong> proporcionalmente</li>
           </ul>
         </>

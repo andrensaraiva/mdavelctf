@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { ChallengeDoc, EventDoc } from '@mdavelctf/shared';
+import { ChallengeDoc, EventDoc, getTagColor } from '@mdavelctf/shared';
 import { HudPanel } from '../components/HudPanel';
 import { HudTag } from '../components/HudTag';
 import { NeonButton } from '../components/NeonButton';
@@ -72,15 +72,7 @@ export default function ChallengePage() {
     return <div className="p-8 text-center text-accent/50">Loading...</div>;
   }
 
-  const catColors: Record<string, string> = {
-    WEB: '#00f0ff',
-    CRYPTO: '#ffbf00',
-    FORENSICS: '#ff00ff',
-    OSINT: '#39ff14',
-    PWN: '#ff003c',
-    REV: '#ff6600',
-  };
-  const color = catColors[challenge.category] || 'var(--accent)';
+  const color = getTagColor(challenge.category);
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
