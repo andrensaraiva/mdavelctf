@@ -4,12 +4,12 @@ import { NeonButton } from '../components/NeonButton';
 import { HudTag } from '../components/HudTag';
 import { StatCard } from '../components/StatCard';
 import { CountdownTimer } from '../components/CountdownTimer';
-import { apiPost, apiPut, apiGet } from '../lib/api';
+import { apiPost, apiPut, apiGet, apiDelete } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
-import { EventDoc, LeagueDoc, EventAnalyticsSummary, LeagueAnalyticsSummary, BadgeDoc, DEFAULT_BADGES } from '@mdavelctf/shared';
+import { EventDoc, LeagueDoc, EventAnalyticsSummary, LeagueAnalyticsSummary, BadgeDoc, DEFAULT_BADGES, COURSE_THEME_PRESETS, CTF_TYPE_OPTIONS } from '@mdavelctf/shared';
 import { useTranslation } from 'react-i18next';
 
-type Tab = 'overview' | 'events' | 'leagues' | 'challenges' | 'users' | 'logs' | 'badges' | 'quests' | 'seed' | 'docs';
+type Tab = 'overview' | 'events' | 'leagues' | 'challenges' | 'users' | 'logs' | 'badges' | 'quests' | 'seed' | 'docs' | 'courses';
 
 function getEventStatus(e: EventDoc) {
   const now = Date.now();
@@ -36,6 +36,7 @@ export default function AdminPage() {
     { key: 'events', label: t('admin.events'), icon: '🏁' },
     { key: 'leagues', label: t('admin.leagues'), icon: '🏆' },
     { key: 'challenges', label: t('admin.challenges'), icon: '🧩' },
+    { key: 'courses', label: t('admin.courses', 'Courses'), icon: '📚' },
     { key: 'users', label: t('admin.users'), icon: '👤' },
     { key: 'badges', label: t('admin.badges'), icon: '🎖️' },
     { key: 'quests', label: t('admin.quests'), icon: '📜' },
@@ -75,6 +76,7 @@ export default function AdminPage() {
       {tab === 'events' && <AdminEvents />}
       {tab === 'leagues' && <AdminLeagues />}
       {tab === 'challenges' && <AdminChallenges />}
+      {tab === 'courses' && <AdminCoursesTab />}
       {tab === 'users' && <AdminUsers />}
       {tab === 'badges' && <AdminBadges />}
       {tab === 'quests' && <AdminQuests />}
@@ -178,13 +180,15 @@ function AdminOverview() {
       )}
 
       {/* Top stats HUD row */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-3">
         <StatCard label="Events" value={totalEvts} color="var(--accent)" />
         <StatCard label="Live Now" value={liveCount} icon={liveCount > 0 ? <span className="live-dot" /> : undefined} color="var(--success)" />
         <StatCard label="Users" value={totalUsers} color="var(--accent2)" />
         <StatCard label="Submissions" value={totalSubs} color="var(--hud-text)" />
         <StatCard label="Solves" value={totalSolves} color="var(--success)" />
         <StatCard label="Solve Rate" value={`${solveRate}%`} color="var(--warning)" />
+        <StatCard label="Hint Unlocks" value={summary?.totalHintUnlocks ?? 0} color="var(--accent)" />
+        <StatCard label="Courses" value={summary?.totalCourses ?? 0} color="var(--accent2)" />
       </div>
 
       {/* Two-column layout for main panels */}
@@ -442,10 +446,12 @@ function AdminOverview() {
 /* ─── Events Tab ─── */
 function AdminEvents() {
   const [events, setEvents] = useState<any[]>([]);
+  const [courses, setCourses] = useState<any[]>([]);
   const [name, setName] = useState('');
   const [startsAt, setStartsAt] = useState('');
   const [endsAt, setEndsAt] = useState('');
   const [leagueId, setLeagueId] = useState('');
+  const [courseId, setCourseId] = useState('');
   const [msg, setMsg] = useState('');
 
   const load = async () => {
@@ -454,7 +460,10 @@ function AdminEvents() {
       setEvents(res.events || []);
     } catch {}
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    (async () => { try { const r = await apiGet('/courses'); setCourses(r.courses || []); } catch {} })();
+  }, []);
 
   const handleCreate = async () => {
     try {
@@ -464,9 +473,10 @@ function AdminEvents() {
         endsAt: new Date(endsAt).toISOString(),
         published: true,
         leagueId: leagueId || null,
+        courseId: courseId || null,
       });
       setMsg('Event created');
-      setName(''); setStartsAt(''); setEndsAt('');
+      setName(''); setStartsAt(''); setEndsAt(''); setCourseId('');
       load();
     } catch (e: any) { setMsg(e.message); }
   };
@@ -478,6 +488,12 @@ function AdminEvents() {
         <input type="datetime-local" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} className="terminal-input px-3 py-2 text-sm" />
         <input type="datetime-local" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} className="terminal-input px-3 py-2 text-sm" />
         <input value={leagueId} onChange={(e) => setLeagueId(e.target.value)} placeholder="League ID (optional)" className="terminal-input px-3 py-2 text-sm" />
+      </div>
+      <div className="mb-4">
+        <select value={courseId} onChange={(e) => setCourseId(e.target.value)} className="terminal-input px-3 py-2 text-sm w-full md:w-auto">
+          <option value="">No Course (optional)</option>
+          {courses.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
       </div>
       <NeonButton size="sm" variant="solid" onClick={handleCreate}>Create Event</NeonButton>
       {msg && <p className="text-accent text-xs mt-2">{msg}</p>}
@@ -492,6 +508,10 @@ function AdminEvents() {
                 {status === 'LIVE' && <span className="live-dot" />}
                 <span className="font-bold text-sm">{e.name}</span>
                 <HudTag color={statusColor}>{status}</HudTag>
+                {e.courseId && (() => {
+                  const course = courses.find((c: any) => c.id === e.courseId);
+                  return course ? <HudTag color="var(--accent2)">📚 {course.name}</HudTag> : null;
+                })()}
               </div>
               <span className="text-xs text-hud-text/40 font-mono">{e.id.slice(0, 12)}</span>
             </div>
@@ -569,6 +589,10 @@ function AdminChallenges() {
   const [decayMin, setDecayMin] = useState('50');
   const [decayPercent, setDecayPercent] = useState('10');
   const [msg, setMsg] = useState('');
+  // Hints management state
+  const [hintsMap, setHintsMap] = useState<Record<string, any[]>>({});
+  const [hintForm, setHintForm] = useState<{ challengeId: string; hintId?: string; title: string; content: string; order: string; cost: string } | null>(null);
+  const [hintMsg, setHintMsg] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -667,26 +691,180 @@ function AdminChallenges() {
       <NeonButton size="sm" variant="solid" onClick={handleCreate}>Create Challenge</NeonButton>
       {msg && <p className="text-accent text-xs mt-2">{msg}</p>}
 
+  const loadHints = async (challengeId: string) => {
+    if (!eventId) return;
+    try {
+      const res = await apiGet(`/admin/challenges/${challengeId}/hints?eventId=${eventId}`);
+      setHintsMap((prev) => ({ ...prev, [challengeId]: res.hints || [] }));
+    } catch {}
+  };
+
+  const handleSaveHint = async () => {
+    if (!hintForm || !eventId) return;
+    try {
+      if (hintForm.hintId) {
+        await apiPut(`/admin/challenges/${hintForm.challengeId}/hints/${hintForm.hintId}`, {
+          eventId, title: hintForm.title, content: hintForm.content,
+          order: Number(hintForm.order), cost: Number(hintForm.cost),
+        });
+      } else {
+        await apiPost(`/admin/challenges/${hintForm.challengeId}/hints`, {
+          eventId, title: hintForm.title, content: hintForm.content,
+          order: Number(hintForm.order), cost: Number(hintForm.cost),
+        });
+      }
+      setHintForm(null);
+      setHintMsg(hintForm.hintId ? 'Hint updated' : 'Hint created');
+      await loadHints(hintForm.challengeId);
+    } catch (e: any) { setHintMsg(e.message); }
+    setTimeout(() => setHintMsg(''), 3000);
+  };
+
+  const handleDeleteHint = async (challengeId: string, hintId: string) => {
+    if (!eventId || !confirm('Delete this hint?')) return;
+    try {
+      await apiDelete(`/admin/challenges/${challengeId}/hints/${hintId}?eventId=${eventId}`);
+      await loadHints(challengeId);
+    } catch (e: any) { setHintMsg(e.message); }
+  };
+
       <div className="mt-6 space-y-2">
         {challenges.map((c) => (
-          <div key={c.id} className="flex items-center justify-between p-4 border border-accent/20 hover:border-accent/40 transition-colors">
-            <div className="flex items-center gap-3">
-              <HudTag>{c.category}</HudTag>
-              {c.flagMode === 'unique' && <span className="text-[10px] px-1.5 py-0.5 bg-warning/10 border border-warning/30 text-warning uppercase">🏆 Unique</span>}
-              {c.flagMode === 'decay' && <span className="text-[10px] px-1.5 py-0.5 bg-accent/10 border border-accent/30 text-accent uppercase">📉 Decay</span>}
-              <div>
-                <span className="font-bold text-sm">{c.title}</span>
-                <div className="flex gap-2 mt-0.5">
-                  {Array.from({ length: c.difficulty || 1 }).map((_, i) => (
-                    <span key={i} className="text-warning text-xs">★</span>
-                  ))}
+          <div key={c.id} className="p-4 border border-accent/20 hover:border-accent/40 transition-colors">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <HudTag>{c.category}</HudTag>
+                {c.flagMode === 'unique' && <span className="text-[10px] px-1.5 py-0.5 bg-warning/10 border border-warning/30 text-warning uppercase">🏆 Unique</span>}
+                {c.flagMode === 'decay' && <span className="text-[10px] px-1.5 py-0.5 bg-accent/10 border border-accent/30 text-accent uppercase">📉 Decay</span>}
+                <div>
+                  <span className="font-bold text-sm">{c.title}</span>
+                  <div className="flex gap-2 mt-0.5">
+                    {Array.from({ length: c.difficulty || 1 }).map((_, i) => (
+                      <span key={i} className="text-warning text-xs">★</span>
+                    ))}
+                  </div>
                 </div>
               </div>
+              <div className="flex items-center gap-3">
+                <span className="text-accent font-extrabold text-lg">{c.pointsFixed} pts</span>
+                <NeonButton size="sm" onClick={() => { loadHints(c.id); }}>💡 Hints</NeonButton>
+              </div>
             </div>
-            <span className="text-accent font-extrabold text-lg">{c.pointsFixed} pts</span>
+            {/* Hints section */}
+            {hintsMap[c.id] && (
+              <div className="mt-3 border-t border-accent/10 pt-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs uppercase tracking-widest text-accent/70">Hints ({hintsMap[c.id].length})</span>
+                  <NeonButton size="sm" onClick={() => setHintForm({ challengeId: c.id, title: '', content: '', order: String(hintsMap[c.id].length + 1), cost: '50' })}>
+                    + Add Hint
+                  </NeonButton>
+                </div>
+                {hintsMap[c.id].map((h: any) => (
+                  <div key={h.id} className="flex items-center justify-between p-2 border border-accent/10 mb-1 text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-hud-text/40">#{h.order}</span>
+                      <span className="font-semibold">{h.title || 'Hint'}</span>
+                      <span className="text-xs text-warning">-{h.cost} pts</span>
+                    </div>
+                    <div className="flex gap-1">
+                      <button className="text-xs text-accent hover:text-accent/80" onClick={() => setHintForm({ challengeId: c.id, hintId: h.id, title: h.title || '', content: h.content, order: String(h.order), cost: String(h.cost) })}>✏️</button>
+                      <button className="text-xs text-danger hover:text-danger/80" onClick={() => handleDeleteHint(c.id, h.id)}>🗑️</button>
+                    </div>
+                  </div>
+                ))}
+                {hintMsg && <p className="text-xs text-success mt-1">{hintMsg}</p>}
+                {/* Hint form */}
+                {hintForm && hintForm.challengeId === c.id && (
+                  <div className="mt-2 p-3 border border-accent/20 bg-panel/50 space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <input className="terminal-input px-2 py-1 text-sm" placeholder="Title (optional)" value={hintForm.title} onChange={(e) => setHintForm({ ...hintForm, title: e.target.value })} />
+                      <div className="grid grid-cols-2 gap-2">
+                        <input className="terminal-input px-2 py-1 text-sm" type="number" placeholder="Order" value={hintForm.order} onChange={(e) => setHintForm({ ...hintForm, order: e.target.value })} />
+                        <input className="terminal-input px-2 py-1 text-sm" type="number" placeholder="Cost" value={hintForm.cost} onChange={(e) => setHintForm({ ...hintForm, cost: e.target.value })} />
+                      </div>
+                    </div>
+                    <textarea className="terminal-input px-2 py-1 text-sm w-full h-16" placeholder="Hint content..." value={hintForm.content} onChange={(e) => setHintForm({ ...hintForm, content: e.target.value })} />
+                    <div className="flex gap-2">
+                      <NeonButton size="sm" variant="solid" onClick={handleSaveHint}>{hintForm.hintId ? 'Update' : 'Create'}</NeonButton>
+                      <NeonButton size="sm" onClick={() => setHintForm(null)}>Cancel</NeonButton>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ))}
       </div>
+    </HudPanel>
+  );
+}
+
+/* ─── Courses Tab (Admin) ─── */
+function AdminCoursesTab() {
+  const [courses, setCourses] = useState<any[]>([]);
+  const [analytics, setAnalytics] = useState<Record<string, any>>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await apiGet('/courses');
+        setCourses(res.courses || []);
+        const map: Record<string, any> = {};
+        for (const c of (res.courses || [])) {
+          try { map[c.id] = await apiGet(`/courses/${c.id}/analytics`); } catch {}
+        }
+        setAnalytics(map);
+      } catch {}
+      setLoading(false);
+    })();
+  }, []);
+
+  return (
+    <HudPanel title="Courses Overview">
+      {loading ? <p className="text-accent/50 text-sm">Loading...</p> : courses.length === 0 ? (
+        <p className="text-hud-text/30 text-sm">No courses. <a href="/courses" className="text-accent underline">Create one</a></p>
+      ) : (
+        <div className="space-y-3">
+          {courses.map((c: any) => {
+            const preset = COURSE_THEME_PRESETS[c.themeId];
+            const ctfOpt = CTF_TYPE_OPTIONS.find((o: any) => o.value === c.ctfType);
+            const a = analytics[c.id];
+            return (
+              <div key={c.id} className="p-4 border border-accent/15 hover:border-accent/30 transition-all">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-base" style={{ color: preset?.accent }}>{c.name}</span>
+                    <HudTag color={preset?.accent2 || 'var(--accent2)'}>{ctfOpt?.icon} {ctfOpt?.label || c.ctfType}</HudTag>
+                    {preset && <span className="text-xs" style={{ color: preset.textDim }}>{preset.name}</span>}
+                  </div>
+                  {!c.published && <HudTag color="var(--warning)">Draft</HudTag>}
+                </div>
+                {(c.tags || []).length > 0 && (
+                  <div className="flex gap-1 flex-wrap mb-2">
+                    {c.tags.map((tag: string) => <span key={tag} className="px-1.5 py-0.5 text-[10px] border border-accent/20 text-accent/60">{tag}</span>)}
+                  </div>
+                )}
+                {a && (
+                  <div className="flex gap-4 text-xs text-hud-text/50">
+                    <span>{a.totalEvents || 0} events</span>
+                    <span>{a.totalClasses || 0} classes</span>
+                    <span>{a.totalStudents || 0} students</span>
+                  </div>
+                )}
+                {preset && (
+                  <div className="flex gap-0.5 h-1.5 mt-2 rounded overflow-hidden">
+                    <div className="flex-1" style={{ backgroundColor: preset.accent }} />
+                    <div className="flex-1" style={{ backgroundColor: preset.accent2 }} />
+                    <div className="flex-1" style={{ backgroundColor: preset.success }} />
+                    <div className="flex-1" style={{ backgroundColor: preset.warning }} />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </HudPanel>
   );
 }

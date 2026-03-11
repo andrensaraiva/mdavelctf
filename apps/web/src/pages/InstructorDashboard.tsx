@@ -49,6 +49,8 @@ export default function InstructorDashboard() {
   const [visibility, setVisibility] = useState<'public' | 'private'>('private');
   const [teamMode, setTeamMode] = useState<'publicTeams' | 'eventTeams'>('eventTeams');
   const [linkedClassId, setLinkedClassId] = useState('');
+  const [linkedCourseId, setLinkedCourseId] = useState('');
+  const [courses, setCourses] = useState<any[]>([]);
   const [msg, setMsg] = useState('');
 
   // Challenge management
@@ -77,6 +79,10 @@ export default function InstructorDashboard() {
       try {
         const res = await apiGet('/classes/instructor/events');
         setEvents(res.events || []);
+      } catch {}
+      try {
+        const res = await apiGet('/courses');
+        setCourses(res.courses || []);
       } catch {}
     })();
   }, []);
@@ -112,6 +118,7 @@ export default function InstructorDashboard() {
         visibility,
         teamMode,
         classId: linkedClassId || null,
+        courseId: linkedCourseId || null,
         requireClassMembership: visibility === 'private',
       });
       setMsg('Event created!');
@@ -285,6 +292,13 @@ export default function InstructorDashboard() {
                   ))}
                 </select>
               </div>
+            </div>
+            <div>
+              <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">{t('courses.title', 'Course')}</label>
+              <select value={linkedCourseId} onChange={(e) => setLinkedCourseId(e.target.value)} className="terminal-input w-full md:w-auto px-3 py-2 text-sm">
+                <option value="">{t('instructor.none', 'None')}</option>
+                {courses.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
             </div>
             <NeonButton size="sm" variant="solid" onClick={handleCreateEvent}>{t('instructor.createEvent')}</NeonButton>
             {msg && <p className="text-accent text-xs mt-2">{msg}</p>}

@@ -22,7 +22,7 @@ adminRouter.get('/config', asyncHandler(async (_req: AuthRequest, res: Response)
 
 /* ─── Events ─── */
 adminRouter.post('/event', asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { name, startsAt, endsAt, timezone, published, leagueId, visibility, classId, ownerId, teamMode, requireClassMembership } = req.body;
+  const { name, startsAt, endsAt, timezone, published, leagueId, visibility, classId, ownerId, teamMode, requireClassMembership, courseId } = req.body;
   if (!name || !startsAt || !endsAt) {
     return res.status(400).json({ error: 'name, startsAt, endsAt required' });
   }
@@ -40,6 +40,7 @@ adminRouter.post('/event', asyncHandler(async (req: AuthRequest, res: Response) 
     ownerId: ownerId || req.uid,
     teamMode: teamMode || 'publicTeams',
     requireClassMembership: requireClassMembership ?? false,
+    courseId: courseId || null,
     createdAt: new Date().toISOString(),
   };
   await ref.set(data);
@@ -56,7 +57,7 @@ adminRouter.put('/event/:eventId', asyncHandler(async (req: AuthRequest, res: Re
 
   const before = snap.data();
   const updates: Record<string, any> = {};
-  const allowed = ['name', 'startsAt', 'endsAt', 'timezone', 'published', 'leagueId', 'visibility', 'classId', 'ownerId', 'teamMode', 'requireClassMembership'];
+  const allowed = ['name', 'startsAt', 'endsAt', 'timezone', 'published', 'leagueId', 'visibility', 'classId', 'ownerId', 'teamMode', 'requireClassMembership', 'courseId'];
   for (const k of allowed) {
     if (req.body[k] !== undefined) updates[k] = req.body[k];
   }
@@ -599,6 +600,20 @@ adminRouter.get('/dashboard/summary', asyncHandler(async (req: AuthRequest, res:
 
   const solveRate = submissionsLast60m > 0 ? Math.round((solvesLast60m / submissionsLast60m) * 100) : 0;
 
+  // Hint unlocks count
+  let totalHintUnlocks = 0;
+  try {
+    const hintUnlocksSnap = await db.collection('hintUnlocks').get();
+    totalHintUnlocks = hintUnlocksSnap.size;
+  } catch {}
+
+  // Courses count
+  let totalCourses = 0;
+  try {
+    const coursesSnap = await db.collection('courses').get();
+    totalCourses = coursesSnap.size;
+  } catch {}
+
   return res.json({
     activeUsersLast15m: Object.keys(userSubCounts).length,
     submissionsLast60m,
@@ -610,6 +625,8 @@ adminRouter.get('/dashboard/summary', asyncHandler(async (req: AuthRequest, res:
     recentSolves: recentSolves.slice(0, 50),
     totalUsers: usersSnap.size,
     totalEvents: eventsSnap.size,
+    totalHintUnlocks,
+    totalCourses,
     liveEventName,
     liveEventEndsAt,
   });

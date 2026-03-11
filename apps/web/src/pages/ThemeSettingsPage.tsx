@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { UserTheme, DEFAULT_THEME, isThemeReadable } from '@mdavelctf/shared';
+import { UserTheme, DEFAULT_THEME, isThemeReadable, COURSE_THEME_PRESETS } from '@mdavelctf/shared';
 import { HudPanel } from '../components/HudPanel';
 import { NeonButton } from '../components/NeonButton';
 import { HudTag } from '../components/HudTag';
@@ -11,12 +11,13 @@ import { StatCard } from '../components/StatCard';
 
 export default function ThemeSettingsPage() {
   const { user, refreshUserDoc } = useAuth();
-  const { theme, setTheme, presets } = useTheme();
+  const { theme, setTheme, presets, themeSource, setThemeSource } = useTheme();
   const [accent, setAccent] = useState(theme.accent);
   const [accent2, setAccent2] = useState(theme.accent2);
   const [panelBg, setPanelBg] = useState(theme.panelBg || '#111827');
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
+  const [localThemeSource, setLocalThemeSource] = useState<'course' | 'custom'>(themeSource);
 
   const currentTheme: UserTheme = { accent, accent2, panelBg };
   const readable = isThemeReadable(currentTheme);
@@ -58,8 +59,9 @@ export default function ThemeSettingsPage() {
       setTimeout(() => setMsg(''), 3000);
     }
     setSaving(true);
-    await updateDoc(doc(db, 'users', user.uid), { theme: themeToSave });
+    await updateDoc(doc(db, 'users', user.uid), { theme: themeToSave, themeSource: localThemeSource });
     setTheme(themeToSave);
+    setThemeSource(localThemeSource);
     await refreshUserDoc();
     setSaving(false);
     if (readable) {
@@ -70,6 +72,37 @@ export default function ThemeSettingsPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+      {/* Theme Source Toggle */}
+      <HudPanel title="Theme Source">
+        <div className="flex gap-4 items-center mb-3">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="themeSource"
+              checked={localThemeSource === 'custom'}
+              onChange={() => setLocalThemeSource('custom')}
+              className="accent-accent"
+            />
+            <span className="text-sm">Use my custom theme</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="themeSource"
+              checked={localThemeSource === 'course'}
+              onChange={() => setLocalThemeSource('course')}
+              className="accent-accent"
+            />
+            <span className="text-sm">Follow course theme</span>
+          </label>
+        </div>
+        <p className="text-xs text-hud-text/40">
+          {localThemeSource === 'course'
+            ? 'The interface will adapt to the course theme when viewing courses, classes, or events linked to a course.'
+            : 'Your personal theme settings below will always be used.'}
+        </p>
+      </HudPanel>
+
       <HudPanel title="Theme Settings">
         {/* Presets */}
         <div className="mb-6">

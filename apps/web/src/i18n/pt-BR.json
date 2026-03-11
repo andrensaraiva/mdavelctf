@@ -12,7 +12,8 @@
     "profile": "Perfil",
     "admin": "Admin",
     "instructor": "Instrutor",
-    "logout": "Sair"
+    "logout": "Sair",
+    "courses": "Cursos"
   },
   "home": {
     "welcomeBack": "Bem-vindo(a) de volta,",
@@ -228,7 +229,40 @@
     "disable": "Desativar",
     "enable": "Ativar",
     "guide": "Guia",
-    "seed": "Seed"
+    "seed": "Seed",
+    "courses": "Cursos"
+  },
+  "courses": {
+    "title": "Cursos",
+    "create": "Criar Curso",
+    "editCourse": "Editar Curso",
+    "name": "Nome do Curso",
+    "ctfType": "Tipo de CTF",
+    "description": "Descrição",
+    "tags": "Tags",
+    "theme": "Tema",
+    "published": "Publicado",
+    "noCourses": "Nenhum curso ainda.",
+    "filterByTag": "Filtrar por tag",
+    "classes": "Turmas",
+    "events": "Eventos",
+    "students": "Alunos",
+    "analytics": "Análises"
+  },
+  "hints": {
+    "title": "Dicas",
+    "locked": "Bloqueada",
+    "unlocked": "Desbloqueada",
+    "unlock": "Desbloquear Dica",
+    "cost": "Custo",
+    "noHints": "Nenhuma dica disponível para este desafio.",
+    "unlockConfirm": "Desbloquear esta dica por {{cost}} pontos?",
+    "sequential": "Desbloqueie as dicas anteriores primeiro."
+  },
+  "themeSettings": {
+    "themeSource": "Fonte do Tema",
+    "followCourse": "Seguir tema do curso",
+    "useCustom": "Usar meu tema personalizado"
   },
   "common": {
     "all": "TODOS",

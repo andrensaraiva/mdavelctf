@@ -6,6 +6,10 @@ import { HudPanel } from '../components/HudPanel';
 import { NeonButton } from '../components/NeonButton';
 import { HudTag } from '../components/HudTag';
 import { useTranslation } from 'react-i18next';
+import { useTheme } from '../context/ThemeContext';
+import { COURSE_THEME_PRESETS } from '@mdavelctf/shared';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 
 interface ClassDetail {
   id: string;
@@ -16,6 +20,7 @@ interface ClassDetail {
   createdAt: string;
   published: boolean;
   memberCount: number;
+  courseId?: string;
 }
 
 interface ClassMember {
@@ -38,11 +43,13 @@ export default function ClassDetailPage() {
   const { t } = useTranslation();
   const { classId } = useParams<{ classId: string }>();
   const { user, userDoc } = useAuth();
+  const { themeSource, setCourseThemeId } = useTheme();
   const [classData, setClassData] = useState<ClassDetail | null>(null);
   const [members, setMembers] = useState<ClassMember[]>([]);
   const [events, setEvents] = useState<ClassEvent[]>([]);
   const [msg, setMsg] = useState('');
   const [tab, setTab] = useState<'details' | 'roster' | 'events'>('details');
+  const [courseName, setCourseName] = useState<string | null>(null);
 
   const load = async () => {
     if (!classId) return;
@@ -57,6 +64,24 @@ export default function ClassDetailPage() {
   };
 
   useEffect(() => { load(); }, [classId]);
+
+  // Apply course theme when class has a courseId
+  useEffect(() => {
+    if (!classData?.courseId) return;
+    (async () => {
+      try {
+        const snap = await getDoc(doc(db, 'courses', classData.courseId!));
+        if (snap.exists()) {
+          const course = snap.data();
+          setCourseName(course.name || null);
+          if (themeSource === 'course' && course.themeId) {
+            setCourseThemeId(course.themeId);
+          }
+        }
+      } catch {}
+    })();
+    return () => { if (themeSource === 'course') setCourseThemeId(null); };
+  }, [classData?.courseId, themeSource]);
 
   if (!classData) {
     return <div className="p-8 text-center text-accent/50">{t('common.loading')}</div>;
@@ -98,9 +123,12 @@ export default function ClassDetailPage() {
             {classData.description && (
               <p className="text-sm text-hud-text/60 mt-1">{classData.description}</p>
             )}
-            <p className="text-xs text-hud-text/40 mt-2">
-              {classData.memberCount} {t('classes.members')} · {t('classes.createdBy')} {classData.ownerInstructorId.slice(0, 8)}
-            </p>
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-xs text-hud-text/40">
+                {classData.memberCount} {t('classes.members')} · {t('classes.createdBy')} {classData.ownerInstructorId.slice(0, 8)}
+              </span>
+              {courseName && <HudTag color="var(--accent2)">📚 {courseName}</HudTag>}
+            </div>
           </div>
           <HudTag color={isOwner ? 'var(--warning)' : 'var(--accent)'}>
             {isOwner ? t('classes.owner') : t('classes.student')}

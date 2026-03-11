@@ -21,6 +21,7 @@ import ClassesPage from './pages/ClassesPage';
 import ClassDetailPage from './pages/ClassDetailPage';
 import InstructorDashboard from './pages/InstructorDashboard';
 import StudentGuidePage from './pages/StudentGuidePage';
+import CoursesPage from './pages/CoursesPage';
 
 function TeamRedirect() {
   const { userDoc } = useAuth();
@@ -77,6 +78,7 @@ function AppRoutes() {
         <Route path="/classes" element={<ProtectedRoute><ClassesPage /></ProtectedRoute>} />
         <Route path="/classes/:classId" element={<ProtectedRoute><ClassDetailPage /></ProtectedRoute>} />
         <Route path="/instructor" element={<ProtectedRoute><InstructorDashboard /></ProtectedRoute>} />
+        <Route path="/courses" element={<ProtectedRoute><CoursesPage /></ProtectedRoute>} />
         <Route path="/guide" element={<ProtectedRoute><StudentGuidePage /></ProtectedRoute>} />
 
         {/* Default */}

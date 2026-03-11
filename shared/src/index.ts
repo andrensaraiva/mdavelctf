@@ -30,6 +30,9 @@ export interface UserDoc {
   // Classes & teams
   classIds?: string[];
   publicTeamId?: string;
+  // Course theme preference
+  preferredCourseId?: string;
+  themeSource?: 'course' | 'custom'; // default 'custom'
 }
 
 export interface UserTheme {
@@ -70,6 +73,7 @@ export interface ClassDoc {
   ownerInstructorId: string;
   inviteCode: string;
   published?: boolean;
+  courseId?: string;
   settings?: {
     defaultEventVisibility?: EventVisibility;
     allowStudentPublicTeams?: boolean;
@@ -155,6 +159,7 @@ export interface EventDoc {
   ownerId?: string;                    // creator uid (instructor or admin)
   teamMode?: EventTeamMode;            // default 'publicTeams'
   requireClassMembership?: boolean;    // true for private class events
+  courseId?: string;                   // optional link to course
 }
 
 /* ─── Challenge ─── */
@@ -394,3 +399,143 @@ export const DEFAULT_BADGES: Record<string, Omit<BadgeDoc, 'criteriaKey'> & { cr
   speed_demon:       { name: 'Speed Demon', description: 'Solve a challenge on first attempt', icon: '⚡', rarity: 'common', criteriaKey: 'speed_demon', xpReward: 50 },
   night_owl:         { name: 'Night Owl', description: 'Submit a flag after midnight', icon: '🦉', rarity: 'common', criteriaKey: 'night_owl', xpReward: 50 },
 };
+
+/* ─── Hint ─── */
+export interface HintDoc {
+  title?: string;
+  content: string;
+  order: number;
+  cost: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface HintUnlockDoc {
+  uid: string;
+  challengeId: string;
+  hintId: string;
+  eventId: string;
+  unlockedAt: string;
+  costApplied: number;
+}
+
+/* ─── Course ─── */
+export type CourseCtfType =
+  | 'cybersecurity'
+  | 'game-design'
+  | 'programming'
+  | 'networking'
+  | 'robotics'
+  | 'data-analysis'
+  | 'multimedia'
+  | 'ui-ux'
+  | 'logic'
+  | 'custom';
+
+export interface CourseDoc {
+  name: string;
+  slug?: string;
+  description?: string;
+  tags: string[];
+  ctfType: CourseCtfType | string;
+  themeId: string; // one of COURSE_THEME_PRESETS keys
+  icon?: string;
+  colorAccent?: string;
+  createdAt: string;
+  updatedAt: string;
+  ownerInstructorId?: string;
+  published?: boolean;
+}
+
+/* ─── Course Theme Presets ─── */
+export interface CourseThemePreset {
+  id: string;
+  name: string;
+  bg: string;
+  panelBg: string;
+  accent: string;
+  accent2: string;
+  text: string;
+  textDim: string;
+  success: string;
+  warning: string;
+  danger: string;
+  gridOpacity?: number;
+  vibe?: string;
+}
+
+export const COURSE_THEME_PRESETS: Record<string, CourseThemePreset> = {
+  'neon-cyber': {
+    id: 'neon-cyber', name: 'Neon Cyber',
+    bg: '#0a0e17', panelBg: '#111827', accent: '#00f0ff', accent2: '#0077ff',
+    text: '#e0e6f0', textDim: '#607090', success: '#39ff14', warning: '#ffbf00', danger: '#ff003c',
+    gridOpacity: 0.06, vibe: 'Classic cyberpunk HUD'
+  },
+  'matrix-green': {
+    id: 'matrix-green', name: 'Matrix Green',
+    bg: '#0b0f0a', panelBg: '#0f1a0f', accent: '#39ff14', accent2: '#00b300',
+    text: '#c8f0c0', textDim: '#4a7040', success: '#39ff14', warning: '#b3ff00', danger: '#ff3333',
+    gridOpacity: 0.08, vibe: 'Digital rain terminal'
+  },
+  'magenta-punk': {
+    id: 'magenta-punk', name: 'Magenta Punk',
+    bg: '#120812', panelBg: '#1a0f1a', accent: '#ff00ff', accent2: '#b300b3',
+    text: '#f0d0f0', textDim: '#804080', success: '#00ff88', warning: '#ffaa00', danger: '#ff2255',
+    gridOpacity: 0.06, vibe: 'Bold neon rebellion'
+  },
+  'amber-terminal': {
+    id: 'amber-terminal', name: 'Amber Terminal',
+    bg: '#0f0d08', panelBg: '#1a1608', accent: '#ffbf00', accent2: '#ff8c00',
+    text: '#f0e0c0', textDim: '#806830', success: '#88ff00', warning: '#ffbf00', danger: '#ff4444',
+    gridOpacity: 0.05, vibe: 'Retro CRT warmth'
+  },
+  'red-alert': {
+    id: 'red-alert', name: 'Red Alert',
+    bg: '#100808', panelBg: '#1a0f0f', accent: '#ff003c', accent2: '#cc0000',
+    text: '#f0c8c8', textDim: '#804040', success: '#00ff66', warning: '#ff9900', danger: '#ff003c',
+    gridOpacity: 0.06, vibe: 'High-stakes emergency'
+  },
+  'royal-violet': {
+    id: 'royal-violet', name: 'Royal Violet',
+    bg: '#0d0a14', panelBg: '#150f20', accent: '#aa77ff', accent2: '#6633cc',
+    text: '#ddd0f0', textDim: '#604890', success: '#33ff99', warning: '#ffcc33', danger: '#ff4466',
+    gridOpacity: 0.05, vibe: 'Elegant digital royalty'
+  },
+  'deep-ocean': {
+    id: 'deep-ocean', name: 'Deep Ocean',
+    bg: '#060d14', panelBg: '#0a1520', accent: '#00b4d8', accent2: '#0077b6',
+    text: '#c0dde8', textDim: '#406878', success: '#00e676', warning: '#ffc107', danger: '#ef5350',
+    gridOpacity: 0.06, vibe: 'Calm deep-sea exploration'
+  },
+  'lava-core': {
+    id: 'lava-core', name: 'Lava Core',
+    bg: '#100804', panelBg: '#1a0e08', accent: '#ff6600', accent2: '#cc3300',
+    text: '#f0d8c0', textDim: '#805830', success: '#66ff33', warning: '#ff9900', danger: '#ff2200',
+    gridOpacity: 0.07, vibe: 'Volcanic inferno energy'
+  },
+  'synthwave': {
+    id: 'synthwave', name: 'Synthwave',
+    bg: '#0f0820', panelBg: '#180e30', accent: '#f72585', accent2: '#7209b7',
+    text: '#e8d0f0', textDim: '#705090', success: '#4cc9f0', warning: '#fca311', danger: '#ff006e',
+    gridOpacity: 0.06, vibe: 'Retro-future vibes'
+  },
+  'clean-academy': {
+    id: 'clean-academy', name: 'Clean Academy',
+    bg: '#0f1318', panelBg: '#161c24', accent: '#4ea8de', accent2: '#2b6cb0',
+    text: '#d0dce8', textDim: '#607080', success: '#38b000', warning: '#f0a500', danger: '#d00000',
+    gridOpacity: 0.04, vibe: 'Clean educational interface'
+  },
+};
+
+export const CTF_TYPE_OPTIONS: { value: CourseCtfType; label: string; icon: string }[] = [
+  { value: 'cybersecurity', label: 'Cybersecurity', icon: '🔒' },
+  { value: 'game-design', label: 'Game Design', icon: '🎮' },
+  { value: 'programming', label: 'Programming', icon: '💻' },
+  { value: 'networking', label: 'Networking', icon: '🌐' },
+  { value: 'robotics', label: 'Robotics', icon: '🤖' },
+  { value: 'data-analysis', label: 'Data Analysis', icon: '📊' },
+  { value: 'multimedia', label: 'Multimedia', icon: '🎬' },
+  { value: 'ui-ux', label: 'UI/UX', icon: '🎨' },
+  { value: 'logic', label: 'Logic', icon: '🧠' },
+  { value: 'custom', label: 'Custom', icon: '⚙️' },
+];

@@ -94,3 +94,24 @@ export async function apiGet<T = any>(path: string): Promise<T> {
   }
   return data;
 }
+
+export async function apiDelete<T = any>(path: string): Promise<T> {
+  const url = `${API_BASE}${path}`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'DELETE',
+      headers: await getHeaders(false),
+    });
+  } catch (err: any) {
+    throw new Error(`Network error: could not reach API at ${url}. Check VITE_API_BASE_URL and CORS_ORIGINS.`);
+  }
+  const data = await safeJson(res);
+  if (!res.ok) {
+    throw new Error(data?.error || `Request failed (${res.status} ${res.statusText})`);
+  }
+  if (data === null) {
+    throw new Error(`Empty response from server (${res.status}). Check API logs and CORS_ORIGINS env var.`);
+  }
+  return data;
+}

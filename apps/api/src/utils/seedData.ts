@@ -102,9 +102,15 @@ export async function clearSeedData(): Promise<{ deleted: string[] }> {
     await doc.ref.update({ teamId: null });
   }
 
-  // 3. Delete events (with challenges, challengeSecrets, submissions, solves, leaderboards, analytics)
+  // 3. Delete events (with challenges (+ hints subcollection), challengeSecrets, submissions, solves, leaderboards, analytics)
   const eventsSnap = await db.collection('events').get();
   for (const doc of eventsSnap.docs) {
+    // Delete hints subcollections from each challenge first
+    const chalSnap = await doc.ref.collection('challenges').get();
+    for (const chalDoc of chalSnap.docs) {
+      const hintsSnap = await chalDoc.ref.collection('hints').get();
+      for (const h of hintsSnap.docs) await h.ref.delete();
+    }
     for (const sub of ['challenges', 'challengeSecrets', 'submissions', 'solves']) {
       const subSnap = await doc.ref.collection(sub).get();
       for (const s of subSnap.docs) await s.ref.delete();
@@ -152,6 +158,14 @@ export async function clearSeedData(): Promise<{ deleted: string[] }> {
   // 8. Delete audit_logs
   await deleteCollection('audit_logs');
   deleted.push('audit_logs:all');
+
+  // 9. Delete courses
+  await deleteCollection('courses');
+  deleted.push('courses:all');
+
+  // 10. Delete hintUnlocks
+  await deleteCollection('hintUnlocks');
+  deleted.push('hintUnlocks:all');
 
   return { deleted };
 }
@@ -506,6 +520,82 @@ export async function runSeed(mode: 'minimal' | 'full' = 'full'): Promise<{ summ
   });
   await db.collection('teams').doc(evtTeam2Id).collection('members').doc(user3Uid).set({ role: 'captain', joinedAt: new Date().toISOString() });
   summary.push('2 event teams created');
+
+  // ── Courses ──
+  const course1Id = 'course-cybersecurity';
+  const course2Id = 'course-gamedev';
+  const course3Id = 'course-networks';
+  await db.collection('courses').doc(course1Id).set({
+    name: 'Cybersecurity Fundamentals', slug: 'cybersecurity-fundamentals',
+    description: 'Introductory course covering web security, cryptography, and digital forensics.',
+    tags: ['security', 'web', 'crypto', 'forensics'], ctfType: 'jeopardy' as const,
+    themeId: 'neon-cyber', icon: '🛡️', colorAccent: '#00f0ff',
+    published: true, ownerInstructorId: instructorUid,
+    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+  });
+  await db.collection('courses').doc(course2Id).set({
+    name: 'Game Development Security', slug: 'gamedev-security',
+    description: 'Securing game servers and preventing cheating through CTF exercises.',
+    tags: ['gamedev', 'anti-cheat', 'networking'], ctfType: 'attack-defense' as const,
+    themeId: 'synthwave', icon: '🎮', colorAccent: '#ff71ce',
+    published: true, ownerInstructorId: instructorUid,
+    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+  });
+  await db.collection('courses').doc(course3Id).set({
+    name: 'Network Security', slug: 'network-security',
+    description: 'Advanced network analysis, packet forensics, and infrastructure security.',
+    tags: ['networking', 'packets', 'infrastructure'], ctfType: 'jeopardy' as const,
+    themeId: 'deep-ocean', icon: '🌊', colorAccent: '#00b4d8',
+    published: false, ownerInstructorId: instructorUid,
+    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+  });
+  summary.push('3 courses created');
+
+  // Link class and events to courses
+  await db.collection('classes').doc(classId).update({ courseId: course1Id });
+  await db.collection('events').doc(event2Id).update({ courseId: course1Id });
+  summary.push('Class + event linked to Cybersecurity course');
+
+  // ── Hints for challenges ──
+  // Event 2 challenges: e2c1 (SQL Injection 101), e2c2 (RSA Basics), e2c3 (Hidden Layers), e2c5 (Buffer Overflow 101)
+  const hintData = [
+    { eventId: event2Id, challengeId: 'e2c1', hints: [
+      { id: 'h-e2c1-1', title: 'Think Input', content: 'Try entering a single quote in the login field.', order: 1, cost: 25 },
+      { id: 'h-e2c1-2', title: 'Classic Payload', content: 'The classic `\' OR 1=1 --` might help.', order: 2, cost: 50 },
+    ]},
+    { eventId: event2Id, challengeId: 'e2c2', hints: [
+      { id: 'h-e2c2-1', title: 'Small Primes', content: 'n=3233 factors into two small primes. Try dividing!', order: 1, cost: 30 },
+      { id: 'h-e2c2-2', title: 'Compute d', content: 'p=53, q=61. Now compute d = e^-1 mod (p-1)(q-1).', order: 2, cost: 75 },
+    ]},
+    { eventId: event2Id, challengeId: 'e2c3', hints: [
+      { id: 'h-e2c3-1', title: 'Tool Hint', content: 'Try using `steghide` or `zsteg` on the image.', order: 1, cost: 50 },
+    ]},
+    { eventId: event2Id, challengeId: 'e2c5', hints: [
+      { id: 'h-e2c5-1', title: 'Buffer Size', content: 'The buffer is 64 bytes. What comes after it on the stack?', order: 1, cost: 30 },
+      { id: 'h-e2c5-2', title: 'Return Address', content: 'Overwrite the return address with the address of `win()`.', order: 2, cost: 50 },
+      { id: 'h-e2c5-3', title: 'Exact Offset', content: 'Offset is 72 bytes (64 buffer + 8 saved RBP). Address of win: check with `objdump`.', order: 3, cost: 100 },
+    ]},
+  ];
+  for (const ch of hintData) {
+    for (const h of ch.hints) {
+      await db.collection('events').doc(ch.eventId).collection('challenges').doc(ch.challengeId).collection('hints').doc(h.id).set({
+        title: h.title, content: h.content, order: h.order, cost: h.cost,
+        createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+      });
+    }
+  }
+  summary.push('8 hints created across 4 challenges');
+
+  // ── Hint Unlocks (demo) ──
+  await db.collection('hintUnlocks').add({
+    uid: user1Uid, challengeId: 'e2c1', hintId: 'h-e2c1-1', eventId: event2Id,
+    unlockedAt: new Date(now - 15 * MIN).toISOString(), costApplied: 25,
+  });
+  await db.collection('hintUnlocks').add({
+    uid: user3Uid, challengeId: 'e2c5', hintId: 'h-e2c5-1', eventId: event2Id,
+    unlockedAt: new Date(now - 10 * MIN).toISOString(), costApplied: 30,
+  });
+  summary.push('2 hint unlocks created');
 
   return { summary };
 }

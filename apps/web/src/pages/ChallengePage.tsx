@@ -2,12 +2,23 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { ChallengeDoc, EventDoc } from '@mdavelctf/shared';
+import { ChallengeDoc, EventDoc, COURSE_THEME_PRESETS } from '@mdavelctf/shared';
 import { HudPanel } from '../components/HudPanel';
 import { HudTag } from '../components/HudTag';
 import { NeonButton } from '../components/NeonButton';
 import { TerminalSubmitModal } from '../components/TerminalSubmitModal';
+import { apiGet, apiPost } from '../lib/api';
+import { useTheme } from '../context/ThemeContext';
 import ReactMarkdown from 'react-markdown';
+
+interface HintView {
+  id: string;
+  title?: string;
+  order: number;
+  cost: number;
+  unlocked: boolean;
+  content: string | null;
+}
 
 export default function ChallengePage() {
   const { eventId, challengeId } = useParams<{
@@ -17,19 +28,56 @@ export default function ChallengePage() {
   const [challenge, setChallenge] = useState<ChallengeDoc | null>(null);
   const [event, setEvent] = useState<EventDoc | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [hints, setHints] = useState<HintView[]>([]);
+  const [unlocking, setUnlocking] = useState<string | null>(null);
+  const [hintMsg, setHintMsg] = useState('');
+  const { setCourseThemeId, themeSource } = useTheme();
 
   useEffect(() => {
     if (!eventId || !challengeId) return;
     (async () => {
       const eSnap = await getDoc(doc(db, 'events', eventId));
-      if (eSnap.exists()) setEvent(eSnap.data() as EventDoc);
+      if (eSnap.exists()) {
+        const eventData = eSnap.data() as EventDoc;
+        setEvent(eventData);
+        // Apply course theme if applicable
+        if (eventData.courseId && themeSource === 'course') {
+          const courseSnap = await getDoc(doc(db, 'courses', eventData.courseId));
+          if (courseSnap.exists()) {
+            setCourseThemeId(courseSnap.data()?.themeId || null);
+          }
+        }
+      }
 
       const cSnap = await getDoc(
         doc(db, 'events', eventId, 'challenges', challengeId),
       );
       if (cSnap.exists()) setChallenge(cSnap.data() as ChallengeDoc);
+
+      // Load hints
+      try {
+        const res = await apiGet(`/challenges/${challengeId}/hints?eventId=${eventId}`);
+        setHints(res.hints || []);
+      } catch {}
     })();
   }, [eventId, challengeId]);
+
+  const handleUnlockHint = async (hintId: string) => {
+    if (!eventId || !challengeId) return;
+    setUnlocking(hintId);
+    try {
+      const res = await apiPost(`/challenges/${challengeId}/hints/${hintId}/unlock`, { eventId });
+      if (res.unlocked || res.alreadyUnlocked) {
+        setHints((prev) =>
+          prev.map((h) => h.id === hintId ? { ...h, unlocked: true, content: res.content } : h),
+        );
+      }
+    } catch (e: any) {
+      setHintMsg(e.message);
+      setTimeout(() => setHintMsg(''), 3000);
+    }
+    setUnlocking(null);
+  };
 
   if (!challenge || !eventId || !challengeId) {
     return <div className="p-8 text-center text-accent/50">Loading...</div>;
@@ -113,6 +161,58 @@ export default function ChallengePage() {
           </NeonButton>
         </div>
       </HudPanel>
+
+      {/* Hints Panel */}
+      {hints.length > 0 && (
+        <HudPanel>
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-lg">💡</span>
+            <h3 className="text-sm font-semibold uppercase tracking-widest text-accent/70">
+              Hints ({hints.filter((h) => h.unlocked).length}/{hints.length})
+            </h3>
+          </div>
+          {hintMsg && <p className="text-xs text-danger mb-2">{hintMsg}</p>}
+          <div className="space-y-2">
+            {hints.map((hint) => (
+              <div
+                key={hint.id}
+                className={`p-3 border transition-all ${
+                  hint.unlocked
+                    ? 'border-success/30 bg-success/5'
+                    : 'border-accent/20 bg-panel/50'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-hud-text/40 font-mono">#{hint.order}</span>
+                    <span className="font-semibold text-sm">
+                      {hint.unlocked ? '🔓' : '🔒'} {hint.title || `Hint ${hint.order}`}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-warning font-semibold">-{hint.cost} pts</span>
+                    {!hint.unlocked && (
+                      <NeonButton
+                        size="sm"
+                        variant="solid"
+                        onClick={() => handleUnlockHint(hint.id)}
+                        disabled={unlocking === hint.id}
+                      >
+                        {unlocking === hint.id ? '...' : 'Unlock'}
+                      </NeonButton>
+                    )}
+                  </div>
+                </div>
+                {hint.unlocked && hint.content && (
+                  <div className="mt-2 pt-2 border-t border-success/20 text-sm text-hud-text/80">
+                    <ReactMarkdown>{hint.content}</ReactMarkdown>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </HudPanel>
+      )}
 
       <TerminalSubmitModal
         isOpen={showModal}

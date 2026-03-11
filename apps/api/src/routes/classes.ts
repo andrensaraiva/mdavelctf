@@ -14,7 +14,7 @@ classesRouter.use(verifyFirebaseToken);
 /* ─── Create Class (instructor/admin) ─── */
 classesRouter.post('/create', requireInstructorOrAdmin, asyncHandler(async (req: AuthRequest, res: Response) => {
   const uid = req.uid!;
-  const { name, description } = req.body;
+  const { name, description, courseId } = req.body;
   if (!name || typeof name !== 'string' || name.length < 2 || name.length > 60) {
     return res.status(400).json({ error: 'Class name must be 2-60 characters' });
   }
@@ -23,7 +23,7 @@ classesRouter.post('/create', requireInstructorOrAdmin, asyncHandler(async (req:
   const classId = uuid().slice(0, 12);
   const inviteCode = uuid().slice(0, 6).toUpperCase();
 
-  const classData = {
+  const classData: Record<string, any> = {
     name: name.trim(),
     description: description ? String(description).trim().slice(0, 500) : '',
     createdAt: new Date().toISOString(),
@@ -35,6 +35,7 @@ classesRouter.post('/create', requireInstructorOrAdmin, asyncHandler(async (req:
       allowStudentPublicTeams: true,
     },
   };
+  if (courseId && typeof courseId === 'string') classData.courseId = courseId;
 
   const batch = db.batch();
   batch.set(db.collection('classes').doc(classId), classData);
@@ -395,7 +396,7 @@ classesRouter.post('/instructor/challenge/:challengeId/set-flag', requireInstruc
 
 /* ─── Create event (instructor or admin) ─── */
 classesRouter.post('/instructor/event', requireInstructorOrAdmin, asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { name, startsAt, endsAt, timezone, published, leagueId, visibility, classId, teamMode, requireClassMembership } = req.body;
+  const { name, startsAt, endsAt, timezone, published, leagueId, visibility, classId, courseId, teamMode, requireClassMembership } = req.body;
   if (!name || !startsAt || !endsAt) {
     return res.status(400).json({ error: 'name, startsAt, endsAt required' });
   }
@@ -427,6 +428,7 @@ classesRouter.post('/instructor/event', requireInstructorOrAdmin, asyncHandler(a
     requireClassMembership: requireClassMembership ?? (visibility === 'private'),
     createdAt: new Date().toISOString(),
   };
+  if (courseId && typeof courseId === 'string') data.courseId = courseId;
   await ref.set(data);
   await writeAuditLog(uid, 'CREATE_EVENT', `events/${ref.id}`, null, data);
   return res.json({ id: ref.id, ...data });

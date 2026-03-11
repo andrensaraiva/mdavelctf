@@ -61,6 +61,7 @@ export function Navbar() {
               {navLink('/profile', t('nav.profile'))}
               {navLink('/guide', '📖 Guia')}
               {(userDoc?.role === 'instructor' || userDoc?.role === 'admin') && navLink('/instructor', t('nav.instructor'))}
+              {(userDoc?.role === 'instructor' || userDoc?.role === 'admin') && navLink('/courses', t('nav.courses', 'Courses'))}
               {userDoc?.role === 'admin' && navLink('/admin', t('nav.admin'))}
               {/* Role badge */}
               {userDoc?.role && userDoc.role !== 'participant' && (
@@ -110,6 +111,7 @@ export function Navbar() {
           {navLink('/profile', t('nav.profile'), closeMenu)}
           {navLink('/guide', '📖 Guia', closeMenu)}
           {(userDoc?.role === 'instructor' || userDoc?.role === 'admin') && navLink('/instructor', t('nav.instructor'), closeMenu)}
+          {(userDoc?.role === 'instructor' || userDoc?.role === 'admin') && navLink('/courses', t('nav.courses', 'Courses'), closeMenu)}
           {userDoc?.role === 'admin' && navLink('/admin', t('nav.admin'), closeMenu)}
           <div className="flex items-center gap-2 py-2">
             <button

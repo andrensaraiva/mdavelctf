@@ -12,7 +12,8 @@
     "profile": "Profile",
     "admin": "Admin",
     "instructor": "Instructor",
-    "logout": "Logout"
+    "logout": "Logout",
+    "courses": "Courses"
   },
   "home": {
     "welcomeBack": "Welcome back,",
@@ -228,7 +229,40 @@
     "disable": "Disable",
     "enable": "Enable",
     "guide": "Guide",
-    "seed": "Seed"
+    "seed": "Seed",
+    "courses": "Courses"
+  },
+  "courses": {
+    "title": "Courses",
+    "create": "Create Course",
+    "editCourse": "Edit Course",
+    "name": "Course Name",
+    "ctfType": "CTF Type",
+    "description": "Description",
+    "tags": "Tags",
+    "theme": "Theme",
+    "published": "Published",
+    "noCourses": "No courses yet.",
+    "filterByTag": "Filter by tag",
+    "classes": "Classes",
+    "events": "Events",
+    "students": "Students",
+    "analytics": "Analytics"
+  },
+  "hints": {
+    "title": "Hints",
+    "locked": "Locked",
+    "unlocked": "Unlocked",
+    "unlock": "Unlock Hint",
+    "cost": "Cost",
+    "noHints": "No hints available for this challenge.",
+    "unlockConfirm": "Unlock this hint for {{cost}} points?",
+    "sequential": "Unlock previous hints first."
+  },
+  "themeSettings": {
+    "themeSource": "Theme Source",
+    "followCourse": "Follow course theme",
+    "useCustom": "Use my custom theme"
   },
   "common": {
     "all": "ALL",

@@ -31,6 +31,7 @@
 - **Navegar eventos** — eventos ao vivo, próximos e encerrados agrupados na home
 - **Detalhe do evento** — lista de challenges filtráveis por categoria com countdown
 - **Detalhe do challenge** — descrição em Markdown, anexos, submissão de flag
+- **Sistema de dicas** — dicas sequenciais por challenge com custo em pontos, desbloqueio progressivo
 - **Scoreboard** — individual e por equipe, gráficos de solves e retenção
 - **Ligas** — standings acumulados de múltiplos eventos
 - **Turmas** — entrar em turma via código de convite, ver membros e eventos
@@ -53,8 +54,10 @@
 
 ### Admin
 
-- **Dashboard em tempo real** — usuários ativos, submissões/solves últimos 60min, solve rate, top challenges, top users, atividade recente
-- **CRUD completo** — eventos, ligas, challenges, flags, badges, quests
+- **Dashboard em tempo real** — usuários ativos, submissões/solves últimos 60min, solve rate, top challenges, top users, atividade recente, hint unlocks, cursos
+- **CRUD completo** — eventos, ligas, challenges, flags, badges, quests, cursos
+- **Gestão de dicas** — criar/editar/excluir dicas por challenge com custo e ordem
+- **Gestão de cursos** — tab de cursos no admin com overview, analytics e temas
 - **Gestão de flags** — flags armazenadas como HMAC-SHA256 (nunca plaintext), suporte a case-sensitive
 - **Logs paginados** — submissões e solves com filtros (evento, challenge, uid, correctOnly)
 - **Gestão de usuários** — desabilitar/reabilitar contas
@@ -67,10 +70,22 @@
 - **Dashboard dedicado** — tabs: Minhas Turmas, Criar Evento, Guia
 - **Criar turma** — com código de convite gerado automaticamente
 - **Gerenciar membros** — remover alunos, rotacionar código de convite
-- **Criar eventos vinculados** — eventos privados scoped a uma turma
+- **Criar eventos vinculados** — eventos privados scoped a uma turma, com seleção de curso
+- **Vincular curso** — associar cursos a eventos para tema automático
+
+### Cursos
+
+- **CRUD completo** — criar, editar, excluir cursos com nome, tipo CTF, descrição, tags e tema
+- **Tipos de CTF** — Jeopardy, Attack-Defense, King of the Hill, Boot2Root, Mixed
+- **Tags filtráveis** — categorização por tags com filtro visual
+- **10 temas de curso** — cada curso pode ter um tema visual próprio (veja seção Temas)
+- **Vinculação** — cursos podem ser vinculados a eventos e turmas
+- **Analytics** — contagem de turmas, eventos e alunos por curso
+- **Publicação** — draft/publicado para controle de visibilidade
 
 ### Temas
 
+#### User Presets
 | Preset | Cor primária |
 |--------|-------------|
 | Neon Cyan | `#00f0ff` |
@@ -79,7 +94,23 @@
 | Amber Terminal | `#ffbf00` |
 | Red Alert | `#ff003c` |
 
-- 5 presets + cores custom (accent, accent2, panelBg)
+#### Course Theme Presets
+| Preset | Accent | Accent2 | Vibe |
+|--------|--------|---------|------|
+| Neon Cyber | `#00f0ff` | `#0077ff` | Cyberpunk hacker |
+| Matrix Green | `#39ff14` | `#00b300` | Classic terminal |
+| Magenta Punk | `#ff00ff` | `#b300b3` | Bold cyberpunk |
+| Amber Terminal | `#ffbf00` | `#ff8c00` | Retro terminal |
+| Red Alert | `#ff003c` | `#b3002a` | Military ops |
+| Royal Violet | `#a855f7` | `#7c3aed` | Regal elegance |
+| Deep Ocean | `#00b4d8` | `#0077b6` | Underwater calm |
+| Lava Core | `#ef4444` | `#b91c1c` | Volcanic energy |
+| Synthwave | `#ff71ce` | `#b967ff` | 80s retrowave |
+| Clean Academy | `#3b82f6` | `#6366f1` | Professional/academic |
+
+- 5 user presets + 10 course presets + cores custom (accent, accent2, panelBg)
+- **Fonte de tema** — usuário escolhe entre "Seguir tema do curso" ou "Usar tema custom"
+- Resolução: user override > course theme > default
 - Validação de contraste via `isThemeReadable()`
 - Persistido no Firestore por usuário
 - Injeção de CSS variables em runtime
@@ -135,14 +166,17 @@ users/{uid}                                     — Perfil + tema + stats
 teams/{teamId}                                  — Metadados da equipe
 teams/{teamId}/members/{uid}                    — Membros
 teams/{teamId}/messages/{msgId}                 — Chat da equipe
-classes/{classId}                               — Turmas
+classes/{classId}                               — Turmas (optional courseId)
 classes/{classId}/members/{uid}                 — Membros da turma
-events/{eventId}                                — Evento (start/end/published)
+courses/{courseId}                              — Cursos (tipo CTF, tema, tags)
+events/{eventId}                                — Evento (optional courseId)
 events/{eventId}/challenges/{id}                — Challenges
 events/{eventId}/submissions/{id}               — Log de submissões
 events/{eventId}/solves/{solveId}               — Solves (idempotent)
 events/{eventId}/leaderboards/{type}            — individual / teams
 events/{eventId}/analytics/summary              — Analytics do evento
+challenges/{challengeId}/hints/{hintId}         — Dicas por challenge
+hintUnlocks/{id}                                — Registro de desbloqueio de dicas
 leagues/{leagueId}                              — Ligas
 leagues/{leagueId}/standings/{type}             — Standings acumulados
 leagues/{leagueId}/analytics/summary            — Analytics da liga
@@ -229,6 +263,26 @@ auditLogs/{id}                                  — Logs de auditoria admin
 | POST | `/api/admin/quests/seed-default` | Seed de quests padrão |
 | POST | `/api/admin/seed/run` | Seed de dados (minimal/full) |
 | POST | `/api/admin/seed/clear` | Limpar dados seed |
+
+### Cursos
+| Método | Path | Descrição |
+|--------|------|-----------|
+| GET | `/api/courses` | Listar cursos |
+| POST | `/api/courses` | Criar curso |
+| GET | `/api/courses/:id` | Detalhe do curso |
+| PUT | `/api/courses/:id` | Atualizar curso |
+| DELETE | `/api/courses/:id` | Excluir curso |
+| GET | `/api/courses/:id/analytics` | Analytics do curso |
+
+### Dicas (Hints)
+| Método | Path | Descrição |
+|--------|------|-----------|
+| GET | `/api/admin/challenges/:id/hints` | Listar dicas (admin) |
+| POST | `/api/admin/challenges/:id/hints` | Criar dica (admin) |
+| PUT | `/api/admin/challenges/:id/hints/:hintId` | Atualizar dica (admin) |
+| DELETE | `/api/admin/challenges/:id/hints/:hintId` | Excluir dica (admin) |
+| GET | `/api/challenges/:id/hints` | Listar dicas (participante) |
+| POST | `/api/challenges/:id/hints/:hintId/unlock` | Desbloquear dica |
 
 ---
 
