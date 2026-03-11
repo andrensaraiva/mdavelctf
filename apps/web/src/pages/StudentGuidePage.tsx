@@ -66,7 +66,7 @@ export default function StudentGuidePage() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2 mt-3">
-          {['welcome', 'account', 'classes', 'events', 'challenges', 'flags', 'teams', 'progress', 'categories', 'tips'].map((id) => (
+          {['welcome', 'account', 'classes', 'events', 'challenges', 'hints', 'flags', 'teams', 'progress', 'courses', 'categories', 'tips'].map((id) => (
             <button
               key={id}
               onClick={() => setOpenSection(id)}
@@ -107,6 +107,8 @@ export default function StudentGuidePage() {
             <li><Link to="/scoreboard" className="text-accent hover:underline">/scoreboard</Link> — Placar geral</li>
             <li><Link to="/team" className="text-accent hover:underline">/team</Link> — Gerenciar equipe</li>
             <li><Link to="/profile" className="text-accent hover:underline">/profile</Link> — Seu perfil e conquistas</li>
+            <li><Link to="/theme-settings" className="text-accent hover:underline">/theme-settings</Link> — Personalizar tema visual</li>
+            <li><Link to="/courses" className="text-accent hover:underline">/courses</Link> — Cursos e temáticas (instrutores)</li>
           </ul>
         </Section>
 
@@ -127,7 +129,11 @@ export default function StudentGuidePage() {
             <li><strong>Bio:</strong> Escreva uma breve descrição sobre você</li>
             <li><strong>Links:</strong> Adicione GitHub, LinkedIn, site pessoal</li>
             <li><strong>Idioma:</strong> Troque entre PT-BR 🇧🇷 e EN 🇺🇸 no menu do navbar</li>
+            <li><strong>Tema visual:</strong> Em <Link to="/theme-settings" className="text-accent hover:underline">/theme-settings</Link>, escolha entre seguir o tema do curso ou usar seu tema customizado</li>
           </ul>
+          <Tip>
+            Quando você acessa um evento vinculado a um curso, o tema visual muda automaticamente para combinar com a temática do curso!
+          </Tip>
         </Section>
 
         <Section id="classes" icon="📚" title="Turmas / Classes">
@@ -196,6 +202,45 @@ export default function StudentGuidePage() {
           <Tip>
             O terminal de submissão tem uma interface hacker-style! Digite a flag exatamente como encontrou.
             A comparação ignora maiúsculas/minúsculas.
+          </Tip>
+          <h4 className="font-bold text-accent mt-3">Precisa de ajuda?</h4>
+          <p className="text-xs">
+            Alguns desafios possuem <strong>💡 Dicas (Hints)</strong> que podem ser desbloqueadas.
+            Veja a seção <button onClick={() => setOpenSection('hints')} className="text-accent hover:underline">Dicas / Hints</button> para mais detalhes.
+          </p>
+        </Section>
+
+        <Section id="hints" icon="💡" title="Dicas / Hints">
+          <p>
+            Ficou preso em um desafio? Alguns desafios oferecem <strong>dicas (hints)</strong> que podem te ajudar
+            a encontrar a flag. Mas atenção — desbloquear uma dica tem um <strong>custo em pontos</strong>!
+          </p>
+          <h4 className="font-bold text-accent mt-3">Como funciona:</h4>
+          <ul className="list-disc list-inside space-y-1">
+            <li>Cada dica tem um <strong>custo</strong> (ex: -50 pts) que é descontado da sua pontuação</li>
+            <li>As dicas são <strong>sequenciais</strong> — você precisa desbloquear a #1 antes da #2</li>
+            <li>Dicas bloqueadas mostram apenas o título e o custo</li>
+            <li>Depois de desbloqueada, o conteúdo completo da dica é revelado</li>
+          </ul>
+          <h4 className="font-bold text-accent mt-3">Como desbloquear:</h4>
+          <div className="space-y-2">
+            <Step n={1}><span>Na página do desafio, procure o painel <strong>💡 Hints</strong></span></Step>
+            <Step n={2}><span>Veja a próxima dica disponível e seu custo</span></Step>
+            <Step n={3}><span>Clique em <strong>"🔓 Unlock"</strong> para desbloquear</span></Step>
+            <Step n={4}><span>Leia a dica revelada e use-a para resolver o desafio</span></Step>
+          </div>
+          <div className="mt-3 space-y-2">
+            <div className="p-3 border border-warning/20 bg-warning/5">
+              <h4 className="font-bold text-warning text-sm">⚠️ Atenção ao custo!</h4>
+              <p className="text-xs mt-1">
+                Os pontos da dica são <strong>descontados da sua pontuação</strong> no evento.
+                Use com sabedoria — tente resolver sozinho primeiro!
+              </p>
+            </div>
+          </div>
+          <Tip>
+            Quanto menos dicas usar, mais pontos você mantém. Tente resolver sem dicas primeiro —
+            se ficar travado por muito tempo, desbloquear uma dica é melhor do que desistir!
           </Tip>
         </Section>
 
@@ -290,6 +335,45 @@ export default function StudentGuidePage() {
             <li><strong>Quests:</strong> Missões com objetivos específicos (ex: "Resolva 5 desafios de CRYPTO")</li>
             <li>Veja seus badges e quests ativos no <Link to="/home" className="text-accent hover:underline">/home</Link></li>
           </ul>
+        </Section>
+
+        <Section id="courses" icon="📘" title="Cursos e Temas / Courses & Themes">
+          <p>
+            Eventos e turmas podem ser vinculados a um <strong>curso</strong> específico.
+            Cada curso tem uma <strong>temática visual</strong> própria que muda as cores da interface!
+          </p>
+          <h4 className="font-bold text-accent mt-3">Temas disponíveis:</h4>
+          <div className="space-y-2 mt-2">
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { name: 'Neon Cyber', desc: 'Verde neon hacker' },
+                { name: 'Synthwave', desc: 'Rosa/roxo neon retrô' },
+                { name: 'Deep Ocean', desc: 'Azul oceânico profundo' },
+                { name: 'Crimson Ops', desc: 'Vermelho operação secreta' },
+                { name: 'Solar Flare', desc: 'Amarelo/laranja solar' },
+                { name: 'Arctic Frost', desc: 'Azul gelo ártico' },
+                { name: 'Toxic Waste', desc: 'Verde tóxico radioativo' },
+                { name: 'Royal Cipher', desc: 'Roxo imperial' },
+                { name: 'Ghost Protocol', desc: 'Cinza monitoramento' },
+                { name: 'Ember Grid', desc: 'Laranja escuro grade' },
+              ].map((t) => (
+                <div key={t.name} className="p-2 border border-accent/15 text-xs">
+                  <span className="font-bold text-accent">{t.name}</span>
+                  <span className="text-hud-text/50 ml-1">— {t.desc}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <h4 className="font-bold text-accent mt-3">Comportamento do tema:</h4>
+          <ul className="list-disc list-inside space-y-1">
+            <li>Ao entrar em um evento/turma com curso, o tema é aplicado <strong>automaticamente</strong></li>
+            <li>Você pode escolher seguir o tema do curso ou manter seu tema customizado</li>
+            <li>Acesse <Link to="/theme-settings" className="text-accent hover:underline">/theme-settings</Link> para configurar sua preferência</li>
+          </ul>
+          <Tip>
+            Se o tema mudar de repente quando você entra em um evento, é porque ele está vinculado a um curso!
+            Isso é normal — é para criar a atmosfera certa para cada tipo de desafio.
+          </Tip>
         </Section>
 
         <Section id="categories" icon="🗂️" title="Categorias de Desafio">
