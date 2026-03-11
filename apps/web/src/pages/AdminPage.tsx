@@ -639,6 +639,43 @@ function AdminChallenges() {
     } catch (e: any) { setMsg(e.message); }
   };
 
+  const loadHints = async (challengeId: string) => {
+    if (!eventId) return;
+    try {
+      const res = await apiGet(`/admin/challenges/${challengeId}/hints?eventId=${eventId}`);
+      setHintsMap((prev) => ({ ...prev, [challengeId]: res.hints || [] }));
+    } catch {}
+  };
+
+  const handleSaveHint = async () => {
+    if (!hintForm || !eventId) return;
+    try {
+      if (hintForm.hintId) {
+        await apiPut(`/admin/challenges/${hintForm.challengeId}/hints/${hintForm.hintId}`, {
+          eventId, title: hintForm.title, content: hintForm.content,
+          order: Number(hintForm.order), cost: Number(hintForm.cost),
+        });
+      } else {
+        await apiPost(`/admin/challenges/${hintForm.challengeId}/hints`, {
+          eventId, title: hintForm.title, content: hintForm.content,
+          order: Number(hintForm.order), cost: Number(hintForm.cost),
+        });
+      }
+      setHintForm(null);
+      setHintMsg(hintForm.hintId ? 'Hint updated' : 'Hint created');
+      await loadHints(hintForm.challengeId);
+    } catch (e: any) { setHintMsg(e.message); }
+    setTimeout(() => setHintMsg(''), 3000);
+  };
+
+  const handleDeleteHint = async (challengeId: string, hintId: string) => {
+    if (!eventId || !confirm('Delete this hint?')) return;
+    try {
+      await apiDelete(`/admin/challenges/${challengeId}/hints/${hintId}?eventId=${eventId}`);
+      await loadHints(challengeId);
+    } catch (e: any) { setHintMsg(e.message); }
+  };
+
   return (
     <HudPanel title="Challenges Management">
       <div className="space-y-3 mb-4">
@@ -690,43 +727,6 @@ function AdminChallenges() {
       </div>
       <NeonButton size="sm" variant="solid" onClick={handleCreate}>Create Challenge</NeonButton>
       {msg && <p className="text-accent text-xs mt-2">{msg}</p>}
-
-  const loadHints = async (challengeId: string) => {
-    if (!eventId) return;
-    try {
-      const res = await apiGet(`/admin/challenges/${challengeId}/hints?eventId=${eventId}`);
-      setHintsMap((prev) => ({ ...prev, [challengeId]: res.hints || [] }));
-    } catch {}
-  };
-
-  const handleSaveHint = async () => {
-    if (!hintForm || !eventId) return;
-    try {
-      if (hintForm.hintId) {
-        await apiPut(`/admin/challenges/${hintForm.challengeId}/hints/${hintForm.hintId}`, {
-          eventId, title: hintForm.title, content: hintForm.content,
-          order: Number(hintForm.order), cost: Number(hintForm.cost),
-        });
-      } else {
-        await apiPost(`/admin/challenges/${hintForm.challengeId}/hints`, {
-          eventId, title: hintForm.title, content: hintForm.content,
-          order: Number(hintForm.order), cost: Number(hintForm.cost),
-        });
-      }
-      setHintForm(null);
-      setHintMsg(hintForm.hintId ? 'Hint updated' : 'Hint created');
-      await loadHints(hintForm.challengeId);
-    } catch (e: any) { setHintMsg(e.message); }
-    setTimeout(() => setHintMsg(''), 3000);
-  };
-
-  const handleDeleteHint = async (challengeId: string, hintId: string) => {
-    if (!eventId || !confirm('Delete this hint?')) return;
-    try {
-      await apiDelete(`/admin/challenges/${challengeId}/hints/${hintId}?eventId=${eventId}`);
-      await loadHints(challengeId);
-    } catch (e: any) { setHintMsg(e.message); }
-  };
 
       <div className="mt-6 space-y-2">
         {challenges.map((c) => (
