@@ -3,13 +3,12 @@ import { useParams, Link } from 'react-router-dom';
 import { doc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
-import { EventDoc, ChallengeDoc, EventStatus, SolveDoc, COURSE_THEME_PRESETS } from '@mdavelctf/shared';
+import { EventDoc, ChallengeDoc, EventStatus, SolveDoc } from '@mdavelctf/shared';
 import { HudPanel } from '../components/HudPanel';
 import { HudTag } from '../components/HudTag';
 import { CountdownTimer } from '../components/CountdownTimer';
 import { NeonButton } from '../components/NeonButton';
 import { useTranslation } from 'react-i18next';
-import { useTheme } from '../context/ThemeContext';
 
 function getStatus(e: EventDoc): EventStatus {
   const now = Date.now();
@@ -31,12 +30,10 @@ export default function EventPage() {
   const { eventId } = useParams<{ eventId: string }>();
   const { t } = useTranslation();
   const { user } = useAuth();
-  const { themeSource, setCourseThemeId } = useTheme();
   const [event, setEvent] = useState<EventDoc | null>(null);
   const [challenges, setChallenges] = useState<(ChallengeDoc & { id: string })[]>([]);
   const [mySolves, setMySolves] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState('ALL');
-  const [courseName, setCourseName] = useState<string | null>(null);
 
   useEffect(() => {
     if (!eventId) return;
@@ -66,24 +63,6 @@ export default function EventPage() {
     })();
   }, [eventId, user]);
 
-  // Apply course theme when event has a courseId
-  useEffect(() => {
-    if (!event?.courseId) return;
-    (async () => {
-      try {
-        const snap = await getDoc(doc(db, 'courses', event.courseId!));
-        if (snap.exists()) {
-          const course = snap.data();
-          setCourseName(course.name || null);
-          if (themeSource === 'course' && course.themeId) {
-            setCourseThemeId(course.themeId);
-          }
-        }
-      } catch {}
-    })();
-    return () => { if (themeSource === 'course') setCourseThemeId(null); };
-  }, [event?.courseId, themeSource]);
-
   if (!event || !eventId) return <div className="p-8 text-center text-accent/50">{t('event.loading')}</div>;
 
   const status = getStatus(event);
@@ -110,8 +89,8 @@ export default function EventPage() {
               >
                 {status}
               </HudTag>
-              {courseName && (
-                <HudTag color="var(--accent2)">📚 {courseName}</HudTag>
+              {event.classType && (
+                <HudTag color="var(--accent2)">🏷️ {event.classType}</HudTag>
               )}
               <span className="text-xs text-hud-text/50">
                 {new Date(event.startsAt).toLocaleString()} —{' '}

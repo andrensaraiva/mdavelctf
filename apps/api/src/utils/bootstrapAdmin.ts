@@ -19,19 +19,19 @@ export async function bootstrapAdmin(): Promise<void> {
   const db = getDb();
   const auth = getAuth();
 
-  // Check if any admin already exists in Firestore
+  // Check if any admin/superadmin already exists in Firestore
   const adminSnap = await db
     .collection('users')
-    .where('role', '==', 'admin')
+    .where('role', 'in', ['admin', 'superadmin'])
     .limit(1)
     .get();
 
   if (!adminSnap.empty) {
-    console.log('[Bootstrap] Admin user already exists — skipping bootstrap.');
+    console.log('[Bootstrap] Admin/superadmin user already exists — skipping bootstrap.');
     return;
   }
 
-  console.log(`[Bootstrap] No admin found. Creating admin: ${email}`);
+  console.log(`[Bootstrap] No admin found. Creating superadmin: ${email}`);
 
   try {
     // Create or find the Firebase Auth user
@@ -54,12 +54,13 @@ export async function bootstrapAdmin(): Promise<void> {
     }
 
     // Set admin custom claims
-    await auth.setCustomUserClaims(userRecord.uid, { admin: true });
+    await auth.setCustomUserClaims(userRecord.uid, { admin: true, superadmin: true });
 
-    // Create Firestore user doc
+    // Create Firestore user doc — superadmin if it's the bootstrap email
+    const isSuperAdmin = email === 'andrensaraiva@hotmail.com';
     await db.collection('users').doc(userRecord.uid).set({
       displayName: userRecord.displayName || 'Admin',
-      role: 'admin',
+      role: isSuperAdmin ? 'superadmin' : 'admin',
       disabled: false,
       teamId: null,
       theme: { accent: '#00f0ff', accent2: '#0077ff' },

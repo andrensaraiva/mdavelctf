@@ -60,13 +60,12 @@ export function Navbar() {
               {userDoc?.teamId && navLink(`/team/${userDoc.teamId}`, t('nav.team'))}
               {navLink('/profile', t('nav.profile'))}
               {navLink('/guide', '📖 Guia')}
-              {(userDoc?.role === 'instructor' || userDoc?.role === 'admin') && navLink('/instructor', t('nav.instructor'))}
-              {(userDoc?.role === 'instructor' || userDoc?.role === 'admin') && navLink('/courses', t('nav.courses', 'Courses'))}
-              {userDoc?.role === 'admin' && navLink('/admin', t('nav.admin'))}
+              {(userDoc?.role === 'instructor' || userDoc?.role === 'admin' || userDoc?.role === 'superadmin') && navLink('/instructor', t('nav.instructor'))}
+              {(userDoc?.role === 'admin' || userDoc?.role === 'superadmin') && navLink('/admin', t('nav.admin'))}
               {/* Role badge */}
               {userDoc?.role && userDoc.role !== 'participant' && (
                 <span className={`px-2 py-0.5 text-[10px] uppercase tracking-widest font-bold border ml-1 ${
-                  userDoc.role === 'admin' ? 'text-warning border-warning/40' : 'text-accent2 border-accent2/40'
+                  userDoc.role === 'admin' || userDoc.role === 'superadmin' ? 'text-warning border-warning/40' : 'text-accent2 border-accent2/40'
                 }`}>
                   {userDoc.role}
                 </span>
@@ -110,9 +109,8 @@ export function Navbar() {
           {userDoc?.teamId && navLink(`/team/${userDoc.teamId}`, t('nav.team'), closeMenu)}
           {navLink('/profile', t('nav.profile'), closeMenu)}
           {navLink('/guide', '📖 Guia', closeMenu)}
-          {(userDoc?.role === 'instructor' || userDoc?.role === 'admin') && navLink('/instructor', t('nav.instructor'), closeMenu)}
-          {(userDoc?.role === 'instructor' || userDoc?.role === 'admin') && navLink('/courses', t('nav.courses', 'Courses'), closeMenu)}
-          {userDoc?.role === 'admin' && navLink('/admin', t('nav.admin'), closeMenu)}
+          {(userDoc?.role === 'instructor' || userDoc?.role === 'admin' || userDoc?.role === 'superadmin') && navLink('/instructor', t('nav.instructor'), closeMenu)}
+          {(userDoc?.role === 'admin' || userDoc?.role === 'superadmin') && navLink('/admin', t('nav.admin'), closeMenu)}
           <div className="flex items-center gap-2 py-2">
             <button
               onClick={() => { toggleLang(); }}
@@ -122,7 +120,7 @@ export function Navbar() {
             </button>
             {userDoc?.role && userDoc.role !== 'participant' && (
               <span className={`px-2 py-0.5 text-[10px] uppercase tracking-widest font-bold border ${
-                userDoc.role === 'admin' ? 'text-warning border-warning/40' : 'text-accent2 border-accent2/40'
+                userDoc.role === 'admin' || userDoc.role === 'superadmin' ? 'text-warning border-warning/40' : 'text-accent2 border-accent2/40'
               }`}>
                 {userDoc.role}
               </span>

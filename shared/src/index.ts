@@ -6,7 +6,7 @@ export interface UserStats {
   solvesByCategory?: Record<string, number>;
 }
 
-export type UserRole = 'participant' | 'instructor' | 'admin';
+export type UserRole = 'participant' | 'instructor' | 'admin' | 'superadmin';
 
 export interface UserDoc {
   displayName: string;
@@ -31,8 +31,8 @@ export interface UserDoc {
   classIds?: string[];
   publicTeamId?: string;
   // Course theme preference
-  preferredCourseId?: string;
-  themeSource?: 'course' | 'custom'; // default 'custom'
+  preferredClassId?: string;
+  themeSource?: 'class' | 'custom'; // default 'custom'
 }
 
 export interface UserTheme {
@@ -73,7 +73,10 @@ export interface ClassDoc {
   ownerInstructorId: string;
   inviteCode: string;
   published?: boolean;
-  courseId?: string;
+  classType?: string;       // e.g. 'TI', 'Administração', 'Mecânica', 'Robótica'
+  themeId?: string;          // one of COURSE_THEME_PRESETS keys
+  icon?: string;
+  tags?: string[];           // free-form tags
   settings?: {
     defaultEventVisibility?: EventVisibility;
     allowStudentPublicTeams?: boolean;
@@ -159,7 +162,7 @@ export interface EventDoc {
   ownerId?: string;                    // creator uid (instructor or admin)
   teamMode?: EventTeamMode;            // default 'publicTeams'
   requireClassMembership?: boolean;    // true for private class events
-  courseId?: string;                   // optional link to course
+  classType?: string;                  // mandatory class type tag
 }
 
 /* ─── Challenge ─── */
@@ -194,6 +197,17 @@ export interface ChallengeDoc {
   // Runtime counters (updated on solve)
   solveCount?: number;
   lockedBy?: string; // uid of solver when flagMode='unique'
+  // Class type tag (mandatory)
+  classType?: string;
+  // Inline hints
+  hints?: ChallengeHint[];
+}
+
+/** Hint defined inline when creating a challenge */
+export interface ChallengeHint {
+  title: string;          // e.g. 'Hint 1'
+  description: string;    // hint content
+  penaltyPercent: number;  // % of challenge points lost (e.g. 10 = 10%)
 }
 
 export interface AttachmentMeta {
@@ -402,10 +416,10 @@ export const DEFAULT_BADGES: Record<string, Omit<BadgeDoc, 'criteriaKey'> & { cr
 
 /* ─── Hint ─── */
 export interface HintDoc {
-  title?: string;
+  title: string;
   content: string;
   order: number;
-  cost: number;
+  penaltyPercent: number;  // % of challenge points lost
   createdAt: string;
   updatedAt: string;
 }
@@ -416,36 +430,21 @@ export interface HintUnlockDoc {
   hintId: string;
   eventId: string;
   unlockedAt: string;
-  costApplied: number;
+  penaltyApplied: number;  // actual points deducted
 }
 
-/* ─── Course ─── */
-export type CourseCtfType =
-  | 'cybersecurity'
-  | 'game-design'
-  | 'programming'
-  | 'networking'
-  | 'robotics'
-  | 'data-analysis'
-  | 'multimedia'
-  | 'ui-ux'
-  | 'logic'
-  | 'custom';
-
-export interface CourseDoc {
-  name: string;
-  slug?: string;
-  description?: string;
-  tags: string[];
-  ctfType: CourseCtfType | string;
-  themeId: string; // one of COURSE_THEME_PRESETS keys
-  icon?: string;
-  colorAccent?: string;
-  createdAt: string;
-  updatedAt: string;
-  ownerInstructorId?: string;
-  published?: boolean;
-}
+/* ─── Class Type Tags ─── */
+export const DEFAULT_CLASS_TYPES: { value: string; label: string; icon: string }[] = [
+  { value: 'TI', label: 'Tecnologia da Informação', icon: '💻' },
+  { value: 'Administração', label: 'Administração', icon: '📊' },
+  { value: 'Mecânica', label: 'Mecânica', icon: '⚙️' },
+  { value: 'Robótica', label: 'Robótica', icon: '🤖' },
+  { value: 'Redes', label: 'Redes de Computadores', icon: '🌐' },
+  { value: 'Segurança', label: 'Segurança da Informação', icon: '🔒' },
+  { value: 'Multimídia', label: 'Multimídia', icon: '🎬' },
+  { value: 'Jogos', label: 'Desenvolvimento de Jogos', icon: '🎮' },
+  { value: 'Outro', label: 'Outro', icon: '📁' },
+];
 
 /* ─── Course Theme Presets ─── */
 export interface CourseThemePreset {
@@ -526,16 +525,3 @@ export const COURSE_THEME_PRESETS: Record<string, CourseThemePreset> = {
     gridOpacity: 0.04, vibe: 'Clean educational interface'
   },
 };
-
-export const CTF_TYPE_OPTIONS: { value: CourseCtfType; label: string; icon: string }[] = [
-  { value: 'cybersecurity', label: 'Cybersecurity', icon: '🔒' },
-  { value: 'game-design', label: 'Game Design', icon: '🎮' },
-  { value: 'programming', label: 'Programming', icon: '💻' },
-  { value: 'networking', label: 'Networking', icon: '🌐' },
-  { value: 'robotics', label: 'Robotics', icon: '🤖' },
-  { value: 'data-analysis', label: 'Data Analysis', icon: '📊' },
-  { value: 'multimedia', label: 'Multimedia', icon: '🎬' },
-  { value: 'ui-ux', label: 'UI/UX', icon: '🎨' },
-  { value: 'logic', label: 'Logic', icon: '🧠' },
-  { value: 'custom', label: 'Custom', icon: '⚙️' },
-];

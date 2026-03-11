@@ -14,7 +14,7 @@ classesRouter.use(verifyFirebaseToken);
 /* ─── Create Class (instructor/admin) ─── */
 classesRouter.post('/create', requireInstructorOrAdmin, asyncHandler(async (req: AuthRequest, res: Response) => {
   const uid = req.uid!;
-  const { name, description, courseId } = req.body;
+  const { name, description, classType, themeId, icon, tags } = req.body;
   if (!name || typeof name !== 'string' || name.length < 2 || name.length > 60) {
     return res.status(400).json({ error: 'Class name must be 2-60 characters' });
   }
@@ -30,12 +30,15 @@ classesRouter.post('/create', requireInstructorOrAdmin, asyncHandler(async (req:
     ownerInstructorId: uid,
     inviteCode,
     published: true,
+    classType: classType || 'Outro',
+    themeId: themeId || null,
+    icon: icon || null,
+    tags: Array.isArray(tags) ? tags : [],
     settings: {
       defaultEventVisibility: 'private' as const,
       allowStudentPublicTeams: true,
     },
   };
-  if (courseId && typeof courseId === 'string') classData.courseId = courseId;
 
   const batch = db.batch();
   batch.set(db.collection('classes').doc(classId), classData);
@@ -288,10 +291,13 @@ classesRouter.post('/instructor/challenge', requireInstructorOrAdmin, asyncHandl
   const {
     eventId, title, category, difficulty, pointsFixed,
     tags, descriptionMd, published, attachments, flagText, caseSensitive,
-    flagMode, decayConfig,
+    flagMode, decayConfig, classType, hints,
   } = req.body;
   if (!eventId || !title || !category) {
     return res.status(400).json({ error: 'eventId, title, category required' });
+  }
+  if (!classType) {
+    return res.status(400).json({ error: 'classType tag is required' });
   }
 
   const uid = req.uid!;
@@ -325,6 +331,12 @@ classesRouter.post('/instructor/challenge', requireInstructorOrAdmin, asyncHandl
     published: published ?? true,
     flagMode: flagMode || 'standard',
     solveCount: 0,
+    classType,
+    hints: Array.isArray(hints) ? hints.map((h: any, i: number) => ({
+      title: h.title || `Hint ${i + 1}`,
+      description: h.description || '',
+      penaltyPercent: Number(h.penaltyPercent) || 10,
+    })) : [],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -396,9 +408,12 @@ classesRouter.post('/instructor/challenge/:challengeId/set-flag', requireInstruc
 
 /* ─── Create event (instructor or admin) ─── */
 classesRouter.post('/instructor/event', requireInstructorOrAdmin, asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { name, startsAt, endsAt, timezone, published, leagueId, visibility, classId, courseId, teamMode, requireClassMembership } = req.body;
+  const { name, startsAt, endsAt, timezone, published, leagueId, visibility, classId, classType, teamMode, requireClassMembership } = req.body;
   if (!name || !startsAt || !endsAt) {
     return res.status(400).json({ error: 'name, startsAt, endsAt required' });
+  }
+  if (!classType) {
+    return res.status(400).json({ error: 'classType tag is required' });
   }
 
   const uid = req.uid!;
@@ -426,9 +441,9 @@ classesRouter.post('/instructor/event', requireInstructorOrAdmin, asyncHandler(a
     ownerId: uid,
     teamMode: teamMode || 'eventTeams',
     requireClassMembership: requireClassMembership ?? (visibility === 'private'),
+    classType,
     createdAt: new Date().toISOString(),
   };
-  if (courseId && typeof courseId === 'string') data.courseId = courseId;
   await ref.set(data);
   await writeAuditLog(uid, 'CREATE_EVENT', `events/${ref.id}`, null, data);
   return res.json({ id: ref.id, ...data });

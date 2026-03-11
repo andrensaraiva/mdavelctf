@@ -17,9 +17,9 @@ hintsRouter.post(
   requireInstructorOrAdmin,
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const { challengeId } = req.params;
-    const { eventId, title, content, order, cost } = req.body;
-    if (!eventId || !content || order === undefined || cost === undefined) {
-      return res.status(400).json({ error: 'eventId, content, order, cost required' });
+    const { eventId, title, content, order, penaltyPercent } = req.body;
+    if (!eventId || !content || order === undefined || penaltyPercent === undefined) {
+      return res.status(400).json({ error: 'eventId, content, order, penaltyPercent required' });
     }
 
     // Verify challenge exists
@@ -49,7 +49,7 @@ hintsRouter.post(
       title: title || null,
       content,
       order: Number(order),
-      cost: Math.max(0, Number(cost)),
+      penaltyPercent: Math.max(0, Math.min(100, Number(penaltyPercent))),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -76,9 +76,9 @@ hintsRouter.put(
 
     const before = snap.data();
     const updates: Record<string, any> = { updatedAt: new Date().toISOString() };
-    for (const k of ['title', 'content', 'order', 'cost']) {
+    for (const k of ['title', 'content', 'order', 'penaltyPercent']) {
       if (req.body[k] !== undefined) {
-        updates[k] = k === 'order' || k === 'cost' ? Number(req.body[k]) : req.body[k];
+        updates[k] = k === 'order' || k === 'penaltyPercent' ? Number(req.body[k]) : req.body[k];
       }
     }
     await ref.update(updates);
@@ -159,7 +159,7 @@ hintsRouter.get(
         id: d.id,
         title: data.title || null,
         order: data.order,
-        cost: data.cost,
+        penaltyPercent: data.penaltyPercent,
         unlocked,
         content: unlocked ? data.content : null,
       };
@@ -197,7 +197,7 @@ hintsRouter.post(
       .get();
 
     if (!existingSnap.empty) {
-      return res.json({ alreadyUnlocked: true, content: hintData.content, cost: hintData.cost });
+      return res.json({ alreadyUnlocked: true, content: hintData.content, penaltyPercent: hintData.penaltyPercent });
     }
 
     // Sequential unlock check: ensure all lower-order hints are unlocked first
@@ -228,10 +228,10 @@ hintsRouter.post(
       hintId,
       eventId,
       unlockedAt: new Date().toISOString(),
-      costApplied: hintData.cost,
+      penaltyApplied: hintData.penaltyPercent,
     };
     await db.collection('hintUnlocks').add(unlockData);
 
-    return res.json({ unlocked: true, content: hintData.content, cost: hintData.cost });
+    return res.json({ unlocked: true, content: hintData.content, penaltyPercent: hintData.penaltyPercent });
   }),
 );

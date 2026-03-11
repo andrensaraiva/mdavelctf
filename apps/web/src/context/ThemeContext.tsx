@@ -8,8 +8,8 @@ interface ThemeState {
   presets: typeof THEME_PRESETS;
   courseThemeId: string | null;
   setCourseThemeId: (id: string | null) => void;
-  themeSource: 'course' | 'custom';
-  setThemeSource: (s: 'course' | 'custom') => void;
+  themeSource: 'class' | 'custom';
+  setThemeSource: (s: 'class' | 'custom') => void;
   activeCourseTheme: CourseThemePreset | null;
 }
 
@@ -70,10 +70,10 @@ function applyCourseTheme(preset: CourseThemePreset) {
 /** Resolve the active theme based on priority: user override > course theme > default */
 export function resolveActiveTheme(
   userTheme: UserTheme | undefined,
-  themeSource: 'course' | 'custom',
+  themeSource: 'class' | 'custom',
   courseThemeId: string | null,
 ): { theme: UserTheme; coursePreset: CourseThemePreset | null } {
-  if (themeSource === 'course' && courseThemeId && COURSE_THEME_PRESETS[courseThemeId]) {
+  if (themeSource === 'class' && courseThemeId && COURSE_THEME_PRESETS[courseThemeId]) {
     const preset = COURSE_THEME_PRESETS[courseThemeId];
     return {
       theme: { accent: preset.accent, accent2: preset.accent2, panelBg: preset.panelBg },
@@ -87,7 +87,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const { userDoc } = useAuth();
   const [theme, setThemeState] = useState<UserTheme>(DEFAULT_THEME);
   const [courseThemeId, setCourseThemeIdState] = useState<string | null>(null);
-  const [themeSource, setThemeSourceState] = useState<'course' | 'custom'>('custom');
+  const [themeSource, setThemeSourceState] = useState<'class' | 'custom'>('custom');
   const [activeCourseTheme, setActiveCourseTheme] = useState<CourseThemePreset | null>(null);
 
   useEffect(() => {
@@ -115,7 +115,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const setCourseThemeId = useCallback((id: string | null) => {
     setCourseThemeIdState(id);
-    if (id && COURSE_THEME_PRESETS[id] && themeSource === 'course') {
+    if (id && COURSE_THEME_PRESETS[id] && themeSource === 'class') {
       const preset = COURSE_THEME_PRESETS[id];
       const t: UserTheme = { accent: preset.accent, accent2: preset.accent2, panelBg: preset.panelBg };
       setThemeState(t);
@@ -124,9 +124,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   }, [themeSource]);
 
-  const setThemeSource = useCallback((s: 'course' | 'custom') => {
+  const setThemeSource = useCallback((s: 'class' | 'custom') => {
     setThemeSourceState(s);
-    if (s === 'course' && courseThemeId && COURSE_THEME_PRESETS[courseThemeId]) {
+    if (s === 'class' && courseThemeId && COURSE_THEME_PRESETS[courseThemeId]) {
       applyCourseTheme(COURSE_THEME_PRESETS[courseThemeId]);
     } else if (userDoc?.theme) {
       applyTheme(userDoc.theme);

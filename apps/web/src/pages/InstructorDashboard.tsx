@@ -7,7 +7,7 @@ import { HudTag } from '../components/HudTag';
 import { StatCard } from '../components/StatCard';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { COURSE_THEME_PRESETS, CTF_TYPE_OPTIONS } from '@mdavelctf/shared';
+import { DEFAULT_CLASS_TYPES } from '@mdavelctf/shared';
 
 interface ClassSummary {
   id: string;
@@ -50,16 +50,9 @@ export default function InstructorDashboard() {
   const [visibility, setVisibility] = useState<'public' | 'private'>('private');
   const [teamMode, setTeamMode] = useState<'publicTeams' | 'eventTeams'>('eventTeams');
   const [linkedClassId, setLinkedClassId] = useState('');
-  const [linkedCourseId, setLinkedCourseId] = useState('');
-  const [courses, setCourses] = useState<any[]>([]);
+  const [eventClassType, setEventClassType] = useState('');
+  const [eventCustomClassType, setEventCustomClassType] = useState('');
   const [msg, setMsg] = useState('');
-
-  // Inline course creation
-  const [showNewCourse, setShowNewCourse] = useState(false);
-  const [newCourseName, setNewCourseName] = useState('');
-  const [newCourseCtfType, setNewCourseCtfType] = useState('cybersecurity');
-  const [newCourseTheme, setNewCourseTheme] = useState('neon-cyber');
-  const [creatingCourse, setCreatingCourse] = useState(false);
 
   // Challenge management
   const [selectedEventId, setSelectedEventId] = useState('');
@@ -77,6 +70,9 @@ export default function InstructorDashboard() {
   const [chalFlagMode, setChalFlagMode] = useState<'standard' | 'unique' | 'decay'>('standard');
   const [chalDecayMin, setChalDecayMin] = useState(50);
   const [chalDecayPercent, setChalDecayPercent] = useState(10);
+  const [chalClassType, setChalClassType] = useState('');
+  const [chalCustomClassType, setChalCustomClassType] = useState('');
+  const [chalInlineHints, setChalInlineHints] = useState<{ title: string; description: string; penaltyPercent: string }[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -88,26 +84,8 @@ export default function InstructorDashboard() {
         const res = await apiGet('/classes/instructor/events');
         setEvents(res.events || []);
       } catch {}
-      try {
-        const res = await apiGet('/courses');
-        setCourses(res.courses || []);
-      } catch {}
     })();
   }, []);
-
-  const reloadCourses = async () => { try { const r = await apiGet('/courses'); setCourses(r.courses || []); } catch {} };
-
-  const handleCreateCourseInline = async () => {
-    if (!newCourseName.trim()) return;
-    setCreatingCourse(true);
-    try {
-      const res = await apiPost('/courses', { name: newCourseName, ctfType: newCourseCtfType, themeId: newCourseTheme, published: true, tags: [] });
-      setLinkedCourseId(res.id);
-      await reloadCourses();
-      setShowNewCourse(false); setNewCourseName(''); setNewCourseCtfType('cybersecurity'); setNewCourseTheme('neon-cyber');
-    } catch (e: any) { setMsg(e.message); }
-    setCreatingCourse(false);
-  };
 
   // Load challenges when event selected
   useEffect(() => {
@@ -120,7 +98,7 @@ export default function InstructorDashboard() {
     })();
   }, [selectedEventId]);
 
-  if (userDoc?.role !== 'instructor' && userDoc?.role !== 'admin') {
+  if (userDoc?.role !== 'instructor' && userDoc?.role !== 'admin' && userDoc?.role !== 'superadmin') {
     return (
       <div className="p-8 text-center text-danger text-lg font-semibold">
         Access denied. Instructor or Admin only.
@@ -131,6 +109,8 @@ export default function InstructorDashboard() {
   const totalStudents = classes.reduce((s, c) => s + c.memberCount, 0);
 
   const handleCreateEvent = async () => {
+    const finalClassType = eventClassType === '__custom__' ? eventCustomClassType : eventClassType;
+    if (!finalClassType) { setMsg('classType is required'); return; }
     try {
       const res = await apiPost('/classes/instructor/event', {
         name: eventName,
@@ -140,7 +120,7 @@ export default function InstructorDashboard() {
         visibility,
         teamMode,
         classId: linkedClassId || null,
-        courseId: linkedCourseId || null,
+        classType: finalClassType,
         requireClassMembership: visibility === 'private',
       });
       setMsg('Event created!');
@@ -153,10 +133,12 @@ export default function InstructorDashboard() {
   };
 
   const handleCreateChallenge = async () => {
+    const finalClassType = chalClassType === '__custom__' ? chalCustomClassType : chalClassType;
     if (!selectedEventId || !chalTitle || !chalCategory) {
       setChalMsg('Select an event and fill in title + category');
       return;
     }
+    if (!finalClassType) { setChalMsg('classType is required'); return; }
     try {
       const res = await apiPost('/classes/instructor/challenge', {
         eventId: selectedEventId,
@@ -168,6 +150,8 @@ export default function InstructorDashboard() {
         published: chalPublished,
         flagText: chalFlag || undefined,
         caseSensitive: chalCaseSensitive,
+        classType: finalClassType,
+        hints: chalInlineHints.map((h) => ({ title: h.title, description: h.description, penaltyPercent: Number(h.penaltyPercent) })),
         flagMode: chalFlagMode,
         ...(chalFlagMode === 'decay' ? {
           decayConfig: { minPoints: chalDecayMin, decayPercent: chalDecayPercent },
@@ -180,6 +164,8 @@ export default function InstructorDashboard() {
       setChalFlag('');
       setChalPoints(100);
       setChalDifficulty(1);
+      setChalClassType('');
+      setChalInlineHints([]);
       setTimeout(() => setChalMsg(''), 3000);
     } catch (e: any) { setChalMsg(e.message); }
   };
@@ -316,30 +302,17 @@ export default function InstructorDashboard() {
               </div>
             </div>
             <div className="space-y-2">
-              <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">{t('courses.title', 'Course')}</label>
-              <select value={showNewCourse ? '__new__' : linkedCourseId} onChange={(e) => { if (e.target.value === '__new__') { setShowNewCourse(true); setLinkedCourseId(''); } else { setShowNewCourse(false); setLinkedCourseId(e.target.value); } }} className="terminal-input w-full md:w-auto px-3 py-2 text-sm">
-                <option value="">{t('instructor.none', 'None')}</option>
-                {courses.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                <option value="__new__">＋ Create new course...</option>
-              </select>
-              {showNewCourse && (
-                <div className="p-3 border border-accent/30 bg-accent/5 space-y-2">
-                  <p className="text-xs uppercase tracking-widest text-accent/70">Quick Create Course</p>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                    <input value={newCourseName} onChange={(e) => setNewCourseName(e.target.value)} placeholder="Course name" className="terminal-input px-3 py-2 text-sm" />
-                    <select value={newCourseCtfType} onChange={(e) => setNewCourseCtfType(e.target.value)} className="terminal-input px-3 py-2 text-sm">
-                      {CTF_TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.icon} {o.label}</option>)}
-                    </select>
-                    <select value={newCourseTheme} onChange={(e) => setNewCourseTheme(e.target.value)} className="terminal-input px-3 py-2 text-sm">
-                      {Object.values(COURSE_THEME_PRESETS).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                    </select>
-                  </div>
-                  <div className="flex gap-2">
-                    <NeonButton size="sm" variant="solid" onClick={handleCreateCourseInline} disabled={creatingCourse}>{creatingCourse ? 'Creating...' : 'Create & Select'}</NeonButton>
-                    <NeonButton size="sm" onClick={() => setShowNewCourse(false)}>Cancel</NeonButton>
-                  </div>
-                </div>
-              )}
+              <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Class Type *</label>
+              <div className="flex gap-2 items-center">
+                <select value={eventClassType} onChange={(e) => setEventClassType(e.target.value)} className="terminal-input w-full md:w-auto px-3 py-2 text-sm">
+                  <option value="">Select class type...</option>
+                  {DEFAULT_CLASS_TYPES.map((ct) => <option key={ct.value} value={ct.value}>{ct.icon} {ct.label}</option>)}
+                  <option value="__custom__">+ Custom type...</option>
+                </select>
+                {eventClassType === '__custom__' && (
+                  <input value={eventCustomClassType} onChange={(e) => setEventCustomClassType(e.target.value)} placeholder="Type name" className="terminal-input px-3 py-2 text-sm" />
+                )}
+              </div>
             </div>
             <NeonButton size="sm" variant="solid" onClick={handleCreateEvent}>{t('instructor.createEvent')}</NeonButton>
             {msg && <p className="text-accent text-xs mt-2">{msg}</p>}
@@ -462,6 +435,36 @@ export default function InstructorDashboard() {
                         </div>
                       </>
                     )}
+                  </div>
+                  {/* Class Type */}
+                  <div>
+                    <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Class Type *</label>
+                    <div className="flex gap-2 items-center">
+                      <select value={chalClassType} onChange={(e) => setChalClassType(e.target.value)} className="terminal-input px-3 py-2 text-sm">
+                        <option value="">Select...</option>
+                        {DEFAULT_CLASS_TYPES.map((ct) => <option key={ct.value} value={ct.value}>{ct.icon} {ct.label}</option>)}
+                        <option value="__custom__">+ Custom...</option>
+                      </select>
+                      {chalClassType === '__custom__' && <input value={chalCustomClassType} onChange={(e) => setChalCustomClassType(e.target.value)} placeholder="Type name" className="terminal-input px-3 py-2 text-sm" />}
+                    </div>
+                  </div>
+                  {/* Inline Hints */}
+                  <div className="border border-accent/20 p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs uppercase tracking-widest text-accent/70">Hints ({chalInlineHints.length})</span>
+                      <NeonButton size="sm" onClick={() => setChalInlineHints([...chalInlineHints, { title: '', description: '', penaltyPercent: '10' }])}>+ Add Hint</NeonButton>
+                    </div>
+                    {chalInlineHints.map((h, i) => (
+                      <div key={i} className="grid grid-cols-1 md:grid-cols-4 gap-2 items-start p-2 border border-accent/10">
+                        <input value={h.title} onChange={(e) => { const u = [...chalInlineHints]; u[i].title = e.target.value; setChalInlineHints(u); }} placeholder="Hint title" className="terminal-input px-2 py-1 text-sm" />
+                        <input value={h.description} onChange={(e) => { const u = [...chalInlineHints]; u[i].description = e.target.value; setChalInlineHints(u); }} placeholder="Hint description" className="terminal-input px-2 py-1 text-sm md:col-span-2" />
+                        <div className="flex gap-2 items-center">
+                          <input type="number" min="0" max="100" value={h.penaltyPercent} onChange={(e) => { const u = [...chalInlineHints]; u[i].penaltyPercent = e.target.value; setChalInlineHints(u); }} className="terminal-input px-2 py-1 text-sm w-20" />
+                          <span className="text-xs text-hud-text/50">%</span>
+                          <button onClick={() => setChalInlineHints(chalInlineHints.filter((_, j) => j !== i))} className="text-danger text-xs">✕</button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                   <NeonButton size="sm" variant="solid" onClick={handleCreateChallenge}>Create Challenge</NeonButton>
                   {chalMsg && <p className="text-accent text-xs mt-2">{chalMsg}</p>}

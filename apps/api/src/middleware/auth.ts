@@ -43,6 +43,17 @@ export async function verifyFirebaseToken(
   }
 }
 
+/** The superadmin email that cannot be touched by other admins */
+export const SUPERADMIN_EMAIL = 'andrensaraiva@hotmail.com';
+
+/** Check if a uid belongs to the superadmin */
+export async function isSuperAdminUid(uid: string): Promise<boolean> {
+  try {
+    const snap = await getDb().collection('users').doc(uid).get();
+    return snap.exists && snap.data()?.role === 'superadmin';
+  } catch { return false; }
+}
+
 /**
  * Requires admin role. Must be used AFTER verifyFirebaseToken.
  */
@@ -51,7 +62,7 @@ export function requireAdmin(
   res: Response,
   next: NextFunction,
 ) {
-  if (req.userRole !== 'admin') {
+  if (req.userRole !== 'admin' && req.userRole !== 'superadmin') {
     return res.status(403).json({ error: 'Admin access required' });
   }
   next();
@@ -65,7 +76,7 @@ export function requireInstructorOrAdmin(
   res: Response,
   next: NextFunction,
 ) {
-  if (req.userRole !== 'admin' && req.userRole !== 'instructor') {
+  if (req.userRole !== 'admin' && req.userRole !== 'superadmin' && req.userRole !== 'instructor') {
     return res.status(403).json({ error: 'Instructor or admin access required' });
   }
   next();
@@ -77,7 +88,7 @@ export function requireInstructorOrAdmin(
  */
 export function requireEventOwnerOrAdmin(paramKey = 'eventId') {
   return asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
-    if (req.userRole === 'admin') return next();
+    if (req.userRole === 'admin' || req.userRole === 'superadmin') return next();
 
     const eventId = req.params[paramKey] || req.body[paramKey] || req.query[paramKey] as string;
     if (!eventId) return res.status(400).json({ error: 'eventId required' });

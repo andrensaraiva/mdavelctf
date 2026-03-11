@@ -15,7 +15,6 @@ import { gamificationRouter } from './routes/gamification';
 import { classesRouter } from './routes/classes';
 import { eventTeamsRouter } from './routes/eventTeams';
 import { hintsRouter } from './routes/hints';
-import { coursesRouter } from './routes/courses';
 
 const BUILD_TAG = '2026-02-12T02';
 initFirebaseAdmin();
@@ -112,7 +111,6 @@ app.use('/api/gamification', gamificationRouter);
 app.use('/api/classes', classesRouter);
 app.use('/api/event-teams', eventTeamsRouter);
 app.use('/api', hintsRouter);
-app.use('/api/courses', coursesRouter);
 
 // 404 handler — no route matched
 app.use((_req: Request, res: Response) => {

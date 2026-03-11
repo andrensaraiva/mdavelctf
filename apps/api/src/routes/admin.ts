@@ -1,5 +1,5 @@
 import { Router, Response } from 'express';
-import { verifyFirebaseToken, requireAdmin, AuthRequest } from '../middleware/auth';
+import { verifyFirebaseToken, requireAdmin, AuthRequest, isSuperAdminUid } from '../middleware/auth';
 import { getDb, getAuth } from '../firebase';
 import { hashFlag, normalizeFlag } from '../utils/crypto';
 import { writeAuditLog } from '../utils/audit';
@@ -22,9 +22,12 @@ adminRouter.get('/config', asyncHandler(async (_req: AuthRequest, res: Response)
 
 /* ─── Events ─── */
 adminRouter.post('/event', asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { name, startsAt, endsAt, timezone, published, leagueId, visibility, classId, ownerId, teamMode, requireClassMembership, courseId } = req.body;
+  const { name, startsAt, endsAt, timezone, published, leagueId, visibility, classId, ownerId, teamMode, requireClassMembership, classType } = req.body;
   if (!name || !startsAt || !endsAt) {
     return res.status(400).json({ error: 'name, startsAt, endsAt required' });
+  }
+  if (!classType) {
+    return res.status(400).json({ error: 'classType tag is required' });
   }
   const db = getDb();
   const ref = db.collection('events').doc();
@@ -40,7 +43,7 @@ adminRouter.post('/event', asyncHandler(async (req: AuthRequest, res: Response) 
     ownerId: ownerId || req.uid,
     teamMode: teamMode || 'publicTeams',
     requireClassMembership: requireClassMembership ?? false,
-    courseId: courseId || null,
+    classType,
     createdAt: new Date().toISOString(),
   };
   await ref.set(data);
@@ -57,7 +60,7 @@ adminRouter.put('/event/:eventId', asyncHandler(async (req: AuthRequest, res: Re
 
   const before = snap.data();
   const updates: Record<string, any> = {};
-  const allowed = ['name', 'startsAt', 'endsAt', 'timezone', 'published', 'leagueId', 'visibility', 'classId', 'ownerId', 'teamMode', 'requireClassMembership', 'courseId'];
+  const allowed = ['name', 'startsAt', 'endsAt', 'timezone', 'published', 'leagueId', 'visibility', 'classId', 'ownerId', 'teamMode', 'requireClassMembership', 'classType'];
   for (const k of allowed) {
     if (req.body[k] !== undefined) updates[k] = req.body[k];
   }
@@ -108,9 +111,13 @@ adminRouter.post('/challenge', asyncHandler(async (req: AuthRequest, res: Respon
   const {
     eventId, title, category, difficulty, pointsFixed,
     tags, descriptionMd, published, attachments, flagMode, decayConfig,
+    classType, hints,
   } = req.body;
   if (!eventId || !title || !category) {
     return res.status(400).json({ error: 'eventId, title, category required' });
+  }
+  if (!classType) {
+    return res.status(400).json({ error: 'classType tag is required' });
   }
   const db = getDb();
   const ref = db.collection('events').doc(eventId).collection('challenges').doc();
@@ -125,6 +132,12 @@ adminRouter.post('/challenge', asyncHandler(async (req: AuthRequest, res: Respon
     published: published ?? false,
     flagMode: flagMode || 'standard',
     solveCount: 0,
+    classType,
+    hints: Array.isArray(hints) ? hints.map((h: any, i: number) => ({
+      title: h.title || `Hint ${i + 1}`,
+      description: h.description || '',
+      penaltyPercent: Number(h.penaltyPercent) || 10,
+    })) : [],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -154,7 +167,7 @@ adminRouter.put('/challenge/:challengeId', asyncHandler(async (req: AuthRequest,
   const allowed = [
     'title', 'category', 'difficulty', 'pointsFixed',
     'tags', 'descriptionMd', 'published', 'attachments',
-    'flagMode', 'decayConfig',
+    'flagMode', 'decayConfig', 'classType', 'hints',
   ];
   for (const k of allowed) {
     if (req.body[k] !== undefined) updates[k] = req.body[k];
@@ -333,6 +346,10 @@ adminRouter.get('/logs/solves', asyncHandler(async (req: AuthRequest, res: Respo
 /* ─── Disable / Enable User ─── */
 adminRouter.post('/user/:uid/disable', asyncHandler(async (req: AuthRequest, res: Response) => {
   const targetUid = req.params.uid;
+  // Protect superadmin from being disabled
+  if (await isSuperAdminUid(targetUid)) {
+    return res.status(403).json({ error: 'Cannot modify superadmin account' });
+  }
   const db = getDb();
   const before = (await db.collection('users').doc(targetUid).get()).data();
   await db.collection('users').doc(targetUid).update({ disabled: true });
@@ -342,6 +359,9 @@ adminRouter.post('/user/:uid/disable', asyncHandler(async (req: AuthRequest, res
 
 adminRouter.post('/user/:uid/enable', asyncHandler(async (req: AuthRequest, res: Response) => {
   const targetUid = req.params.uid;
+  if (await isSuperAdminUid(targetUid)) {
+    return res.status(403).json({ error: 'Cannot modify superadmin account' });
+  }
   const db = getDb();
   const before = (await db.collection('users').doc(targetUid).get()).data();
   await db.collection('users').doc(targetUid).update({ disabled: false });
@@ -354,11 +374,21 @@ adminRouter.post('/user/:uid/role', asyncHandler(async (req: AuthRequest, res: R
   const targetUid = req.params.uid;
   const { role } = req.body;
   const validRoles = ['participant', 'instructor', 'admin'];
-  if (!role || !validRoles.includes(role)) {
-    return res.status(400).json({ error: `role must be one of: ${validRoles.join(', ')}` });
+  // Only superadmin can assign superadmin role
+  if (role === 'superadmin') {
+    if (req.userRole !== 'superadmin') {
+      return res.status(403).json({ error: 'Only superadmin can assign superadmin role' });
+    }
+  }
+  if (!role || ![...validRoles, 'superadmin'].includes(role)) {
+    return res.status(400).json({ error: `role must be one of: ${[...validRoles, 'superadmin'].join(', ')}` });
+  }
+  // Protect superadmin from role changes by non-superadmin
+  if (await isSuperAdminUid(targetUid) && req.userRole !== 'superadmin') {
+    return res.status(403).json({ error: 'Cannot modify superadmin account' });
   }
   // Prevent removing own admin
-  if (targetUid === req.uid && role !== 'admin') {
+  if (targetUid === req.uid && role !== 'admin' && role !== 'superadmin') {
     return res.status(400).json({ error: 'Cannot remove your own admin role' });
   }
   const db = getDb();
@@ -366,7 +396,7 @@ adminRouter.post('/user/:uid/role', asyncHandler(async (req: AuthRequest, res: R
   const before = (await db.collection('users').doc(targetUid).get()).data();
   await db.collection('users').doc(targetUid).update({ role });
   // Sync admin custom claim
-  await auth.setCustomUserClaims(targetUid, { admin: role === 'admin' });
+  await auth.setCustomUserClaims(targetUid, { admin: role === 'admin' || role === 'superadmin', superadmin: role === 'superadmin' });
   await writeAuditLog(req.uid!, 'CHANGE_ROLE', `users/${targetUid}`, before, { role });
   return res.json({ success: true, role });
 }));
@@ -376,6 +406,10 @@ adminRouter.post('/user/:uid/delete', asyncHandler(async (req: AuthRequest, res:
   const targetUid = req.params.uid;
   if (targetUid === req.uid) {
     return res.status(400).json({ error: 'Cannot delete yourself' });
+  }
+  // Protect superadmin from being deleted
+  if (await isSuperAdminUid(targetUid)) {
+    return res.status(403).json({ error: 'Cannot delete superadmin account' });
   }
   const db = getDb();
   const auth = getAuth();
@@ -608,10 +642,10 @@ adminRouter.get('/dashboard/summary', asyncHandler(async (req: AuthRequest, res:
   } catch {}
 
   // Courses count
-  let totalCourses = 0;
+  let totalClasses = 0;
   try {
-    const coursesSnap = await db.collection('courses').get();
-    totalCourses = coursesSnap.size;
+    const classesCountSnap = await db.collection('classes').get();
+    totalClasses = classesCountSnap.size;
   } catch {}
 
   return res.json({
@@ -626,7 +660,7 @@ adminRouter.get('/dashboard/summary', asyncHandler(async (req: AuthRequest, res:
     totalUsers: usersSnap.size,
     totalEvents: eventsSnap.size,
     totalHintUnlocks,
-    totalCourses,
+    totalClasses,
     liveEventName,
     liveEventEndsAt,
   });

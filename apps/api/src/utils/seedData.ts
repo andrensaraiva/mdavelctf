@@ -7,7 +7,9 @@
 import * as admin from 'firebase-admin';
 import { getDb, getAuth } from '../firebase';
 import { normalizeFlag, hashFlag } from './crypto';
+import { SUPERADMIN_EMAIL } from '../middleware/auth';
 import crypto from 'crypto';
+import { UserRole } from '@mdavelctf/shared';
 
 function generateJoinCode(): string {
   return crypto.randomBytes(3).toString('hex').toUpperCase();
@@ -17,7 +19,7 @@ async function ensureUser(
   email: string,
   password: string,
   displayName: string,
-  role: 'admin' | 'participant' | 'instructor',
+  role: UserRole,
   themePreset: { accent: string; accent2: string },
 ): Promise<string> {
   const auth = getAuth();
@@ -34,7 +36,9 @@ async function ensureUser(
     }
   }
 
-  await auth.setCustomUserClaims(userRecord.uid, { admin: role === 'admin' });
+  const isSuperAdmin = role === 'superadmin';
+  const isAdmin = role === 'admin' || isSuperAdmin;
+  await auth.setCustomUserClaims(userRecord.uid, { admin: isAdmin, superadmin: isSuperAdmin });
 
   await db.collection('users').doc(userRecord.uid).set({
     displayName, role, disabled: false, teamId: null,
@@ -75,11 +79,11 @@ export async function clearSeedData(): Promise<{ deleted: string[] }> {
   const auth = getAuth();
   const deleted: string[] = [];
 
-  // 1. Delete all non-admin users from Auth + Firestore
+  // 1. Delete all non-admin/superadmin users from Auth + Firestore
   const usersSnap = await db.collection('users').get();
   for (const doc of usersSnap.docs) {
     const data = doc.data();
-    if (data.role === 'admin') continue; // keep admin
+    if (data.role === 'admin' || data.role === 'superadmin') continue; // keep admins
     try { await auth.deleteUser(doc.id); } catch { /* may not exist */ }
     await doc.ref.delete();
     deleted.push(`user:${data.displayName || doc.id}`);
@@ -96,8 +100,8 @@ export async function clearSeedData(): Promise<{ deleted: string[] }> {
     deleted.push(`team:${doc.data().name || doc.id}`);
   }
 
-  // Update admin teamId to null
-  const adminSnap = await db.collection('users').where('role', '==', 'admin').get();
+  // Update admin/superadmin teamId to null
+  const adminSnap = await db.collection('users').where('role', 'in', ['admin', 'superadmin']).get();
   for (const doc of adminSnap.docs) {
     await doc.ref.update({ teamId: null });
   }
@@ -159,11 +163,7 @@ export async function clearSeedData(): Promise<{ deleted: string[] }> {
   await deleteCollection('audit_logs');
   deleted.push('audit_logs:all');
 
-  // 9. Delete courses
-  await deleteCollection('courses');
-  deleted.push('courses:all');
-
-  // 10. Delete hintUnlocks
+  // 9. Delete hintUnlocks
   await deleteCollection('hintUnlocks');
   deleted.push('hintUnlocks:all');
 
@@ -185,13 +185,14 @@ export async function runSeed(mode: 'minimal' | 'full' = 'full'): Promise<{ summ
   const MIN = 60000;
 
   // ── Users ──
+  const superAdminUid = await ensureUser(SUPERADMIN_EMAIL, 'SuperAdmin#12345', 'Super Admin', 'superadmin', { accent: '#ff0055', accent2: '#cc0044' });
   const adminUid = await ensureUser('admin@mdavelctf.local', 'Admin#12345', 'Admin Mdavel', 'admin', { accent: '#00f0ff', accent2: '#0077ff' });
   const user1Uid = await ensureUser('user1@mdavelctf.local', 'User#12345', 'NeoByte', 'participant', { accent: '#00f0ff', accent2: '#0077ff' });
   const user2Uid = await ensureUser('user2@mdavelctf.local', 'User#12345', 'CipherCat', 'participant', { accent: '#39ff14', accent2: '#00b300' });
   const user3Uid = await ensureUser('user3@mdavelctf.local', 'User#12345', 'RootRaven', 'participant', { accent: '#ff00ff', accent2: '#b300b3' });
   const user4Uid = await ensureUser('user4@mdavelctf.local', 'User#12345', 'PacketPixie', 'participant', { accent: '#ffbf00', accent2: '#ff8c00' });
   const instructorUid = await ensureUser('instructor@mdavelctf.local', 'Instructor#12345', 'Prof. Mdavel', 'instructor', { accent: '#ff6600', accent2: '#cc5200' });
-  summary.push('6 users created');
+  summary.push('7 users created (1 superadmin, 1 admin, 1 instructor, 4 participants)');
 
   // ── Teams ──
   const teamAId = 'teamSynapse';
@@ -242,19 +243,19 @@ export async function runSeed(mode: 'minimal' | 'full' = 'full'): Promise<{ summ
   await db.collection('events').doc(event1Id).set({
     name: 'Warmup CTF', startsAt: new Date(now - 2 * DAY).toISOString(),
     endsAt: new Date(now - 1 * DAY).toISOString(), timezone: 'UTC',
-    published: true, leagueId, createdAt: new Date().toISOString(),
+    published: true, leagueId, classType: 'Segurança', createdAt: new Date().toISOString(),
   });
 
   const e1Challenges = [
-    { id: 'e1c1', title: 'Hello Web', category: 'WEB', difficulty: 1, pointsFixed: 50, tags: ['http', 'beginner'], descriptionMd: '## Hello Web\n\nCheck the page source.', flag: 'CTF{mdavel_warmup_web_01}' },
-    { id: 'e1c2', title: 'Caesar Salad', category: 'CRYPTO', difficulty: 1, pointsFixed: 75, tags: ['caesar'], descriptionMd: '## Caesar Salad\n\nDecrypt: `PGS{zqniry_jnezhc_pelcgb_02}`', flag: 'CTF{mdavel_warmup_crypto_02}' },
-    { id: 'e1c3', title: 'File Header', category: 'FORENSICS', difficulty: 2, pointsFixed: 100, tags: ['magic-bytes'], descriptionMd: '## File Header\n\nIdentify: `89 50 4E 47 0D 0A 1A 0A`', flag: 'CTF{mdavel_warmup_forensics_03}' },
+    { id: 'e1c1', title: 'Hello Web', category: 'WEB', difficulty: 1, pointsFixed: 50, tags: ['http', 'beginner'], classType: 'Segurança', descriptionMd: '## Hello Web\n\nCheck the page source.', flag: 'CTF{mdavel_warmup_web_01}', hints: [{ title: 'View Source', description: 'Right-click the page and view source code.', penaltyPercent: 10 }] },
+    { id: 'e1c2', title: 'Caesar Salad', category: 'CRYPTO', difficulty: 1, pointsFixed: 75, tags: ['caesar'], classType: 'Segurança', descriptionMd: '## Caesar Salad\n\nDecrypt: `PGS{zqniry_jnezhc_pelcgb_02}`', flag: 'CTF{mdavel_warmup_crypto_02}', hints: [{ title: 'ROT13', description: 'Try rotating the alphabet by 13 positions.', penaltyPercent: 20 }] },
+    { id: 'e1c3', title: 'File Header', category: 'FORENSICS', difficulty: 2, pointsFixed: 100, tags: ['magic-bytes'], classType: 'Segurança', descriptionMd: '## File Header\n\nIdentify: `89 50 4E 47 0D 0A 1A 0A`', flag: 'CTF{mdavel_warmup_forensics_03}', hints: [] },
   ];
   for (const c of e1Challenges) {
     await db.collection('events').doc(event1Id).collection('challenges').doc(c.id).set({
       title: c.title, category: c.category, difficulty: c.difficulty, pointsFixed: c.pointsFixed,
-      tags: c.tags, descriptionMd: c.descriptionMd, attachments: [], published: true,
-      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+      tags: c.tags, classType: c.classType, descriptionMd: c.descriptionMd, attachments: [], published: true,
+      hints: c.hints, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
     });
     await db.collection('events').doc(event1Id).collection('challengeSecrets').doc(c.id).set({
       flagHash: hashFlag(normalizeFlag(c.flag, false)), caseSensitive: false, createdAt: new Date().toISOString(),
@@ -265,21 +266,33 @@ export async function runSeed(mode: 'minimal' | 'full' = 'full'): Promise<{ summ
   await db.collection('events').doc(event2Id).set({
     name: 'Weekly CTF #1', startsAt: new Date(now - 30 * MIN).toISOString(),
     endsAt: new Date(now + 2 * HOUR).toISOString(), timezone: 'UTC',
-    published: true, leagueId, createdAt: new Date().toISOString(),
+    published: true, leagueId, classType: 'TI', createdAt: new Date().toISOString(),
   });
 
   const e2Challenges = [
-    { id: 'e2c1', title: 'SQL Injection 101', category: 'WEB', difficulty: 2, pointsFixed: 100, tags: ['sqli'], descriptionMd: '## SQL Injection 101\n\nBypass auth.', flag: 'CTF{mdavel_weekly1_web_01}' },
-    { id: 'e2c2', title: 'RSA Basics', category: 'CRYPTO', difficulty: 3, pointsFixed: 150, tags: ['rsa'], descriptionMd: '## RSA Basics\n\nn=3233, e=17, ct=2790', flag: 'CTF{mdavel_weekly1_crypto_02}' },
-    { id: 'e2c3', title: 'Hidden Layers', category: 'FORENSICS', difficulty: 2, pointsFixed: 100, tags: ['steganography'], descriptionMd: '## Hidden Layers\n\nExtract hidden message from PNG.', flag: 'CTF{mdavel_weekly1_forensics_03}' },
-    { id: 'e2c4', title: 'GeoGuesser', category: 'OSINT', difficulty: 2, pointsFixed: 100, tags: ['geolocation'], descriptionMd: '## GeoGuesser\n\nIdentify the location.', flag: 'CTF{mdavel_weekly1_osint_04}' },
-    { id: 'e2c5', title: 'Buffer Overflow 101', category: 'PWN', difficulty: 4, pointsFixed: 200, tags: ['bof'], descriptionMd: '## Buffer Overflow 101\n\nOverflow buf and call win().', flag: 'CTF{mdavel_weekly1_pwn_05}' },
+    { id: 'e2c1', title: 'SQL Injection 101', category: 'WEB', difficulty: 2, pointsFixed: 100, tags: ['sqli'], classType: 'TI', descriptionMd: '## SQL Injection 101\n\nBypass auth.', flag: 'CTF{mdavel_weekly1_web_01}', hints: [
+      { title: 'Think Input', description: 'Try entering a single quote in the login field.', penaltyPercent: 10 },
+      { title: 'Classic Payload', description: 'The classic `\' OR 1=1 --` might help.', penaltyPercent: 25 },
+    ]},
+    { id: 'e2c2', title: 'RSA Basics', category: 'CRYPTO', difficulty: 3, pointsFixed: 150, tags: ['rsa'], classType: 'TI', descriptionMd: '## RSA Basics\n\nn=3233, e=17, ct=2790', flag: 'CTF{mdavel_weekly1_crypto_02}', hints: [
+      { title: 'Small Primes', description: 'n=3233 factors into two small primes. Try dividing!', penaltyPercent: 15 },
+      { title: 'Compute d', description: 'p=53, q=61. Now compute d = e^-1 mod (p-1)(q-1).', penaltyPercent: 30 },
+    ]},
+    { id: 'e2c3', title: 'Hidden Layers', category: 'FORENSICS', difficulty: 2, pointsFixed: 100, tags: ['steganography'], classType: 'TI', descriptionMd: '## Hidden Layers\n\nExtract hidden message from PNG.', flag: 'CTF{mdavel_weekly1_forensics_03}', hints: [
+      { title: 'Tool Hint', description: 'Try using `steghide` or `zsteg` on the image.', penaltyPercent: 20 },
+    ]},
+    { id: 'e2c4', title: 'GeoGuesser', category: 'OSINT', difficulty: 2, pointsFixed: 100, tags: ['geolocation'], classType: 'TI', descriptionMd: '## GeoGuesser\n\nIdentify the location.', flag: 'CTF{mdavel_weekly1_osint_04}', hints: [] },
+    { id: 'e2c5', title: 'Buffer Overflow 101', category: 'PWN', difficulty: 4, pointsFixed: 200, tags: ['bof'], classType: 'TI', descriptionMd: '## Buffer Overflow 101\n\nOverflow buf and call win().', flag: 'CTF{mdavel_weekly1_pwn_05}', hints: [
+      { title: 'Buffer Size', description: 'The buffer is 64 bytes. What comes after it on the stack?', penaltyPercent: 10 },
+      { title: 'Return Address', description: 'Overwrite the return address with the address of `win()`.', penaltyPercent: 20 },
+      { title: 'Exact Offset', description: 'Offset is 72 bytes (64 buffer + 8 saved RBP). Address of win: check with `objdump`.', penaltyPercent: 35 },
+    ]},
   ];
   for (const c of e2Challenges) {
     await db.collection('events').doc(event2Id).collection('challenges').doc(c.id).set({
       title: c.title, category: c.category, difficulty: c.difficulty, pointsFixed: c.pointsFixed,
-      tags: c.tags, descriptionMd: c.descriptionMd, attachments: [], published: true,
-      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+      tags: c.tags, classType: c.classType, descriptionMd: c.descriptionMd, attachments: [], published: true,
+      hints: c.hints, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
     });
     await db.collection('events').doc(event2Id).collection('challengeSecrets').doc(c.id).set({
       flagHash: hashFlag(normalizeFlag(c.flag, false)), caseSensitive: false, createdAt: new Date().toISOString(),
@@ -290,20 +303,23 @@ export async function runSeed(mode: 'minimal' | 'full' = 'full'): Promise<{ summ
   await db.collection('events').doc(event3Id).set({
     name: 'Weekly CTF #2', startsAt: new Date(now + 3 * DAY).toISOString(),
     endsAt: new Date(now + 3 * DAY + 3 * HOUR).toISOString(), timezone: 'UTC',
-    published: true, leagueId, createdAt: new Date().toISOString(),
+    published: true, leagueId, classType: 'Redes', createdAt: new Date().toISOString(),
   });
 
   const e3Challenges = [
-    { id: 'e3c1', title: 'XSS Playground', category: 'WEB', difficulty: 3, pointsFixed: 150, tags: ['xss'], descriptionMd: '## XSS Playground\n\nFind reflected XSS.', flag: 'CTF{mdavel_weekly2_web_01}' },
-    { id: 'e3c2', title: 'Vigenère Vault', category: 'CRYPTO', difficulty: 3, pointsFixed: 150, tags: ['vigenere'], descriptionMd: '## Vigenère Vault\n\nBreak the cipher.', flag: 'CTF{mdavel_weekly2_crypto_02}' },
-    { id: 'e3c3', title: 'Reverse Me', category: 'REV', difficulty: 4, pointsFixed: 200, tags: ['binary'], descriptionMd: '## Reverse Me\n\nReverse engineer the binary.', flag: 'CTF{mdavel_weekly2_rev_03}' },
-    { id: 'e3c4', title: 'Memory Dump', category: 'FORENSICS', difficulty: 3, pointsFixed: 150, tags: ['volatility'], descriptionMd: '## Memory Dump\n\nAnalyze the memory dump.', flag: 'CTF{mdavel_weekly2_forensics_04}' },
+    { id: 'e3c1', title: 'XSS Playground', category: 'WEB', difficulty: 3, pointsFixed: 150, tags: ['xss'], classType: 'Redes', descriptionMd: '## XSS Playground\n\nFind reflected XSS.', flag: 'CTF{mdavel_weekly2_web_01}', hints: [{ title: 'Input Fields', description: 'Look for user input reflected in the page without sanitization.', penaltyPercent: 15 }] },
+    { id: 'e3c2', title: 'Vigenère Vault', category: 'CRYPTO', difficulty: 3, pointsFixed: 150, tags: ['vigenere'], classType: 'Redes', descriptionMd: '## Vigenère Vault\n\nBreak the cipher.', flag: 'CTF{mdavel_weekly2_crypto_02}', hints: [] },
+    { id: 'e3c3', title: 'Reverse Me', category: 'REV', difficulty: 4, pointsFixed: 200, tags: ['binary'], classType: 'Redes', descriptionMd: '## Reverse Me\n\nReverse engineer the binary.', flag: 'CTF{mdavel_weekly2_rev_03}', hints: [
+      { title: 'Strings', description: 'Run `strings` on the binary to find readable text.', penaltyPercent: 10 },
+      { title: 'Disassemble', description: 'Use Ghidra or IDA to find the comparison function.', penaltyPercent: 25 },
+    ]},
+    { id: 'e3c4', title: 'Memory Dump', category: 'FORENSICS', difficulty: 3, pointsFixed: 150, tags: ['volatility'], classType: 'Redes', descriptionMd: '## Memory Dump\n\nAnalyze the memory dump.', flag: 'CTF{mdavel_weekly2_forensics_04}', hints: [] },
   ];
   for (const c of e3Challenges) {
     await db.collection('events').doc(event3Id).collection('challenges').doc(c.id).set({
       title: c.title, category: c.category, difficulty: c.difficulty, pointsFixed: c.pointsFixed,
-      tags: c.tags, descriptionMd: c.descriptionMd, attachments: [], published: true,
-      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+      tags: c.tags, classType: c.classType, descriptionMd: c.descriptionMd, attachments: [], published: true,
+      hints: c.hints, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
     });
     await db.collection('events').doc(event3Id).collection('challengeSecrets').doc(c.id).set({
       flagHash: hashFlag(normalizeFlag(c.flag, false)), caseSensitive: false, createdAt: new Date().toISOString(),
@@ -471,6 +487,7 @@ export async function runSeed(mode: 'minimal' | 'full' = 'full'): Promise<{ summ
   await db.collection('classes').doc(classId).set({
     name: 'Cybersecurity 101', description: 'Introduction to cybersecurity techniques and CTF competitions.',
     createdAt: new Date().toISOString(), ownerInstructorId: instructorUid, inviteCode: classCode, published: true,
+    classType: 'Segurança', themeId: 'neon-cyber', icon: '🛡️', tags: ['security', 'beginner', 'web'],
     settings: { defaultEventVisibility: 'private', allowStudentPublicTeams: true },
   });
   await db.collection('classes').doc(classId).collection('members').doc(instructorUid).set({ uid: instructorUid, roleInClass: 'instructor', joinedAt: new Date().toISOString(), displayNameSnapshot: 'Prof. Mdavel' });
@@ -487,13 +504,15 @@ export async function runSeed(mode: 'minimal' | 'full' = 'full'): Promise<{ summ
     name: 'Class Lab #1 — Intro Challenges', startsAt: new Date(now - 1 * HOUR).toISOString(),
     endsAt: new Date(now + 4 * HOUR).toISOString(), timezone: 'UTC', published: true,
     leagueId: null, visibility: 'private', classId, ownerId: instructorUid,
-    teamMode: 'eventTeams', requireClassMembership: true, createdAt: new Date().toISOString(),
+    teamMode: 'eventTeams', requireClassMembership: true, classType: 'Segurança',
+    createdAt: new Date().toISOString(),
   });
   const e4c1flag = normalizeFlag('CTF{mdavel_classlab_osint_01}', false);
   await db.collection('events').doc(event4Id).collection('challenges').doc('e4c1').set({
     title: 'Recon 101', category: 'OSINT', difficulty: 1, pointsFixed: 50,
-    tags: ['recon', 'beginner'], descriptionMd: '## Recon 101\n\nCheck robots.txt',
-    attachments: [], published: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    tags: ['recon', 'beginner'], classType: 'Segurança', descriptionMd: '## Recon 101\n\nCheck robots.txt',
+    attachments: [], published: true, hints: [{ title: 'Robots', description: 'Navigate to /robots.txt on the target.', penaltyPercent: 15 }],
+    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
   });
   await db.collection('events').doc(event4Id).collection('challengeSecrets').doc('e4c1').set({
     flagHash: hashFlag(e4c1flag), caseSensitive: false, createdAt: new Date().toISOString(),
@@ -521,81 +540,21 @@ export async function runSeed(mode: 'minimal' | 'full' = 'full'): Promise<{ summ
   await db.collection('teams').doc(evtTeam2Id).collection('members').doc(user3Uid).set({ role: 'captain', joinedAt: new Date().toISOString() });
   summary.push('2 event teams created');
 
-  // ── Courses ──
-  const course1Id = 'course-cybersecurity';
-  const course2Id = 'course-gamedev';
-  const course3Id = 'course-networks';
-  await db.collection('courses').doc(course1Id).set({
-    name: 'Cybersecurity Fundamentals', slug: 'cybersecurity-fundamentals',
-    description: 'Introductory course covering web security, cryptography, and digital forensics.',
-    tags: ['security', 'web', 'crypto', 'forensics'], ctfType: 'jeopardy' as const,
-    themeId: 'neon-cyber', icon: '🛡️', colorAccent: '#00f0ff',
-    published: true, ownerInstructorId: instructorUid,
-    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-  });
-  await db.collection('courses').doc(course2Id).set({
-    name: 'Game Development Security', slug: 'gamedev-security',
-    description: 'Securing game servers and preventing cheating through CTF exercises.',
-    tags: ['gamedev', 'anti-cheat', 'networking'], ctfType: 'attack-defense' as const,
-    themeId: 'synthwave', icon: '🎮', colorAccent: '#ff71ce',
-    published: true, ownerInstructorId: instructorUid,
-    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-  });
-  await db.collection('courses').doc(course3Id).set({
-    name: 'Network Security', slug: 'network-security',
-    description: 'Advanced network analysis, packet forensics, and infrastructure security.',
-    tags: ['networking', 'packets', 'infrastructure'], ctfType: 'jeopardy' as const,
-    themeId: 'deep-ocean', icon: '🌊', colorAccent: '#00b4d8',
-    published: false, ownerInstructorId: instructorUid,
-    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-  });
-  summary.push('3 courses created');
+  // ── Admin profile ──
+  await db.collection('users').doc(superAdminUid).update({ bio: 'Platform super admin.', course: 'Staff', unit: 'IT Department' });
+  await db.collection('users').doc(adminUid).update({ bio: 'Platform admin.', course: 'Staff', unit: 'IT Department' });
 
-  // Link class and events to courses
-  await db.collection('classes').doc(classId).update({ courseId: course1Id });
-  await db.collection('events').doc(event2Id).update({ courseId: course1Id });
-  summary.push('Class + event linked to Cybersecurity course');
-
-  // ── Hints for challenges ──
-  // Event 2 challenges: e2c1 (SQL Injection 101), e2c2 (RSA Basics), e2c3 (Hidden Layers), e2c5 (Buffer Overflow 101)
-  const hintData = [
-    { eventId: event2Id, challengeId: 'e2c1', hints: [
-      { id: 'h-e2c1-1', title: 'Think Input', content: 'Try entering a single quote in the login field.', order: 1, cost: 25 },
-      { id: 'h-e2c1-2', title: 'Classic Payload', content: 'The classic `\' OR 1=1 --` might help.', order: 2, cost: 50 },
-    ]},
-    { eventId: event2Id, challengeId: 'e2c2', hints: [
-      { id: 'h-e2c2-1', title: 'Small Primes', content: 'n=3233 factors into two small primes. Try dividing!', order: 1, cost: 30 },
-      { id: 'h-e2c2-2', title: 'Compute d', content: 'p=53, q=61. Now compute d = e^-1 mod (p-1)(q-1).', order: 2, cost: 75 },
-    ]},
-    { eventId: event2Id, challengeId: 'e2c3', hints: [
-      { id: 'h-e2c3-1', title: 'Tool Hint', content: 'Try using `steghide` or `zsteg` on the image.', order: 1, cost: 50 },
-    ]},
-    { eventId: event2Id, challengeId: 'e2c5', hints: [
-      { id: 'h-e2c5-1', title: 'Buffer Size', content: 'The buffer is 64 bytes. What comes after it on the stack?', order: 1, cost: 30 },
-      { id: 'h-e2c5-2', title: 'Return Address', content: 'Overwrite the return address with the address of `win()`.', order: 2, cost: 50 },
-      { id: 'h-e2c5-3', title: 'Exact Offset', content: 'Offset is 72 bytes (64 buffer + 8 saved RBP). Address of win: check with `objdump`.', order: 3, cost: 100 },
-    ]},
-  ];
-  for (const ch of hintData) {
-    for (const h of ch.hints) {
-      await db.collection('events').doc(ch.eventId).collection('challenges').doc(ch.challengeId).collection('hints').doc(h.id).set({
-        title: h.title, content: h.content, order: h.order, cost: h.cost,
-        createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-      });
-    }
-  }
-  summary.push('8 hints created across 4 challenges');
-
-  // ── Hint Unlocks (demo) ──
-  await db.collection('hintUnlocks').add({
-    uid: user1Uid, challengeId: 'e2c1', hintId: 'h-e2c1-1', eventId: event2Id,
-    unlockedAt: new Date(now - 15 * MIN).toISOString(), costApplied: 25,
+  // ── Second class for variety ──
+  const class2Id = 'class-networks';
+  const class2Code = generateJoinCode();
+  await db.collection('classes').doc(class2Id).set({
+    name: 'Redes e Infraestrutura', description: 'Análise de tráfego, pacotes e segurança de infraestrutura.',
+    createdAt: new Date().toISOString(), ownerInstructorId: instructorUid, inviteCode: class2Code, published: true,
+    classType: 'Redes', themeId: 'deep-ocean', icon: '🌊', tags: ['networking', 'infrastructure'],
+    settings: { defaultEventVisibility: 'private', allowStudentPublicTeams: true },
   });
-  await db.collection('hintUnlocks').add({
-    uid: user3Uid, challengeId: 'e2c5', hintId: 'h-e2c5-1', eventId: event2Id,
-    unlockedAt: new Date(now - 10 * MIN).toISOString(), costApplied: 30,
-  });
-  summary.push('2 hint unlocks created');
+  await db.collection('classes').doc(class2Id).collection('members').doc(instructorUid).set({ uid: instructorUid, roleInClass: 'instructor', joinedAt: new Date().toISOString(), displayNameSnapshot: 'Prof. Mdavel' });
+  summary.push('2 classes created');
 
   return { summary };
 }

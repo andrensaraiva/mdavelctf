@@ -2,20 +2,19 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { ChallengeDoc, EventDoc, COURSE_THEME_PRESETS } from '@mdavelctf/shared';
+import { ChallengeDoc, EventDoc } from '@mdavelctf/shared';
 import { HudPanel } from '../components/HudPanel';
 import { HudTag } from '../components/HudTag';
 import { NeonButton } from '../components/NeonButton';
 import { TerminalSubmitModal } from '../components/TerminalSubmitModal';
 import { apiGet, apiPost } from '../lib/api';
-import { useTheme } from '../context/ThemeContext';
 import ReactMarkdown from 'react-markdown';
 
 interface HintView {
   id: string;
   title?: string;
   order: number;
-  cost: number;
+  penaltyPercent: number;
   unlocked: boolean;
   content: string | null;
 }
@@ -31,22 +30,12 @@ export default function ChallengePage() {
   const [hints, setHints] = useState<HintView[]>([]);
   const [unlocking, setUnlocking] = useState<string | null>(null);
   const [hintMsg, setHintMsg] = useState('');
-  const { setCourseThemeId, themeSource } = useTheme();
-
   useEffect(() => {
     if (!eventId || !challengeId) return;
     (async () => {
       const eSnap = await getDoc(doc(db, 'events', eventId));
       if (eSnap.exists()) {
-        const eventData = eSnap.data() as EventDoc;
-        setEvent(eventData);
-        // Apply course theme if applicable
-        if (eventData.courseId && themeSource === 'course') {
-          const courseSnap = await getDoc(doc(db, 'courses', eventData.courseId));
-          if (courseSnap.exists()) {
-            setCourseThemeId(courseSnap.data()?.themeId || null);
-          }
-        }
+        setEvent(eSnap.data() as EventDoc);
       }
 
       const cSnap = await getDoc(
@@ -190,7 +179,7 @@ export default function ChallengePage() {
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-warning font-semibold">-{hint.cost} pts</span>
+                    <span className="text-xs text-warning font-semibold">-{hint.penaltyPercent}%</span>
                     {!hint.unlocked && (
                       <NeonButton
                         size="sm"

@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { UserTheme, DEFAULT_THEME, isThemeReadable, COURSE_THEME_PRESETS } from '@mdavelctf/shared';
+import { UserTheme, DEFAULT_THEME, isThemeReadable } from '@mdavelctf/shared';
 import { HudPanel } from '../components/HudPanel';
 import { NeonButton } from '../components/NeonButton';
 import { HudTag } from '../components/HudTag';
@@ -17,7 +17,7 @@ export default function ThemeSettingsPage() {
   const [panelBg, setPanelBg] = useState(theme.panelBg || '#111827');
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
-  const [localThemeSource, setLocalThemeSource] = useState<'course' | 'custom'>(themeSource);
+  const [localThemeSource, setLocalThemeSource] = useState<'class' | 'custom'>(themeSource);
 
   const currentTheme: UserTheme = { accent, accent2, panelBg };
   const readable = isThemeReadable(currentTheme);
@@ -89,16 +89,16 @@ export default function ThemeSettingsPage() {
             <input
               type="radio"
               name="themeSource"
-              checked={localThemeSource === 'course'}
-              onChange={() => setLocalThemeSource('course')}
+              checked={localThemeSource === 'class'}
+              onChange={() => setLocalThemeSource('class')}
               className="accent-accent"
             />
-            <span className="text-sm">Follow course theme</span>
+            <span className="text-sm">Follow class theme</span>
           </label>
         </div>
         <p className="text-xs text-hud-text/40">
-          {localThemeSource === 'course'
-            ? 'The interface will adapt to the course theme when viewing courses, classes, or events linked to a course.'
+          {localThemeSource === 'class'
+            ? 'The interface will adapt to the class theme when viewing classes or events linked to a class.'
             : 'Your personal theme settings below will always be used.'}
         </p>
       </HudPanel>

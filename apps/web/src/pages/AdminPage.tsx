@@ -6,10 +6,10 @@ import { StatCard } from '../components/StatCard';
 import { CountdownTimer } from '../components/CountdownTimer';
 import { apiPost, apiPut, apiGet, apiDelete } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
-import { EventDoc, LeagueDoc, EventAnalyticsSummary, LeagueAnalyticsSummary, BadgeDoc, DEFAULT_BADGES, COURSE_THEME_PRESETS, CTF_TYPE_OPTIONS } from '@mdavelctf/shared';
+import { EventDoc, LeagueDoc, EventAnalyticsSummary, LeagueAnalyticsSummary, BadgeDoc, DEFAULT_BADGES, DEFAULT_CLASS_TYPES } from '@mdavelctf/shared';
 import { useTranslation } from 'react-i18next';
 
-type Tab = 'overview' | 'events' | 'leagues' | 'challenges' | 'users' | 'logs' | 'badges' | 'quests' | 'seed' | 'docs' | 'courses';
+type Tab = 'overview' | 'events' | 'leagues' | 'challenges' | 'users' | 'logs' | 'badges' | 'quests' | 'seed' | 'docs';
 
 function getEventStatus(e: EventDoc) {
   const now = Date.now();
@@ -23,7 +23,7 @@ export default function AdminPage() {
   const { userDoc } = useAuth();
   const [tab, setTab] = useState<Tab>('overview');
 
-  if (userDoc?.role !== 'admin') {
+  if (userDoc?.role !== 'admin' && userDoc?.role !== 'superadmin') {
     return (
       <div className="p-8 text-center text-danger text-lg font-semibold">
         {t('admin.accessDenied')}
@@ -36,7 +36,6 @@ export default function AdminPage() {
     { key: 'events', label: t('admin.events'), icon: '🏁' },
     { key: 'leagues', label: t('admin.leagues'), icon: '🏆' },
     { key: 'challenges', label: t('admin.challenges'), icon: '🧩' },
-    { key: 'courses', label: t('admin.courses', 'Courses'), icon: '📚' },
     { key: 'users', label: t('admin.users'), icon: '👤' },
     { key: 'badges', label: t('admin.badges'), icon: '🎖️' },
     { key: 'quests', label: t('admin.quests'), icon: '📜' },
@@ -76,7 +75,6 @@ export default function AdminPage() {
       {tab === 'events' && <AdminEvents />}
       {tab === 'leagues' && <AdminLeagues />}
       {tab === 'challenges' && <AdminChallenges />}
-      {tab === 'courses' && <AdminCoursesTab />}
       {tab === 'users' && <AdminUsers />}
       {tab === 'badges' && <AdminBadges />}
       {tab === 'quests' && <AdminQuests />}
@@ -188,7 +186,7 @@ function AdminOverview() {
         <StatCard label="Solves" value={totalSolves} color="var(--success)" />
         <StatCard label="Solve Rate" value={`${solveRate}%`} color="var(--warning)" />
         <StatCard label="Hint Unlocks" value={summary?.totalHintUnlocks ?? 0} color="var(--accent)" />
-        <StatCard label="Courses" value={summary?.totalCourses ?? 0} color="var(--accent2)" />
+        <StatCard label="Classes" value={summary?.totalClasses ?? 0} color="var(--accent2)" />
       </div>
 
       {/* Two-column layout for main panels */}
@@ -446,20 +444,13 @@ function AdminOverview() {
 /* ─── Events Tab ─── */
 function AdminEvents() {
   const [events, setEvents] = useState<any[]>([]);
-  const [courses, setCourses] = useState<any[]>([]);
   const [name, setName] = useState('');
   const [startsAt, setStartsAt] = useState('');
   const [endsAt, setEndsAt] = useState('');
   const [leagueId, setLeagueId] = useState('');
-  const [courseId, setCourseId] = useState('');
+  const [classType, setClassType] = useState('');
+  const [customClassType, setCustomClassType] = useState('');
   const [msg, setMsg] = useState('');
-
-  // Inline course creation
-  const [showNewCourse, setShowNewCourse] = useState(false);
-  const [newCourseName, setNewCourseName] = useState('');
-  const [newCourseCtfType, setNewCourseCtfType] = useState('cybersecurity');
-  const [newCourseTheme, setNewCourseTheme] = useState('neon-cyber');
-  const [creatingCourse, setCreatingCourse] = useState(false);
 
   const load = async () => {
     try {
@@ -467,22 +458,11 @@ function AdminEvents() {
       setEvents(res.events || []);
     } catch {}
   };
-  const loadCourses = async () => { try { const r = await apiGet('/courses'); setCourses(r.courses || []); } catch {} };
-  useEffect(() => { load(); loadCourses(); }, []);
-
-  const handleCreateCourseInline = async () => {
-    if (!newCourseName.trim()) return;
-    setCreatingCourse(true);
-    try {
-      const res = await apiPost('/courses', { name: newCourseName, ctfType: newCourseCtfType, themeId: newCourseTheme, published: true, tags: [] });
-      setCourseId(res.id);
-      await loadCourses();
-      setShowNewCourse(false); setNewCourseName(''); setNewCourseCtfType('cybersecurity'); setNewCourseTheme('neon-cyber');
-    } catch (e: any) { setMsg(e.message); }
-    setCreatingCourse(false);
-  };
+  useEffect(() => { load(); }, []);
 
   const handleCreate = async () => {
+    const finalClassType = classType === '__custom__' ? customClassType : classType;
+    if (!finalClassType) { setMsg('classType is required'); return; }
     try {
       await apiPost('/admin/event', {
         name,
@@ -490,10 +470,10 @@ function AdminEvents() {
         endsAt: new Date(endsAt).toISOString(),
         published: true,
         leagueId: leagueId || null,
-        courseId: courseId || null,
+        classType: finalClassType,
       });
       setMsg('Event created');
-      setName(''); setStartsAt(''); setEndsAt(''); setCourseId('');
+      setName(''); setStartsAt(''); setEndsAt(''); setClassType('');
       load();
     } catch (e: any) { setMsg(e.message); }
   };
@@ -506,32 +486,18 @@ function AdminEvents() {
         <input type="datetime-local" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} className="terminal-input px-3 py-2 text-sm" />
         <input value={leagueId} onChange={(e) => setLeagueId(e.target.value)} placeholder="League ID (optional)" className="terminal-input px-3 py-2 text-sm" />
       </div>
-      <div className="mb-4 space-y-2">
+      <div className="mb-4">
+        <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Class Type *</label>
         <div className="flex gap-2 items-center">
-          <select value={showNewCourse ? '__new__' : courseId} onChange={(e) => { if (e.target.value === '__new__') { setShowNewCourse(true); setCourseId(''); } else { setShowNewCourse(false); setCourseId(e.target.value); } }} className="terminal-input px-3 py-2 text-sm w-full md:w-auto">
-            <option value="">No Course (optional)</option>
-            {courses.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            <option value="__new__">＋ Create new course...</option>
+          <select value={classType} onChange={(e) => setClassType(e.target.value)} className="terminal-input px-3 py-2 text-sm w-full md:w-auto">
+            <option value="">Select class type...</option>
+            {DEFAULT_CLASS_TYPES.map((ct) => <option key={ct.value} value={ct.value}>{ct.icon} {ct.label}</option>)}
+            <option value="__custom__">+ Custom type...</option>
           </select>
+          {classType === '__custom__' && (
+            <input value={customClassType} onChange={(e) => setCustomClassType(e.target.value)} placeholder="Type name" className="terminal-input px-3 py-2 text-sm" />
+          )}
         </div>
-        {showNewCourse && (
-          <div className="p-3 border border-accent/30 bg-accent/5 space-y-2">
-            <p className="text-xs uppercase tracking-widest text-accent/70">Quick Create Course</p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-              <input value={newCourseName} onChange={(e) => setNewCourseName(e.target.value)} placeholder="Course name" className="terminal-input px-3 py-2 text-sm" />
-              <select value={newCourseCtfType} onChange={(e) => setNewCourseCtfType(e.target.value)} className="terminal-input px-3 py-2 text-sm">
-                {CTF_TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.icon} {o.label}</option>)}
-              </select>
-              <select value={newCourseTheme} onChange={(e) => setNewCourseTheme(e.target.value)} className="terminal-input px-3 py-2 text-sm">
-                {Object.values(COURSE_THEME_PRESETS).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-            </div>
-            <div className="flex gap-2">
-              <NeonButton size="sm" variant="solid" onClick={handleCreateCourseInline} disabled={creatingCourse}>{creatingCourse ? 'Creating...' : 'Create & Select'}</NeonButton>
-              <NeonButton size="sm" onClick={() => setShowNewCourse(false)}>Cancel</NeonButton>
-            </div>
-          </div>
-        )}
       </div>
       <NeonButton size="sm" variant="solid" onClick={handleCreate}>Create Event</NeonButton>
       {msg && <p className="text-accent text-xs mt-2">{msg}</p>}
@@ -546,10 +512,7 @@ function AdminEvents() {
                 {status === 'LIVE' && <span className="live-dot" />}
                 <span className="font-bold text-sm">{e.name}</span>
                 <HudTag color={statusColor}>{status}</HudTag>
-                {e.courseId && (() => {
-                  const course = courses.find((c: any) => c.id === e.courseId);
-                  return course ? <HudTag color="var(--accent2)">📚 {course.name}</HudTag> : null;
-                })()}
+                {e.classType && <HudTag color="var(--accent2)">🏷️ {e.classType}</HudTag>}
               </div>
               <span className="text-xs text-hud-text/40 font-mono">{e.id.slice(0, 12)}</span>
             </div>
@@ -626,10 +589,14 @@ function AdminChallenges() {
   const [flagMode, setFlagMode] = useState<'standard' | 'unique' | 'decay'>('standard');
   const [decayMin, setDecayMin] = useState('50');
   const [decayPercent, setDecayPercent] = useState('10');
+  const [classType, setClassType] = useState('');
+  const [customClassType, setCustomClassType] = useState('');
   const [msg, setMsg] = useState('');
-  // Hints management state
+  // Inline hints for challenge creation
+  const [inlineHints, setInlineHints] = useState<{ title: string; description: string; penaltyPercent: string }[]>([]);
+  // Hints management state (for existing challenges)
   const [hintsMap, setHintsMap] = useState<Record<string, any[]>>({});
-  const [hintForm, setHintForm] = useState<{ challengeId: string; hintId?: string; title: string; content: string; order: string; cost: string } | null>(null);
+  const [hintForm, setHintForm] = useState<{ challengeId: string; hintId?: string; title: string; content: string; order: string; penaltyPercent: string } | null>(null);
   const [hintMsg, setHintMsg] = useState('');
 
   useEffect(() => {
@@ -650,6 +617,8 @@ function AdminChallenges() {
   };
 
   const handleCreate = async () => {
+    const finalClassType = classType === '__custom__' ? customClassType : classType;
+    if (!finalClassType) { setMsg('classType is required'); return; }
     try {
       const res = await apiPost('/admin/challenge', {
         eventId, title, category,
@@ -658,6 +627,8 @@ function AdminChallenges() {
         descriptionMd: desc,
         tags: [],
         published: true,
+        classType: finalClassType,
+        hints: inlineHints.map((h) => ({ title: h.title, description: h.description, penaltyPercent: Number(h.penaltyPercent) })),
         flagMode,
         ...(flagMode === 'decay' ? {
           decayConfig: {
@@ -672,7 +643,7 @@ function AdminChallenges() {
         });
       }
       setMsg('Challenge created');
-      setTitle(''); setDesc(''); setFlagText('');
+      setTitle(''); setDesc(''); setFlagText(''); setClassType(''); setInlineHints([]);
       loadChallenges(eventId);
     } catch (e: any) { setMsg(e.message); }
   };
@@ -691,12 +662,12 @@ function AdminChallenges() {
       if (hintForm.hintId) {
         await apiPut(`/admin/challenges/${hintForm.challengeId}/hints/${hintForm.hintId}`, {
           eventId, title: hintForm.title, content: hintForm.content,
-          order: Number(hintForm.order), cost: Number(hintForm.cost),
+          order: Number(hintForm.order), penaltyPercent: Number(hintForm.penaltyPercent),
         });
       } else {
         await apiPost(`/admin/challenges/${hintForm.challengeId}/hints`, {
           eventId, title: hintForm.title, content: hintForm.content,
-          order: Number(hintForm.order), cost: Number(hintForm.cost),
+          order: Number(hintForm.order), penaltyPercent: Number(hintForm.penaltyPercent),
         });
       }
       setHintForm(null);
@@ -740,6 +711,35 @@ function AdminChallenges() {
         </div>
         <textarea value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Description (Markdown)" className="terminal-input px-3 py-2 text-sm w-full h-20" />
         <input value={flagText} onChange={(e) => setFlagText(e.target.value)} placeholder="Flag (e.g. CTF{...})" className="terminal-input px-3 py-2 text-sm w-full" />
+        <div className="mb-2">
+          <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Class Type *</label>
+          <div className="flex gap-2 items-center">
+            <select value={classType} onChange={(e) => setClassType(e.target.value)} className="terminal-input px-3 py-2 text-sm">
+              <option value="">Select...</option>
+              {DEFAULT_CLASS_TYPES.map((ct) => <option key={ct.value} value={ct.value}>{ct.icon} {ct.label}</option>)}
+              <option value="__custom__">+ Custom...</option>
+            </select>
+            {classType === '__custom__' && <input value={customClassType} onChange={(e) => setCustomClassType(e.target.value)} placeholder="Type name" className="terminal-input px-3 py-2 text-sm" />}
+          </div>
+        </div>
+        {/* Inline hints */}
+        <div className="border border-accent/20 p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs uppercase tracking-widest text-accent/70">Hints ({inlineHints.length})</span>
+            <NeonButton size="sm" onClick={() => setInlineHints([...inlineHints, { title: '', description: '', penaltyPercent: '10' }])}>+ Add Hint</NeonButton>
+          </div>
+          {inlineHints.map((h, i) => (
+            <div key={i} className="grid grid-cols-1 md:grid-cols-4 gap-2 items-start p-2 border border-accent/10">
+              <input value={h.title} onChange={(e) => { const u = [...inlineHints]; u[i].title = e.target.value; setInlineHints(u); }} placeholder="Hint title" className="terminal-input px-2 py-1 text-sm" />
+              <input value={h.description} onChange={(e) => { const u = [...inlineHints]; u[i].description = e.target.value; setInlineHints(u); }} placeholder="Hint description" className="terminal-input px-2 py-1 text-sm md:col-span-2" />
+              <div className="flex gap-2 items-center">
+                <input type="number" min="0" max="100" value={h.penaltyPercent} onChange={(e) => { const u = [...inlineHints]; u[i].penaltyPercent = e.target.value; setInlineHints(u); }} className="terminal-input px-2 py-1 text-sm w-20" />
+                <span className="text-xs text-hud-text/50">%</span>
+                <button onClick={() => setInlineHints(inlineHints.filter((_, j) => j !== i))} className="text-danger text-xs">✕</button>
+              </div>
+            </div>
+          ))}
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div>
             <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Flag Mode</label>
@@ -793,7 +793,7 @@ function AdminChallenges() {
               <div className="mt-3 border-t border-accent/10 pt-3">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs uppercase tracking-widest text-accent/70">Hints ({hintsMap[c.id].length})</span>
-                  <NeonButton size="sm" onClick={() => setHintForm({ challengeId: c.id, title: '', content: '', order: String(hintsMap[c.id].length + 1), cost: '50' })}>
+                  <NeonButton size="sm" onClick={() => setHintForm({ challengeId: c.id, title: '', content: '', order: String(hintsMap[c.id].length + 1), penaltyPercent: '10' })}>
                     + Add Hint
                   </NeonButton>
                 </div>
@@ -802,10 +802,10 @@ function AdminChallenges() {
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-hud-text/40">#{h.order}</span>
                       <span className="font-semibold">{h.title || 'Hint'}</span>
-                      <span className="text-xs text-warning">-{h.cost} pts</span>
+                      <span className="text-xs text-warning">-{h.penaltyPercent}%</span>
                     </div>
                     <div className="flex gap-1">
-                      <button className="text-xs text-accent hover:text-accent/80" onClick={() => setHintForm({ challengeId: c.id, hintId: h.id, title: h.title || '', content: h.content, order: String(h.order), cost: String(h.cost) })}>✏️</button>
+                      <button className="text-xs text-accent hover:text-accent/80" onClick={() => setHintForm({ challengeId: c.id, hintId: h.id, title: h.title || '', content: h.content, order: String(h.order), penaltyPercent: String(h.penaltyPercent) })}>✏️</button>
                       <button className="text-xs text-danger hover:text-danger/80" onClick={() => handleDeleteHint(c.id, h.id)}>🗑️</button>
                     </div>
                   </div>
@@ -818,7 +818,10 @@ function AdminChallenges() {
                       <input className="terminal-input px-2 py-1 text-sm" placeholder="Title (optional)" value={hintForm.title} onChange={(e) => setHintForm({ ...hintForm, title: e.target.value })} />
                       <div className="grid grid-cols-2 gap-2">
                         <input className="terminal-input px-2 py-1 text-sm" type="number" placeholder="Order" value={hintForm.order} onChange={(e) => setHintForm({ ...hintForm, order: e.target.value })} />
-                        <input className="terminal-input px-2 py-1 text-sm" type="number" placeholder="Cost" value={hintForm.cost} onChange={(e) => setHintForm({ ...hintForm, cost: e.target.value })} />
+                        <div className="flex items-center gap-1">
+                          <input className="terminal-input px-2 py-1 text-sm" type="number" placeholder="Penalty %" value={hintForm.penaltyPercent} onChange={(e) => setHintForm({ ...hintForm, penaltyPercent: e.target.value })} />
+                          <span className="text-xs text-hud-text/50">%</span>
+                        </div>
                       </div>
                     </div>
                     <textarea className="terminal-input px-2 py-1 text-sm w-full h-16" placeholder="Hint content..." value={hintForm.content} onChange={(e) => setHintForm({ ...hintForm, content: e.target.value })} />
@@ -833,76 +836,6 @@ function AdminChallenges() {
           </div>
         ))}
       </div>
-    </HudPanel>
-  );
-}
-
-/* ─── Courses Tab (Admin) ─── */
-function AdminCoursesTab() {
-  const [courses, setCourses] = useState<any[]>([]);
-  const [analytics, setAnalytics] = useState<Record<string, any>>({});
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await apiGet('/courses');
-        setCourses(res.courses || []);
-        const map: Record<string, any> = {};
-        for (const c of (res.courses || [])) {
-          try { map[c.id] = await apiGet(`/courses/${c.id}/analytics`); } catch {}
-        }
-        setAnalytics(map);
-      } catch {}
-      setLoading(false);
-    })();
-  }, []);
-
-  return (
-    <HudPanel title="Courses Overview">
-      {loading ? <p className="text-accent/50 text-sm">Loading...</p> : courses.length === 0 ? (
-        <p className="text-hud-text/30 text-sm">No courses. <a href="/courses" className="text-accent underline">Create one</a></p>
-      ) : (
-        <div className="space-y-3">
-          {courses.map((c: any) => {
-            const preset = COURSE_THEME_PRESETS[c.themeId];
-            const ctfOpt = CTF_TYPE_OPTIONS.find((o: any) => o.value === c.ctfType);
-            const a = analytics[c.id];
-            return (
-              <div key={c.id} className="p-4 border border-accent/15 hover:border-accent/30 transition-all">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-base" style={{ color: preset?.accent }}>{c.name}</span>
-                    <HudTag color={preset?.accent2 || 'var(--accent2)'}>{ctfOpt?.icon} {ctfOpt?.label || c.ctfType}</HudTag>
-                    {preset && <span className="text-xs" style={{ color: preset.textDim }}>{preset.name}</span>}
-                  </div>
-                  {!c.published && <HudTag color="var(--warning)">Draft</HudTag>}
-                </div>
-                {(c.tags || []).length > 0 && (
-                  <div className="flex gap-1 flex-wrap mb-2">
-                    {c.tags.map((tag: string) => <span key={tag} className="px-1.5 py-0.5 text-[10px] border border-accent/20 text-accent/60">{tag}</span>)}
-                  </div>
-                )}
-                {a && (
-                  <div className="flex gap-4 text-xs text-hud-text/50">
-                    <span>{a.totalEvents || 0} events</span>
-                    <span>{a.totalClasses || 0} classes</span>
-                    <span>{a.totalStudents || 0} students</span>
-                  </div>
-                )}
-                {preset && (
-                  <div className="flex gap-0.5 h-1.5 mt-2 rounded overflow-hidden">
-                    <div className="flex-1" style={{ backgroundColor: preset.accent }} />
-                    <div className="flex-1" style={{ backgroundColor: preset.accent2 }} />
-                    <div className="flex-1" style={{ backgroundColor: preset.success }} />
-                    <div className="flex-1" style={{ backgroundColor: preset.warning }} />
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
     </HudPanel>
   );
 }
@@ -960,32 +893,41 @@ function AdminUsers() {
                 <span className="font-bold text-sm">{u.displayName}</span>
                 <span className="text-xs text-hud-text/30 ml-2">{u.uid.slice(0, 8)}</span>
                 {u.disabled && <HudTag className="ml-1" color="var(--danger)">DISABLED</HudTag>}
+                {u.role === 'superadmin' && <HudTag className="ml-1" color="var(--warning)">🔒 SUPER</HudTag>}
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <select
-                value={u.role}
-                onChange={(e) => handleRoleChange(u.uid, e.target.value)}
-                className="terminal-input px-2 py-1 text-xs"
-              >
-                <option value="participant">participant</option>
-                <option value="instructor">instructor</option>
-                <option value="admin">admin</option>
-              </select>
-              <NeonButton
-                size="sm"
-                variant={u.disabled ? 'outline' : 'danger'}
-                onClick={() => toggleDisable(u.uid, u.disabled)}
-              >
-                {u.disabled ? 'Enable' : 'Disable'}
-              </NeonButton>
-              <NeonButton
-                size="sm"
-                variant="danger"
-                onClick={() => handleDelete(u.uid, u.displayName)}
-              >
-                Delete
-              </NeonButton>
+              {u.role === 'superadmin' ? (
+                <span className="text-xs text-warning font-bold px-2 py-1 border border-warning/30">SUPERADMIN</span>
+              ) : (
+                <select
+                  value={u.role}
+                  onChange={(e) => handleRoleChange(u.uid, e.target.value)}
+                  className="terminal-input px-2 py-1 text-xs"
+                >
+                  <option value="participant">participant</option>
+                  <option value="instructor">instructor</option>
+                  <option value="admin">admin</option>
+                </select>
+              )}
+              {u.role !== 'superadmin' && (
+                <>
+                  <NeonButton
+                    size="sm"
+                    variant={u.disabled ? 'outline' : 'danger'}
+                    onClick={() => toggleDisable(u.uid, u.disabled)}
+                  >
+                    {u.disabled ? 'Enable' : 'Disable'}
+                  </NeonButton>
+                  <NeonButton
+                    size="sm"
+                    variant="danger"
+                    onClick={() => handleDelete(u.uid, u.displayName)}
+                  >
+                    Delete
+                  </NeonButton>
+                </>
+              )}
             </div>
           </div>
         ))}
