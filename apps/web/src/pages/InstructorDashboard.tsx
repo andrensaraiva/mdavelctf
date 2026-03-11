@@ -7,6 +7,7 @@ import { HudTag } from '../components/HudTag';
 import { StatCard } from '../components/StatCard';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { COURSE_THEME_PRESETS, CTF_TYPE_OPTIONS } from '@mdavelctf/shared';
 
 interface ClassSummary {
   id: string;
@@ -53,6 +54,13 @@ export default function InstructorDashboard() {
   const [courses, setCourses] = useState<any[]>([]);
   const [msg, setMsg] = useState('');
 
+  // Inline course creation
+  const [showNewCourse, setShowNewCourse] = useState(false);
+  const [newCourseName, setNewCourseName] = useState('');
+  const [newCourseCtfType, setNewCourseCtfType] = useState('cybersecurity');
+  const [newCourseTheme, setNewCourseTheme] = useState('neon-cyber');
+  const [creatingCourse, setCreatingCourse] = useState(false);
+
   // Challenge management
   const [selectedEventId, setSelectedEventId] = useState('');
   const [challenges, setChallenges] = useState<Challenge[]>([]);
@@ -86,6 +94,20 @@ export default function InstructorDashboard() {
       } catch {}
     })();
   }, []);
+
+  const reloadCourses = async () => { try { const r = await apiGet('/courses'); setCourses(r.courses || []); } catch {} };
+
+  const handleCreateCourseInline = async () => {
+    if (!newCourseName.trim()) return;
+    setCreatingCourse(true);
+    try {
+      const res = await apiPost('/courses', { name: newCourseName, ctfType: newCourseCtfType, themeId: newCourseTheme, published: true, tags: [] });
+      setLinkedCourseId(res.id);
+      await reloadCourses();
+      setShowNewCourse(false); setNewCourseName(''); setNewCourseCtfType('cybersecurity'); setNewCourseTheme('neon-cyber');
+    } catch (e: any) { setMsg(e.message); }
+    setCreatingCourse(false);
+  };
 
   // Load challenges when event selected
   useEffect(() => {
@@ -293,12 +315,31 @@ export default function InstructorDashboard() {
                 </select>
               </div>
             </div>
-            <div>
+            <div className="space-y-2">
               <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">{t('courses.title', 'Course')}</label>
-              <select value={linkedCourseId} onChange={(e) => setLinkedCourseId(e.target.value)} className="terminal-input w-full md:w-auto px-3 py-2 text-sm">
+              <select value={showNewCourse ? '__new__' : linkedCourseId} onChange={(e) => { if (e.target.value === '__new__') { setShowNewCourse(true); setLinkedCourseId(''); } else { setShowNewCourse(false); setLinkedCourseId(e.target.value); } }} className="terminal-input w-full md:w-auto px-3 py-2 text-sm">
                 <option value="">{t('instructor.none', 'None')}</option>
                 {courses.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                <option value="__new__">＋ Create new course...</option>
               </select>
+              {showNewCourse && (
+                <div className="p-3 border border-accent/30 bg-accent/5 space-y-2">
+                  <p className="text-xs uppercase tracking-widest text-accent/70">Quick Create Course</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    <input value={newCourseName} onChange={(e) => setNewCourseName(e.target.value)} placeholder="Course name" className="terminal-input px-3 py-2 text-sm" />
+                    <select value={newCourseCtfType} onChange={(e) => setNewCourseCtfType(e.target.value)} className="terminal-input px-3 py-2 text-sm">
+                      {CTF_TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.icon} {o.label}</option>)}
+                    </select>
+                    <select value={newCourseTheme} onChange={(e) => setNewCourseTheme(e.target.value)} className="terminal-input px-3 py-2 text-sm">
+                      {Object.values(COURSE_THEME_PRESETS).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex gap-2">
+                    <NeonButton size="sm" variant="solid" onClick={handleCreateCourseInline} disabled={creatingCourse}>{creatingCourse ? 'Creating...' : 'Create & Select'}</NeonButton>
+                    <NeonButton size="sm" onClick={() => setShowNewCourse(false)}>Cancel</NeonButton>
+                  </div>
+                </div>
+              )}
             </div>
             <NeonButton size="sm" variant="solid" onClick={handleCreateEvent}>{t('instructor.createEvent')}</NeonButton>
             {msg && <p className="text-accent text-xs mt-2">{msg}</p>}
