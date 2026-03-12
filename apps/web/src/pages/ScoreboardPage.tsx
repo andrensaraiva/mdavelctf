@@ -23,22 +23,26 @@ export default function ScoreboardPage() {
   const [rows, setRows] = useState<LeaderboardRow[]>([]);
   const [leagueAnalytics, setLeagueAnalytics] = useState<LeagueAnalyticsSummary | null>(null);
   const [eventAnalytics, setEventAnalytics] = useState<EventAnalyticsSummary | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
-      const eSnap = await getDocs(
-        query(collection(db, 'events'), where('published', '==', true)),
-      );
-      const evts = eSnap.docs.map((d) => ({ id: d.id, ...(d.data() as EventDoc) }));
-      setEvents(evts);
+      try {
+        const eSnap = await getDocs(
+          query(collection(db, 'events'), where('published', '==', true)),
+        );
+        const evts = eSnap.docs.map((d) => ({ id: d.id, ...(d.data() as EventDoc) }));
+        setEvents(evts);
 
-      const lSnap = await getDocs(
-        query(collection(db, 'leagues'), where('published', '==', true)),
-      );
-      const lgs = lSnap.docs.map((d) => ({ id: d.id, ...(d.data() as LeagueDoc) }));
-      setLeagues(lgs);
+        const lSnap = await getDocs(
+          query(collection(db, 'leagues'), where('published', '==', true)),
+        );
+        const lgs = lSnap.docs.map((d) => ({ id: d.id, ...(d.data() as LeagueDoc) }));
+        setLeagues(lgs);
 
-      if (evts.length > 0) setSelectedId(evts[0].id);
+        if (evts.length > 0) setSelectedId(evts[0].id);
+      } catch {}
+      setLoading(false);
     })();
   }, []);
 
@@ -72,6 +76,14 @@ export default function ScoreboardPage() {
 
   const items = scope === 'event' ? events : leagues;
   const selectedName = items.find((i) => i.id === selectedId)?.name || '';
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="inline-block w-6 h-6 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">

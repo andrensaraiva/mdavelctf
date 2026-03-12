@@ -38,48 +38,60 @@ export default function TeamPage() {
   const [tagline, setTagline] = useState('');
   const [msg, setMsg] = useState('');
   const [tab, setTab] = useState('overview');
+  const [loading, setLoading] = useState(true);
 
   const load = async () => {
     if (!teamId) return;
-    const snap = await getDoc(doc(db, 'teams', teamId));
-    if (snap.exists()) {
-      const data = snap.data() as TeamDoc;
-      setTeam(data);
-      setTeamName(data.name || '');
-      setDescription(data.description || '');
-      setTagline(data.tagline || '');
-    }
-
-    const mSnap = await getDocs(collection(db, 'teams', teamId, 'members'));
-    const mems = await Promise.all(
-      mSnap.docs.map(async (m) => {
-        const uSnap = await getDoc(doc(db, 'users', m.id));
-        const uData = uSnap.data();
-        return {
-          uid: m.id,
-          displayName: uData?.displayName || 'Unknown',
-          avatarUrl: uData?.avatarUrl || undefined,
-          xp: uData?.xp || 0,
-          level: uData?.level || 1,
-          ...m.data(),
-        } as Member;
-      }),
-    );
-    mems.sort((a, b) => (a.role === 'captain' ? -1 : b.role === 'captain' ? 1 : 0));
-    setMembers(mems);
-
     try {
-      const res = await apiGet('/team/activity?limit=10');
-      setActivity(res.activity || []);
+      const snap = await getDoc(doc(db, 'teams', teamId));
+      if (snap.exists()) {
+        const data = snap.data() as TeamDoc;
+        setTeam(data);
+        setTeamName(data.name || '');
+        setDescription(data.description || '');
+        setTagline(data.tagline || '');
+      }
+
+      const mSnap = await getDocs(collection(db, 'teams', teamId, 'members'));
+      const mems = await Promise.all(
+        mSnap.docs.map(async (m) => {
+          const uSnap = await getDoc(doc(db, 'users', m.id));
+          const uData = uSnap.data();
+          return {
+            uid: m.id,
+            displayName: uData?.displayName || 'Unknown',
+            avatarUrl: uData?.avatarUrl || undefined,
+            xp: uData?.xp || 0,
+            level: uData?.level || 1,
+            ...m.data(),
+          } as Member;
+        }),
+      );
+      mems.sort((a, b) => (a.role === 'captain' ? -1 : b.role === 'captain' ? 1 : 0));
+      setMembers(mems);
+
+      try {
+        const res = await apiGet('/team/activity?limit=10');
+        setActivity(res.activity || []);
+      } catch {}
     } catch {}
+    setLoading(false);
   };
 
   useEffect(() => { load(); }, [teamId]);
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="inline-block w-6 h-6 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   if (!team || !teamId) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-16 text-center">
-        <div className="text-accent/40 text-lg animate-pulse">{t('team.loading')}</div>
+        <p className="text-hud-text/50">{t('team.notFound', 'Team not found')}</p>
       </div>
     );
   }

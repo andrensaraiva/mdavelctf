@@ -25,6 +25,7 @@ export default function ProfilePage() {
   const [teamName, setTeamName] = useState('');
   const [msg, setMsg] = useState('');
   const [badgeCatalog, setBadgeCatalog] = useState<(BadgeDoc & { id: string })[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (userDoc) {
@@ -42,10 +43,19 @@ export default function ProfilePage() {
         const res = await apiGet('/gamification/badges');
         setBadgeCatalog(res.badges || []);
       } catch {}
+      setLoading(false);
     })();
   }, []);
 
   if (!user || !userDoc) return null;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="inline-block w-6 h-6 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   const handleSaveProfile = async () => {
     setSaving(true);

@@ -29,12 +29,14 @@ export default function ClassesPage() {
   const [classTag, setClassTag] = useState('');
   const [customClassTag, setCustomClassTag] = useState('');
   const [msg, setMsg] = useState('');
+  const [loading, setLoading] = useState(true);
 
   const load = async () => {
     try {
       const res = await apiGet('/classes/my');
       setClasses(res.classes || []);
     } catch {}
+    setLoading(false);
   };
 
   useEffect(() => { load(); }, []);
@@ -64,6 +66,14 @@ export default function ClassesPage() {
   };
 
   const isInstructor = userDoc?.role === 'instructor' || userDoc?.role === 'admin' || userDoc?.role === 'superadmin';
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="inline-block w-6 h-6 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-5">

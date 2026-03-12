@@ -29,48 +29,66 @@ export default function EventPage() {
   const [filter, setFilter] = useState('ALL');
   const [tab, setTab] = useState('challenges');
   const [ranks, setRanks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!eventId) return;
     (async () => {
-      const eSnap = await getDoc(doc(db, 'events', eventId));
-      if (eSnap.exists()) setEvent(eSnap.data() as EventDoc);
+      try {
+        const eSnap = await getDoc(doc(db, 'events', eventId));
+        if (eSnap.exists()) setEvent(eSnap.data() as EventDoc);
 
-      const cSnap = await getDocs(
-        query(
-          collection(db, 'events', eventId, 'challenges'),
-          where('published', '==', true),
-        ),
-      );
-      setChallenges(
-        cSnap.docs.map((d) => ({ id: d.id, ...(d.data() as ChallengeDoc) })),
-      );
+        const cSnap = await getDocs(
+          query(
+            collection(db, 'events', eventId, 'challenges'),
+            where('published', '==', true),
+          ),
+        );
+        setChallenges(
+          cSnap.docs.map((d) => ({ id: d.id, ...(d.data() as ChallengeDoc) })),
+        );
 
-      if (user) {
-        const sSnap = await getDocs(collection(db, 'events', eventId, 'solves'));
-        const solved = new Set<string>();
-        sSnap.docs.forEach((d) => {
+        if (user) {
+          const sSnap = await getDocs(collection(db, 'events', eventId, 'solves'));
+          const solved = new Set<string>();
+          sSnap.docs.forEach((d) => {
+            const s = d.data() as SolveDoc;
+            if (s.uid === user.uid) solved.add(s.challengeId);
+          });
+          setMySolves(solved);
+        }
+
+        // Fetch event ranking
+        const rSnap = await getDocs(
+          query(collection(db, 'events', eventId, 'solves')),
+        );
+        const scoreMap: Record<string, { uid: string; displayName: string; score: number }> = {};
+        rSnap.docs.forEach((d) => {
           const s = d.data() as SolveDoc;
-          if (s.uid === user.uid) solved.add(s.challengeId);
+          if (!scoreMap[s.uid]) scoreMap[s.uid] = { uid: s.uid, displayName: s.displayName || s.uid, score: 0 };
+          scoreMap[s.uid].score += s.points || 0;
         });
-        setMySolves(solved);
-      }
-
-      // Fetch event ranking
-      const rSnap = await getDocs(
-        query(collection(db, 'events', eventId, 'solves')),
-      );
-      const scoreMap: Record<string, { uid: string; displayName: string; score: number }> = {};
-      rSnap.docs.forEach((d) => {
-        const s = d.data() as SolveDoc;
-        if (!scoreMap[s.uid]) scoreMap[s.uid] = { uid: s.uid, displayName: s.displayName || s.uid, score: 0 };
-        scoreMap[s.uid].score += s.points || 0;
-      });
-      setRanks(Object.values(scoreMap).sort((a, b) => b.score - a.score));
+        setRanks(Object.values(scoreMap).sort((a, b) => b.score - a.score));
+      } catch {}
+      setLoading(false);
     })();
   }, [eventId, user]);
 
-  if (!event || !eventId) return <div className="p-8 text-center text-accent/50">{t('event.loading')}</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="inline-block w-6 h-6 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!event || !eventId) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-16 text-center">
+        <p className="text-hud-text/50">{t('event.notFound', 'Event not found')}</p>
+      </div>
+    );
+  }
 
   const status = getStatus(event);
   const categories = ['ALL', ...new Set(challenges.map((c) => c.category))];

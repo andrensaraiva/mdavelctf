@@ -46,6 +46,7 @@ export default function ClassDetailPage() {
   const [events, setEvents] = useState<ClassEvent[]>([]);
   const [msg, setMsg] = useState('');
   const [tab, setTab] = useState('details');
+  const [loading, setLoading] = useState(true);
 
   const load = async () => {
     if (!classId) return;
@@ -57,12 +58,25 @@ export default function ClassDetailPage() {
     } catch (e: any) {
       setMsg(e.message);
     }
+    setLoading(false);
   };
 
   useEffect(() => { load(); }, [classId]);
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="inline-block w-6 h-6 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   if (!classData) {
-    return <div className="p-8 text-center text-accent/50">{t('common.loading')}</div>;
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-16 text-center">
+        <p className="text-hud-text/50">{msg || t('classes.notFound', 'Class not found')}</p>
+      </div>
+    );
   }
 
   const isOwner = user?.uid === classData.ownerInstructorId || userDoc?.role === 'admin' || userDoc?.role === 'superadmin';

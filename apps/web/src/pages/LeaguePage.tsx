@@ -15,34 +15,52 @@ export default function LeaguePage() {
   const [standings, setStandings] = useState<LeaderboardRow[]>([]);
   const [teamStandings, setTeamStandings] = useState<LeaderboardRow[]>([]);
   const [mode, setMode] = useState<'individual' | 'teams'>('individual');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!leagueId) return;
     (async () => {
-      const lSnap = await getDoc(doc(db, 'leagues', leagueId));
-      if (lSnap.exists()) {
-        const ld = lSnap.data() as LeagueDoc;
-        setLeague(ld);
+      try {
+        const lSnap = await getDoc(doc(db, 'leagues', leagueId));
+        if (lSnap.exists()) {
+          const ld = lSnap.data() as LeagueDoc;
+          setLeague(ld);
 
-        // Load events
-        const evts: (EventDoc & { id: string })[] = [];
-        for (const eid of ld.eventIds) {
-          const eSnap = await getDoc(doc(db, 'events', eid));
-          if (eSnap.exists()) evts.push({ id: eid, ...(eSnap.data() as EventDoc) });
+          // Load events
+          const evts: (EventDoc & { id: string })[] = [];
+          for (const eid of ld.eventIds) {
+            const eSnap = await getDoc(doc(db, 'events', eid));
+            if (eSnap.exists()) evts.push({ id: eid, ...(eSnap.data() as EventDoc) });
+          }
+          setEvents(evts);
         }
-        setEvents(evts);
-      }
 
-      // Standings
-      const indSnap = await getDoc(doc(db, 'leagues', leagueId, 'standings', 'individual'));
-      if (indSnap.exists()) setStandings(indSnap.data().rows || []);
+        // Standings
+        const indSnap = await getDoc(doc(db, 'leagues', leagueId, 'standings', 'individual'));
+        if (indSnap.exists()) setStandings(indSnap.data().rows || []);
 
-      const teamSnap = await getDoc(doc(db, 'leagues', leagueId, 'standings', 'teams'));
-      if (teamSnap.exists()) setTeamStandings(teamSnap.data().rows || []);
+        const teamSnap = await getDoc(doc(db, 'leagues', leagueId, 'standings', 'teams'));
+        if (teamSnap.exists()) setTeamStandings(teamSnap.data().rows || []);
+      } catch {}
+      setLoading(false);
     })();
   }, [leagueId]);
 
-  if (!league) return <div className="p-8 text-center text-accent/50">Loading...</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="inline-block w-6 h-6 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!league) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-16 text-center">
+        <p className="text-hud-text/50">League not found</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">

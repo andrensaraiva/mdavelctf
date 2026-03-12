@@ -31,6 +31,7 @@ export default function HomePage() {
   const [events, setEvents] = useState<(EventDoc & { id: string })[]>([]);
   const [quests, setQuests] = useState<any[]>([]);
   const [eventsTab, setEventsTab] = useState('live');
+  const [loading, setLoading] = useState(true);
 
   const role = userDoc?.role || 'participant';
   const isInstructor = role === 'instructor' || role === 'admin' || role === 'superadmin';
@@ -38,20 +39,23 @@ export default function HomePage() {
 
   useEffect(() => {
     (async () => {
-      const lSnap = await getDocs(
-        query(collection(db, 'leagues'), where('published', '==', true)),
-      );
-      setLeagues(lSnap.docs.map((d) => ({ id: d.id, ...(d.data() as LeagueDoc) })));
-
-      const eSnap = await getDocs(
-        query(collection(db, 'events'), where('published', '==', true)),
-      );
-      setEvents(eSnap.docs.map((d) => ({ id: d.id, ...(d.data() as EventDoc) })));
-
       try {
-        const res = await apiGet('/gamification/quests');
-        setQuests(res.quests || []);
+        const lSnap = await getDocs(
+          query(collection(db, 'leagues'), where('published', '==', true)),
+        );
+        setLeagues(lSnap.docs.map((d) => ({ id: d.id, ...(d.data() as LeagueDoc) })));
+
+        const eSnap = await getDocs(
+          query(collection(db, 'events'), where('published', '==', true)),
+        );
+        setEvents(eSnap.docs.map((d) => ({ id: d.id, ...(d.data() as EventDoc) })));
+
+        try {
+          const res = await apiGet('/gamification/quests');
+          setQuests(res.quests || []);
+        } catch {}
       } catch {}
+      setLoading(false);
     })();
   }, []);
 
@@ -70,6 +74,14 @@ export default function HomePage() {
     else if (upcomingEvents.length > 0) setEventsTab('upcoming');
     else setEventsTab('past');
   }, [events.length]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="inline-block w-6 h-6 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
