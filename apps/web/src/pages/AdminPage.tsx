@@ -86,16 +86,14 @@ function AdminOverview() {
   useEffect(() => {
     (async () => {
       try {
-        const s = await apiGet('/admin/dashboard/summary');
-        setSummary(s);
-      } catch {}
-
-      try {
-        const eRes = await apiGet('/admin/events');
+        const [s, eRes, lRes] = await Promise.all([
+          apiGet('/admin/dashboard/summary').catch(() => null),
+          apiGet('/admin/events'),
+          apiGet('/admin/leagues'),
+        ]);
+        if (s) setSummary(s);
         const evts = (eRes.events || []).map((d: any) => ({ ...d } as EventDoc & { id: string }));
         setEvents(evts);
-
-        const lRes = await apiGet('/admin/leagues');
         const lgs = (lRes.leagues || []).map((d: any) => ({ ...d } as LeagueDoc & { id: string }));
         setLeagues(lgs);
       } catch {}
@@ -109,18 +107,19 @@ function AdminOverview() {
     setFeedLoading(true);
     try {
       const endpoint = mode === 'solves' ? '/admin/logs/solves' : '/admin/logs/submissions';
-      // Aggregate feed from all events
-      let allItems: any[] = [];
-      for (const evt of events) {
-        let url = `${endpoint}?eventId=${evt.id}&limit=10`;
-        if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
-        if (mode === 'submissions' && correctOnly) url += '&correctOnly=true';
-        try {
-          const res = await apiGet(url);
-          const items = (res.submissions || res.solves || []).map((i: any) => ({ ...i, eventName: evt.name }));
-          allItems = [...allItems, ...items];
-        } catch {}
-      }
+      // Aggregate feed from all events in parallel
+      const results = await Promise.all(
+        events.map(async (evt) => {
+          let url = `${endpoint}?eventId=${evt.id}&limit=10`;
+          if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
+          if (mode === 'submissions' && correctOnly) url += '&correctOnly=true';
+          try {
+            const res = await apiGet(url);
+            return (res.submissions || res.solves || []).map((i: any) => ({ ...i, eventName: evt.name }));
+          } catch { return []; }
+        }),
+      );
+      let allItems = results.flat();
       // Sort by time descending
       allItems.sort((a, b) => {
         const ta = new Date(a.submittedAt || a.solvedAt || 0).getTime();
@@ -129,7 +128,7 @@ function AdminOverview() {
       });
       allItems = allItems.slice(0, 20);
       setFeedData(append ? (prev: any[]) => [...prev, ...allItems] : allItems);
-      setFeedCursor(null); // Disable cursor-based pagination for aggregated view
+      setFeedCursor(null);
     } catch {}
     setFeedLoading(false);
   };

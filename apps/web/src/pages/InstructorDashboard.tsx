@@ -82,12 +82,12 @@ export default function InstructorDashboard() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await apiGet('/classes/my');
-        setClasses((res.classes || []).filter((c: ClassSummary) => c.isOwner));
-      } catch {}
-      try {
-        const res = await apiGet('/classes/instructor/events');
-        setEvents(res.events || []);
+        const [classesRes, eventsRes] = await Promise.all([
+          apiGet('/classes/my'),
+          apiGet('/classes/instructor/events'),
+        ]);
+        setClasses((classesRes.classes || []).filter((c: ClassSummary) => c.isOwner));
+        setEvents(eventsRes.events || []);
       } catch {}
       setInitialLoading(false);
     })();

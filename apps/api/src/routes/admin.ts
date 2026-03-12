@@ -624,8 +624,13 @@ adminRouter.delete('/quest/:questId', asyncHandler(async (req: AuthRequest, res:
 adminRouter.get('/dashboard/summary', asyncHandler(async (req: AuthRequest, res: Response) => {
   const db = getDb();
 
-  const usersSnap = await db.collection('users').get();
-  const eventsSnap = await db.collection('events').get();
+  // Fetch users, events, hint unlocks, and classes counts in parallel
+  const [usersSnap, eventsSnap, hintUnlocksSnap, classesCountSnap] = await Promise.all([
+    db.collection('users').get(),
+    db.collection('events').get(),
+    db.collection('hintUnlocks').get().catch(() => ({ size: 0 })),
+    db.collection('classes').get().catch(() => ({ size: 0 })),
+  ]);
 
   let submissionsLast60m = 0;
   let solvesLast60m = 0;
@@ -641,36 +646,50 @@ adminRouter.get('/dashboard/summary', asyncHandler(async (req: AuthRequest, res:
   const userNameMap: Record<string, string> = {};
   usersSnap.docs.forEach((d) => { userNameMap[d.id] = d.data().displayName || d.id.slice(0, 8); });
 
-  for (const eventDoc of eventsSnap.docs) {
-    const eid = eventDoc.id;
-    const eventData = eventDoc.data();
+  // Process all events in parallel
+  const eventResults = await Promise.all(
+    eventsSnap.docs.map(async (eventDoc) => {
+      const eid = eventDoc.id;
+      const eventData = eventDoc.data();
 
-    // Track live event
-    const now = Date.now();
-    if (now >= new Date(eventData.startsAt).getTime() && now <= new Date(eventData.endsAt).getTime()) {
+      // Track live event
+      const now = Date.now();
+      const isLive = now >= new Date(eventData.startsAt).getTime() && now <= new Date(eventData.endsAt).getTime();
+
+      // Fetch challenges, submissions, solves, and analytics in parallel for this event
+      const [chalSnap, subsSnap, solvesSnap, analyticsSnap] = await Promise.all([
+        db.collection('events').doc(eid).collection('challenges').get(),
+        db.collection('events').doc(eid).collection('submissions')
+          .where('submittedAt', '>=', oneHourAgo)
+          .orderBy('submittedAt', 'desc')
+          .limit(50)
+          .get(),
+        db.collection('events').doc(eid).collection('solves')
+          .orderBy('solvedAt', 'desc')
+          .limit(50)
+          .get(),
+        db.doc(`events/${eid}/analytics/summary`).get(),
+      ]);
+
+      const chalMap: Record<string, any> = {};
+      chalSnap.docs.forEach((c) => { chalMap[c.id] = c.data(); });
+
+      return { eid, eventData, isLive, chalMap, subsSnap, solvesSnap, analyticsSnap };
+    }),
+  );
+
+  // Merge results from all events
+  for (const { eid, eventData, isLive, chalMap, subsSnap, solvesSnap, analyticsSnap } of eventResults) {
+    if (isLive) {
       liveEventName = eventData.name;
       liveEventEndsAt = eventData.endsAt;
     }
-
-    // Preload challenge titles for this event
-    const chalSnap = await db.collection('events').doc(eid).collection('challenges').get();
-    const chalMap: Record<string, any> = {};
-    chalSnap.docs.forEach((c) => { chalMap[c.id] = c.data(); });
-
-    // Recent submissions
-    const subsSnap = await db.collection('events').doc(eid)
-      .collection('submissions')
-      .where('submittedAt', '>=', oneHourAgo)
-      .orderBy('submittedAt', 'desc')
-      .limit(50)
-      .get();
 
     for (const s of subsSnap.docs) {
       const data = s.data();
       if (data.isCorrect) solvesLast60m++;
       submissionsLast60m++;
 
-      // Track top active users
       if (!userSubCounts[data.uid]) {
         userSubCounts[data.uid] = { uid: data.uid, displayName: userNameMap[data.uid] || data.uid.slice(0, 8), count: 0 };
       }
@@ -687,13 +706,6 @@ adminRouter.get('/dashboard/summary', asyncHandler(async (req: AuthRequest, res:
       }
     }
 
-    // Recent solves
-    const solvesSnap = await db.collection('events').doc(eid)
-      .collection('solves')
-      .orderBy('solvedAt', 'desc')
-      .limit(50)
-      .get();
-
     for (const s of solvesSnap.docs) {
       if (recentSolves.length < 50) {
         const data = s.data();
@@ -707,8 +719,6 @@ adminRouter.get('/dashboard/summary', asyncHandler(async (req: AuthRequest, res:
       }
     }
 
-    // Challenge stats from analytics
-    const analyticsSnap = await db.doc(`events/${eid}/analytics/summary`).get();
     if (analyticsSnap.exists) {
       const a = analyticsSnap.data()!;
       for (const [cid, count] of Object.entries(a.solvesByChallenge || {})) {
@@ -740,20 +750,6 @@ adminRouter.get('/dashboard/summary', asyncHandler(async (req: AuthRequest, res:
 
   const solveRate = submissionsLast60m > 0 ? Math.round((solvesLast60m / submissionsLast60m) * 100) : 0;
 
-  // Hint unlocks count
-  let totalHintUnlocks = 0;
-  try {
-    const hintUnlocksSnap = await db.collection('hintUnlocks').get();
-    totalHintUnlocks = hintUnlocksSnap.size;
-  } catch {}
-
-  // Courses count
-  let totalClasses = 0;
-  try {
-    const classesCountSnap = await db.collection('classes').get();
-    totalClasses = classesCountSnap.size;
-  } catch {}
-
   return res.json({
     activeUsersLast15m: Object.keys(userSubCounts).length,
     submissionsLast60m,
@@ -765,8 +761,8 @@ adminRouter.get('/dashboard/summary', asyncHandler(async (req: AuthRequest, res:
     recentSolves: recentSolves.slice(0, 50),
     totalUsers: usersSnap.size,
     totalEvents: eventsSnap.size,
-    totalHintUnlocks,
-    totalClasses,
+    totalHintUnlocks: hintUnlocksSnap.size,
+    totalClasses: classesCountSnap.size,
     liveEventName,
     liveEventEndsAt,
   });
