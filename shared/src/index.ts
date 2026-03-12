@@ -205,9 +205,9 @@ export interface ChallengeDoc {
 
 /** Hint defined inline when creating a challenge */
 export interface ChallengeHint {
-  title: string;          // e.g. 'Hint 1'
-  description: string;    // hint content
-  penaltyPercent: number;  // % of challenge points lost (e.g. 10 = 10%)
+  title: string;          // visible to player before purchase
+  content: string;        // hint text, hidden until purchased
+  cost: number;           // fixed points deducted from challenge score on purchase
 }
 
 export interface AttachmentMeta {
@@ -415,22 +415,13 @@ export const DEFAULT_BADGES: Record<string, Omit<BadgeDoc, 'criteriaKey'> & { cr
 };
 
 /* ─── Hint ─── */
-export interface HintDoc {
-  title: string;
-  content: string;
-  order: number;
-  penaltyPercent: number;  // % of challenge points lost
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface HintUnlockDoc {
   uid: string;
   challengeId: string;
-  hintId: string;
+  hintIndex: number;
   eventId: string;
   unlockedAt: string;
-  penaltyApplied: number;  // actual points deducted
+  costDeducted: number;  // points deducted from challenge score
 }
 
 /* ─── Class Type Tags ─── */

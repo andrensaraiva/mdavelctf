@@ -73,7 +73,7 @@ export default function InstructorDashboard() {
   const [chalDecayPercent, setChalDecayPercent] = useState(10);
   const [chalClassType, setChalClassType] = useState('');
   const [chalCustomClassType, setChalCustomClassType] = useState('');
-  const [chalInlineHints, setChalInlineHints] = useState<{ title: string; description: string; penaltyPercent: string }[]>([]);
+  const [chalInlineHints, setChalInlineHints] = useState<{ title: string; content: string; cost: string }[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -153,7 +153,7 @@ export default function InstructorDashboard() {
         flagText: chalFlag || undefined,
         caseSensitive: chalCaseSensitive,
         classType: finalClassType,
-        hints: chalInlineHints.map((h) => ({ title: h.title, description: h.description, penaltyPercent: Number(h.penaltyPercent) })),
+        hints: chalInlineHints.map((h) => ({ title: h.title, content: h.content, cost: Number(h.cost) })),
         flagMode: chalFlagMode,
         ...(chalFlagMode === 'decay' ? {
           decayConfig: { minPoints: chalDecayMin, decayPercent: chalDecayPercent },
@@ -459,15 +459,15 @@ export default function InstructorDashboard() {
                   <div className="border border-accent/20 p-3 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-xs uppercase tracking-widest text-accent/70">Hints ({chalInlineHints.length})</span>
-                      <NeonButton size="sm" onClick={() => setChalInlineHints([...chalInlineHints, { title: '', description: '', penaltyPercent: '10' }])}>+ Add Hint</NeonButton>
+                      <NeonButton size="sm" onClick={() => setChalInlineHints([...chalInlineHints, { title: '', content: '', cost: '25' }])}>+ Add Hint</NeonButton>
                     </div>
                     {chalInlineHints.map((h, i) => (
                       <div key={i} className="grid grid-cols-1 md:grid-cols-4 gap-2 items-start p-2 border border-accent/10">
-                        <input value={h.title} onChange={(e) => { const u = [...chalInlineHints]; u[i].title = e.target.value; setChalInlineHints(u); }} placeholder="Hint title" className="terminal-input px-2 py-1 text-sm" />
-                        <input value={h.description} onChange={(e) => { const u = [...chalInlineHints]; u[i].description = e.target.value; setChalInlineHints(u); }} placeholder="Hint description" className="terminal-input px-2 py-1 text-sm md:col-span-2" />
+                        <input value={h.title} onChange={(e) => { const u = [...chalInlineHints]; u[i].title = e.target.value; setChalInlineHints(u); }} placeholder="Hint title (visible)" className="terminal-input px-2 py-1 text-sm" />
+                        <input value={h.content} onChange={(e) => { const u = [...chalInlineHints]; u[i].content = e.target.value; setChalInlineHints(u); }} placeholder="Hint content (hidden)" className="terminal-input px-2 py-1 text-sm md:col-span-2" />
                         <div className="flex gap-2 items-center">
-                          <input type="number" min="0" max="100" value={h.penaltyPercent} onChange={(e) => { const u = [...chalInlineHints]; u[i].penaltyPercent = e.target.value; setChalInlineHints(u); }} className="terminal-input px-2 py-1 text-sm w-20" />
-                          <span className="text-xs text-hud-text/50">%</span>
+                          <input type="number" min="0" value={h.cost} onChange={(e) => { const u = [...chalInlineHints]; u[i].cost = e.target.value; setChalInlineHints(u); }} className="terminal-input px-2 py-1 text-sm w-20" />
+                          <span className="text-xs text-hud-text/50">pts</span>
                           <button onClick={() => setChalInlineHints(chalInlineHints.filter((_, j) => j !== i))} className="text-danger text-xs">✕</button>
                         </div>
                       </div>

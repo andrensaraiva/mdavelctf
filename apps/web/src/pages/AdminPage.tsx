@@ -4,7 +4,7 @@ import { NeonButton } from '../components/NeonButton';
 import { HudTag } from '../components/HudTag';
 import { StatCard } from '../components/StatCard';
 import { CountdownTimer } from '../components/CountdownTimer';
-import { apiPost, apiPut, apiGet, apiDelete } from '../lib/api';
+import { apiPost, apiGet } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { EventDoc, LeagueDoc, EventAnalyticsSummary, LeagueAnalyticsSummary, BadgeDoc, DEFAULT_BADGES, DEFAULT_CLASS_TYPES, getTagColor } from '@mdavelctf/shared';
 import { useTranslation } from 'react-i18next';
@@ -594,10 +594,7 @@ function AdminChallenges() {
   const [customClassType, setCustomClassType] = useState('');
   const [msg, setMsg] = useState('');
   // Inline hints for challenge creation
-  const [inlineHints, setInlineHints] = useState<{ title: string; description: string; penaltyPercent: string }[]>([]);
-  // Hints management state (for existing challenges)
-  const [hintsMap, setHintsMap] = useState<Record<string, any[]>>({});
-  const [hintForm, setHintForm] = useState<{ challengeId: string; hintId?: string; title: string; content: string; order: string; penaltyPercent: string } | null>(null);
+  const [inlineHints, setInlineHints] = useState<{ title: string; content: string; cost: string }[]>([]);
   const [hintMsg, setHintMsg] = useState('');
   const [filterTag, setFilterTag] = useState('ALL');
 
@@ -632,7 +629,7 @@ function AdminChallenges() {
         tags: [],
         published: true,
         classType: finalClassType,
-        hints: inlineHints.map((h) => ({ title: h.title, description: h.description, penaltyPercent: Number(h.penaltyPercent) })),
+        hints: inlineHints.map((h) => ({ title: h.title, content: h.content, cost: Number(h.cost) })),
         flagMode,
         ...(flagMode === 'decay' ? {
           decayConfig: {
@@ -650,43 +647,6 @@ function AdminChallenges() {
       setTitle(''); setDesc(''); setFlagText(''); setClassType(''); setCategory(''); setCustomCategory(''); setInlineHints([]);
       loadChallenges(eventId);
     } catch (e: any) { setMsg(e.message); }
-  };
-
-  const loadHints = async (challengeId: string) => {
-    if (!eventId) return;
-    try {
-      const res = await apiGet(`/admin/challenges/${challengeId}/hints?eventId=${eventId}`);
-      setHintsMap((prev) => ({ ...prev, [challengeId]: res.hints || [] }));
-    } catch {}
-  };
-
-  const handleSaveHint = async () => {
-    if (!hintForm || !eventId) return;
-    try {
-      if (hintForm.hintId) {
-        await apiPut(`/admin/challenges/${hintForm.challengeId}/hints/${hintForm.hintId}`, {
-          eventId, title: hintForm.title, content: hintForm.content,
-          order: Number(hintForm.order), penaltyPercent: Number(hintForm.penaltyPercent),
-        });
-      } else {
-        await apiPost(`/admin/challenges/${hintForm.challengeId}/hints`, {
-          eventId, title: hintForm.title, content: hintForm.content,
-          order: Number(hintForm.order), penaltyPercent: Number(hintForm.penaltyPercent),
-        });
-      }
-      setHintForm(null);
-      setHintMsg(hintForm.hintId ? 'Hint updated' : 'Hint created');
-      await loadHints(hintForm.challengeId);
-    } catch (e: any) { setHintMsg(e.message); }
-    setTimeout(() => setHintMsg(''), 3000);
-  };
-
-  const handleDeleteHint = async (challengeId: string, hintId: string) => {
-    if (!eventId || !confirm('Delete this hint?')) return;
-    try {
-      await apiDelete(`/admin/challenges/${challengeId}/hints/${hintId}?eventId=${eventId}`);
-      await loadHints(challengeId);
-    } catch (e: any) { setHintMsg(e.message); }
   };
 
   return (
@@ -733,15 +693,15 @@ function AdminChallenges() {
         <div className="border border-accent/20 p-3 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs uppercase tracking-widest text-accent/70">Hints ({inlineHints.length})</span>
-            <NeonButton size="sm" onClick={() => setInlineHints([...inlineHints, { title: '', description: '', penaltyPercent: '10' }])}>+ Add Hint</NeonButton>
+            <NeonButton size="sm" onClick={() => setInlineHints([...inlineHints, { title: '', content: '', cost: '25' }])}>+ Add Hint</NeonButton>
           </div>
           {inlineHints.map((h, i) => (
             <div key={i} className="grid grid-cols-1 md:grid-cols-4 gap-2 items-start p-2 border border-accent/10">
-              <input value={h.title} onChange={(e) => { const u = [...inlineHints]; u[i].title = e.target.value; setInlineHints(u); }} placeholder="Hint title" className="terminal-input px-2 py-1 text-sm" />
-              <input value={h.description} onChange={(e) => { const u = [...inlineHints]; u[i].description = e.target.value; setInlineHints(u); }} placeholder="Hint description" className="terminal-input px-2 py-1 text-sm md:col-span-2" />
+              <input value={h.title} onChange={(e) => { const u = [...inlineHints]; u[i].title = e.target.value; setInlineHints(u); }} placeholder="Hint title (visible)" className="terminal-input px-2 py-1 text-sm" />
+              <input value={h.content} onChange={(e) => { const u = [...inlineHints]; u[i].content = e.target.value; setInlineHints(u); }} placeholder="Hint content (hidden)" className="terminal-input px-2 py-1 text-sm md:col-span-2" />
               <div className="flex gap-2 items-center">
-                <input type="number" min="0" max="100" value={h.penaltyPercent} onChange={(e) => { const u = [...inlineHints]; u[i].penaltyPercent = e.target.value; setInlineHints(u); }} className="terminal-input px-2 py-1 text-sm w-20" />
-                <span className="text-xs text-hud-text/50">%</span>
+                <input type="number" min="0" value={h.cost} onChange={(e) => { const u = [...inlineHints]; u[i].cost = e.target.value; setInlineHints(u); }} className="terminal-input px-2 py-1 text-sm w-20" />
+                <span className="text-xs text-hud-text/50">pts</span>
                 <button onClick={() => setInlineHints(inlineHints.filter((_, j) => j !== i))} className="text-danger text-xs">✕</button>
               </div>
             </div>
@@ -812,52 +772,20 @@ function AdminChallenges() {
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-accent font-extrabold text-lg">{c.pointsFixed} pts</span>
-                <NeonButton size="sm" onClick={() => { loadHints(c.id); }}>💡 Hints</NeonButton>
               </div>
             </div>
-            {/* Hints section */}
-            {hintsMap[c.id] && (
+            {/* Inline hints display */}
+            {c.hints && c.hints.length > 0 && (
               <div className="mt-3 border-t border-accent/10 pt-3">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs uppercase tracking-widest text-accent/70">Hints ({hintsMap[c.id].length})</span>
-                  <NeonButton size="sm" onClick={() => setHintForm({ challengeId: c.id, title: '', content: '', order: String(hintsMap[c.id].length + 1), penaltyPercent: '10' })}>
-                    + Add Hint
-                  </NeonButton>
-                </div>
-                {hintsMap[c.id].map((h: any) => (
-                  <div key={h.id} className="flex items-center justify-between p-2 border border-accent/10 mb-1 text-sm">
+                <span className="text-xs uppercase tracking-widest text-accent/70">Hints ({c.hints.length})</span>
+                {c.hints.map((h: any, i: number) => (
+                  <div key={i} className="flex items-center justify-between p-2 border border-accent/10 mb-1 text-sm mt-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-hud-text/40">#{h.order}</span>
-                      <span className="font-semibold">{h.title || 'Hint'}</span>
-                      <span className="text-xs text-warning">-{h.penaltyPercent}%</span>
+                      <span className="font-semibold">{h.title}</span>
                     </div>
-                    <div className="flex gap-1">
-                      <button className="text-xs text-accent hover:text-accent/80" onClick={() => setHintForm({ challengeId: c.id, hintId: h.id, title: h.title || '', content: h.content, order: String(h.order), penaltyPercent: String(h.penaltyPercent) })}>✏️</button>
-                      <button className="text-xs text-danger hover:text-danger/80" onClick={() => handleDeleteHint(c.id, h.id)}>🗑️</button>
-                    </div>
+                    <span className="text-xs text-warning">-{h.cost} pts</span>
                   </div>
                 ))}
-                {hintMsg && <p className="text-xs text-success mt-1">{hintMsg}</p>}
-                {/* Hint form */}
-                {hintForm && hintForm.challengeId === c.id && (
-                  <div className="mt-2 p-3 border border-accent/20 bg-panel/50 space-y-2">
-                    <div className="grid grid-cols-2 gap-2">
-                      <input className="terminal-input px-2 py-1 text-sm" placeholder="Title (optional)" value={hintForm.title} onChange={(e) => setHintForm({ ...hintForm, title: e.target.value })} />
-                      <div className="grid grid-cols-2 gap-2">
-                        <input className="terminal-input px-2 py-1 text-sm" type="number" placeholder="Order" value={hintForm.order} onChange={(e) => setHintForm({ ...hintForm, order: e.target.value })} />
-                        <div className="flex items-center gap-1">
-                          <input className="terminal-input px-2 py-1 text-sm" type="number" placeholder="Penalty %" value={hintForm.penaltyPercent} onChange={(e) => setHintForm({ ...hintForm, penaltyPercent: e.target.value })} />
-                          <span className="text-xs text-hud-text/50">%</span>
-                        </div>
-                      </div>
-                    </div>
-                    <textarea className="terminal-input px-2 py-1 text-sm w-full h-16" placeholder="Hint content..." value={hintForm.content} onChange={(e) => setHintForm({ ...hintForm, content: e.target.value })} />
-                    <div className="flex gap-2">
-                      <NeonButton size="sm" variant="solid" onClick={handleSaveHint}>{hintForm.hintId ? 'Update' : 'Create'}</NeonButton>
-                      <NeonButton size="sm" onClick={() => setHintForm(null)}>Cancel</NeonButton>
-                    </div>
-                  </div>
-                )}
               </div>
             )}
           </div>

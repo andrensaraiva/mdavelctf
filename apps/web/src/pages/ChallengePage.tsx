@@ -11,10 +11,9 @@ import { apiGet, apiPost } from '../lib/api';
 import ReactMarkdown from 'react-markdown';
 
 interface HintView {
-  id: string;
-  title?: string;
-  order: number;
-  penaltyPercent: number;
+  index: number;
+  title: string;
+  cost: number;
   unlocked: boolean;
   content: string | null;
 }
@@ -28,7 +27,7 @@ export default function ChallengePage() {
   const [event, setEvent] = useState<EventDoc | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [hints, setHints] = useState<HintView[]>([]);
-  const [unlocking, setUnlocking] = useState<string | null>(null);
+  const [unlocking, setUnlocking] = useState<number | null>(null);
   const [hintMsg, setHintMsg] = useState('');
   useEffect(() => {
     if (!eventId || !challengeId) return;
@@ -51,14 +50,14 @@ export default function ChallengePage() {
     })();
   }, [eventId, challengeId]);
 
-  const handleUnlockHint = async (hintId: string) => {
+  const handleUnlockHint = async (hintIndex: number) => {
     if (!eventId || !challengeId) return;
-    setUnlocking(hintId);
+    setUnlocking(hintIndex);
     try {
-      const res = await apiPost(`/challenges/${challengeId}/hints/${hintId}/unlock`, { eventId });
+      const res = await apiPost(`/challenges/${challengeId}/hints/${hintIndex}/unlock`, { eventId });
       if (res.unlocked || res.alreadyUnlocked) {
         setHints((prev) =>
-          prev.map((h) => h.id === hintId ? { ...h, unlocked: true, content: res.content } : h),
+          prev.map((h) => h.index === hintIndex ? { ...h, unlocked: true, content: res.content } : h),
         );
       }
     } catch (e: any) {
@@ -156,7 +155,7 @@ export default function ChallengePage() {
           <div className="space-y-2">
             {hints.map((hint) => (
               <div
-                key={hint.id}
+                key={hint.index}
                 className={`p-3 border transition-all ${
                   hint.unlocked
                     ? 'border-success/30 bg-success/5'
@@ -165,21 +164,20 @@ export default function ChallengePage() {
               >
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-hud-text/40 font-mono">#{hint.order}</span>
                     <span className="font-semibold text-sm">
-                      {hint.unlocked ? '🔓' : '🔒'} {hint.title || `Hint ${hint.order}`}
+                      {hint.unlocked ? '🔓' : '🔒'} {hint.title}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-warning font-semibold">-{hint.penaltyPercent}%</span>
+                    <span className="text-xs text-warning font-semibold">-{hint.cost} pts</span>
                     {!hint.unlocked && (
                       <NeonButton
                         size="sm"
                         variant="solid"
-                        onClick={() => handleUnlockHint(hint.id)}
-                        disabled={unlocking === hint.id}
+                        onClick={() => handleUnlockHint(hint.index)}
+                        disabled={unlocking === hint.index}
                       >
-                        {unlocking === hint.id ? '...' : 'Unlock'}
+                        {unlocking === hint.index ? '...' : 'Buy'}
                       </NeonButton>
                     )}
                   </div>

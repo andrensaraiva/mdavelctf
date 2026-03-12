@@ -221,6 +221,17 @@ submitRouter.post(
           );
         }
 
+        // Deduct purchased hint costs
+        const hintUnlocksSnap = await db.collection('hintUnlocks')
+          .where('uid', '==', uid)
+          .where('eventId', '==', eventId)
+          .where('challengeId', '==', challengeId)
+          .get();
+        const totalHintCost = hintUnlocksSnap.docs.reduce((sum, d) => sum + (d.data().costDeducted || 0), 0);
+        if (totalHintCost > 0) {
+          pointsAwarded = Math.max(0, pointsAwarded - totalHintCost);
+        }
+
         response.scoreAwarded = pointsAwarded;
 
         // Transaction: create solve + update challenge solve counter

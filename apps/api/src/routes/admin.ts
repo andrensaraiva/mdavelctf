@@ -135,8 +135,8 @@ adminRouter.post('/challenge', asyncHandler(async (req: AuthRequest, res: Respon
     classType,
     hints: Array.isArray(hints) ? hints.map((h: any, i: number) => ({
       title: h.title || `Hint ${i + 1}`,
-      description: h.description || '',
-      penaltyPercent: Number(h.penaltyPercent) || 10,
+      content: h.content || '',
+      cost: Math.max(0, Number(h.cost) || 0),
     })) : [],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),

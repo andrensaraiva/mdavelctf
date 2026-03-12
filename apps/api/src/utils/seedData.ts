@@ -106,15 +106,9 @@ export async function clearSeedData(): Promise<{ deleted: string[] }> {
     await doc.ref.update({ teamId: null });
   }
 
-  // 3. Delete events (with challenges (+ hints subcollection), challengeSecrets, submissions, solves, leaderboards, analytics)
+  // 3. Delete events (with challenges, challengeSecrets, submissions, solves, leaderboards, analytics)
   const eventsSnap = await db.collection('events').get();
   for (const doc of eventsSnap.docs) {
-    // Delete hints subcollections from each challenge first
-    const chalSnap = await doc.ref.collection('challenges').get();
-    for (const chalDoc of chalSnap.docs) {
-      const hintsSnap = await chalDoc.ref.collection('hints').get();
-      for (const h of hintsSnap.docs) await h.ref.delete();
-    }
     for (const sub of ['challenges', 'challengeSecrets', 'submissions', 'solves']) {
       const subSnap = await doc.ref.collection(sub).get();
       for (const s of subSnap.docs) await s.ref.delete();
@@ -247,8 +241,8 @@ export async function runSeed(mode: 'minimal' | 'full' = 'full'): Promise<{ summ
   });
 
   const e1Challenges = [
-    { id: 'e1c1', title: 'Hello Web', category: 'Segurança', difficulty: 1, pointsFixed: 50, tags: ['http', 'beginner'], classType: 'Segurança', descriptionMd: '## Hello Web\n\nCheck the page source.', flag: 'CTF{mdavel_warmup_web_01}', hints: [{ title: 'View Source', description: 'Right-click the page and view source code.', penaltyPercent: 10 }] },
-    { id: 'e1c2', title: 'Caesar Salad', category: 'Segurança', difficulty: 1, pointsFixed: 75, tags: ['caesar'], classType: 'Segurança', descriptionMd: '## Caesar Salad\n\nDecrypt: `PGS{zqniry_jnezhc_pelcgb_02}`', flag: 'CTF{mdavel_warmup_crypto_02}', hints: [{ title: 'ROT13', description: 'Try rotating the alphabet by 13 positions.', penaltyPercent: 20 }] },
+    { id: 'e1c1', title: 'Hello Web', category: 'Segurança', difficulty: 1, pointsFixed: 50, tags: ['http', 'beginner'], classType: 'Segurança', descriptionMd: '## Hello Web\n\nCheck the page source.', flag: 'CTF{mdavel_warmup_web_01}', hints: [{ title: 'View Source', content: 'Right-click the page and view source code.', cost: 5 }] },
+    { id: 'e1c2', title: 'Caesar Salad', category: 'Segurança', difficulty: 1, pointsFixed: 75, tags: ['caesar'], classType: 'Segurança', descriptionMd: '## Caesar Salad\n\nDecrypt: `PGS{zqniry_jnezhc_pelcgb_02}`', flag: 'CTF{mdavel_warmup_crypto_02}', hints: [{ title: 'ROT13', content: 'Try rotating the alphabet by 13 positions.', cost: 15 }] },
     { id: 'e1c3', title: 'File Header', category: 'Segurança', difficulty: 2, pointsFixed: 100, tags: ['magic-bytes'], classType: 'Segurança', descriptionMd: '## File Header\n\nIdentify: `89 50 4E 47 0D 0A 1A 0A`', flag: 'CTF{mdavel_warmup_forensics_03}', hints: [] },
   ];
   for (const c of e1Challenges) {
@@ -271,21 +265,21 @@ export async function runSeed(mode: 'minimal' | 'full' = 'full'): Promise<{ summ
 
   const e2Challenges = [
     { id: 'e2c1', title: 'SQL Injection 101', category: 'TI', difficulty: 2, pointsFixed: 100, tags: ['sqli'], classType: 'TI', descriptionMd: '## SQL Injection 101\n\nBypass auth.', flag: 'CTF{mdavel_weekly1_web_01}', hints: [
-      { title: 'Think Input', description: 'Try entering a single quote in the login field.', penaltyPercent: 10 },
-      { title: 'Classic Payload', description: 'The classic `\' OR 1=1 --` might help.', penaltyPercent: 25 },
+      { title: 'Think Input', content: 'Try entering a single quote in the login field.', cost: 10 },
+      { title: 'Classic Payload', content: 'The classic `\' OR 1=1 --` might help.', cost: 25 },
     ]},
     { id: 'e2c2', title: 'RSA Basics', category: 'TI', difficulty: 3, pointsFixed: 150, tags: ['rsa'], classType: 'TI', descriptionMd: '## RSA Basics\n\nn=3233, e=17, ct=2790', flag: 'CTF{mdavel_weekly1_crypto_02}', hints: [
-      { title: 'Small Primes', description: 'n=3233 factors into two small primes. Try dividing!', penaltyPercent: 15 },
-      { title: 'Compute d', description: 'p=53, q=61. Now compute d = e^-1 mod (p-1)(q-1).', penaltyPercent: 30 },
+      { title: 'Small Primes', content: 'n=3233 factors into two small primes. Try dividing!', cost: 20 },
+      { title: 'Compute d', content: 'p=53, q=61. Now compute d = e^-1 mod (p-1)(q-1).', cost: 45 },
     ]},
     { id: 'e2c3', title: 'Hidden Layers', category: 'Multimídia', difficulty: 2, pointsFixed: 100, tags: ['steganography'], classType: 'TI', descriptionMd: '## Hidden Layers\n\nExtract hidden message from PNG.', flag: 'CTF{mdavel_weekly1_forensics_03}', hints: [
-      { title: 'Tool Hint', description: 'Try using `steghide` or `zsteg` on the image.', penaltyPercent: 20 },
+      { title: 'Tool Hint', content: 'Try using `steghide` or `zsteg` on the image.', cost: 20 },
     ]},
     { id: 'e2c4', title: 'GeoGuesser', category: 'Administração', difficulty: 2, pointsFixed: 100, tags: ['geolocation'], classType: 'TI', descriptionMd: '## GeoGuesser\n\nIdentify the location.', flag: 'CTF{mdavel_weekly1_osint_04}', hints: [] },
     { id: 'e2c5', title: 'Buffer Overflow 101', category: 'Segurança', difficulty: 4, pointsFixed: 200, tags: ['bof'], classType: 'TI', descriptionMd: '## Buffer Overflow 101\n\nOverflow buf and call win().', flag: 'CTF{mdavel_weekly1_pwn_05}', hints: [
-      { title: 'Buffer Size', description: 'The buffer is 64 bytes. What comes after it on the stack?', penaltyPercent: 10 },
-      { title: 'Return Address', description: 'Overwrite the return address with the address of `win()`.', penaltyPercent: 20 },
-      { title: 'Exact Offset', description: 'Offset is 72 bytes (64 buffer + 8 saved RBP). Address of win: check with `objdump`.', penaltyPercent: 35 },
+      { title: 'Buffer Size', content: 'The buffer is 64 bytes. What comes after it on the stack?', cost: 20 },
+      { title: 'Return Address', content: 'Overwrite the return address with the address of `win()`.', cost: 40 },
+      { title: 'Exact Offset', content: 'Offset is 72 bytes (64 buffer + 8 saved RBP). Address of win: check with `objdump`.', cost: 70 },
     ]},
   ];
   for (const c of e2Challenges) {
@@ -307,11 +301,11 @@ export async function runSeed(mode: 'minimal' | 'full' = 'full'): Promise<{ summ
   });
 
   const e3Challenges = [
-    { id: 'e3c1', title: 'XSS Playground', category: 'Redes', difficulty: 3, pointsFixed: 150, tags: ['xss'], classType: 'Redes', descriptionMd: '## XSS Playground\n\nFind reflected XSS.', flag: 'CTF{mdavel_weekly2_web_01}', hints: [{ title: 'Input Fields', description: 'Look for user input reflected in the page without sanitization.', penaltyPercent: 15 }] },
+    { id: 'e3c1', title: 'XSS Playground', category: 'Redes', difficulty: 3, pointsFixed: 150, tags: ['xss'], classType: 'Redes', descriptionMd: '## XSS Playground\n\nFind reflected XSS.', flag: 'CTF{mdavel_weekly2_web_01}', hints: [{ title: 'Input Fields', content: 'Look for user input reflected in the page without sanitization.', cost: 20 }] },
     { id: 'e3c2', title: 'Vigenère Vault', category: 'Redes', difficulty: 3, pointsFixed: 150, tags: ['vigenere'], classType: 'Redes', descriptionMd: '## Vigenère Vault\n\nBreak the cipher.', flag: 'CTF{mdavel_weekly2_crypto_02}', hints: [] },
     { id: 'e3c3', title: 'Reverse Me', category: 'Mecânica', difficulty: 4, pointsFixed: 200, tags: ['binary'], classType: 'Redes', descriptionMd: '## Reverse Me\n\nReverse engineer the binary.', flag: 'CTF{mdavel_weekly2_rev_03}', hints: [
-      { title: 'Strings', description: 'Run `strings` on the binary to find readable text.', penaltyPercent: 10 },
-      { title: 'Disassemble', description: 'Use Ghidra or IDA to find the comparison function.', penaltyPercent: 25 },
+      { title: 'Strings', content: 'Run `strings` on the binary to find readable text.', cost: 20 },
+      { title: 'Disassemble', content: 'Use Ghidra or IDA to find the comparison function.', cost: 50 },
     ]},
     { id: 'e3c4', title: 'Memory Dump', category: 'Redes', difficulty: 3, pointsFixed: 150, tags: ['volatility'], classType: 'Redes', descriptionMd: '## Memory Dump\n\nAnalyze the memory dump.', flag: 'CTF{mdavel_weekly2_forensics_04}', hints: [] },
   ];
@@ -511,7 +505,7 @@ export async function runSeed(mode: 'minimal' | 'full' = 'full'): Promise<{ summ
   await db.collection('events').doc(event4Id).collection('challenges').doc('e4c1').set({
     title: 'Recon 101', category: 'OSINT', difficulty: 1, pointsFixed: 50,
     tags: ['recon', 'beginner'], classType: 'Segurança', descriptionMd: '## Recon 101\n\nCheck robots.txt',
-    attachments: [], published: true, hints: [{ title: 'Robots', description: 'Navigate to /robots.txt on the target.', penaltyPercent: 15 }],
+    attachments: [], published: true, hints: [{ title: 'Robots', content: 'Navigate to /robots.txt on the target.', cost: 10 }],
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
   });
   await db.collection('events').doc(event4Id).collection('challengeSecrets').doc('e4c1').set({
