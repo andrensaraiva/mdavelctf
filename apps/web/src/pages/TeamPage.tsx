@@ -43,7 +43,13 @@ export default function TeamPage() {
   const load = async () => {
     if (!teamId) return;
     try {
-      const snap = await getDoc(doc(db, 'teams', teamId));
+      // Fetch team doc, members, and activity in parallel
+      const [snap, mSnap, activityRes] = await Promise.all([
+        getDoc(doc(db, 'teams', teamId)),
+        getDocs(collection(db, 'teams', teamId, 'members')),
+        apiGet('/team/activity?limit=10').catch(() => ({ activity: [] })),
+      ]);
+
       if (snap.exists()) {
         const data = snap.data() as TeamDoc;
         setTeam(data);
@@ -52,7 +58,7 @@ export default function TeamPage() {
         setTagline(data.tagline || '');
       }
 
-      const mSnap = await getDocs(collection(db, 'teams', teamId, 'members'));
+      // Fetch all member user docs in parallel
       const mems = await Promise.all(
         mSnap.docs.map(async (m) => {
           const uSnap = await getDoc(doc(db, 'users', m.id));
@@ -69,11 +75,7 @@ export default function TeamPage() {
       );
       mems.sort((a, b) => (a.role === 'captain' ? -1 : b.role === 'captain' ? 1 : 0));
       setMembers(mems);
-
-      try {
-        const res = await apiGet('/team/activity?limit=10');
-        setActivity(res.activity || []);
-      } catch {}
+      setActivity(activityRes.activity || []);
     } catch {}
     setLoading(false);
   };

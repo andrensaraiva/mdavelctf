@@ -21,25 +21,28 @@ export default function LeaguePage() {
     if (!leagueId) return;
     (async () => {
       try {
-        const lSnap = await getDoc(doc(db, 'leagues', leagueId));
+        // Fetch league doc + both standings in parallel
+        const [lSnap, indSnap, teamSnap] = await Promise.all([
+          getDoc(doc(db, 'leagues', leagueId)),
+          getDoc(doc(db, 'leagues', leagueId, 'standings', 'individual')),
+          getDoc(doc(db, 'leagues', leagueId, 'standings', 'teams')),
+        ]);
+
         if (lSnap.exists()) {
           const ld = lSnap.data() as LeagueDoc;
           setLeague(ld);
 
-          // Load events
-          const evts: (EventDoc & { id: string })[] = [];
-          for (const eid of ld.eventIds) {
-            const eSnap = await getDoc(doc(db, 'events', eid));
-            if (eSnap.exists()) evts.push({ id: eid, ...(eSnap.data() as EventDoc) });
-          }
-          setEvents(evts);
+          // Fetch all event docs in parallel
+          const evts = await Promise.all(
+            ld.eventIds.map(async (eid) => {
+              const eSnap = await getDoc(doc(db, 'events', eid));
+              return eSnap.exists() ? { id: eid, ...(eSnap.data() as EventDoc) } : null;
+            }),
+          );
+          setEvents(evts.filter((e): e is EventDoc & { id: string } => e !== null));
         }
 
-        // Standings
-        const indSnap = await getDoc(doc(db, 'leagues', leagueId, 'standings', 'individual'));
         if (indSnap.exists()) setStandings(indSnap.data().rows || []);
-
-        const teamSnap = await getDoc(doc(db, 'leagues', leagueId, 'standings', 'teams'));
         if (teamSnap.exists()) setTeamStandings(teamSnap.data().rows || []);
       } catch {}
       setLoading(false);

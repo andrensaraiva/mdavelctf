@@ -40,20 +40,14 @@ export default function HomePage() {
   useEffect(() => {
     (async () => {
       try {
-        const lSnap = await getDocs(
-          query(collection(db, 'leagues'), where('published', '==', true)),
-        );
+        const [lSnap, eSnap, questRes] = await Promise.all([
+          getDocs(query(collection(db, 'leagues'), where('published', '==', true))),
+          getDocs(query(collection(db, 'events'), where('published', '==', true))),
+          apiGet('/gamification/quests').catch(() => ({ quests: [] })),
+        ]);
         setLeagues(lSnap.docs.map((d) => ({ id: d.id, ...(d.data() as LeagueDoc) })));
-
-        const eSnap = await getDocs(
-          query(collection(db, 'events'), where('published', '==', true)),
-        );
         setEvents(eSnap.docs.map((d) => ({ id: d.id, ...(d.data() as EventDoc) })));
-
-        try {
-          const res = await apiGet('/gamification/quests');
-          setQuests(res.quests || []);
-        } catch {}
+        setQuests(questRes.quests || []);
       } catch {}
       setLoading(false);
     })();

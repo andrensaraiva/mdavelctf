@@ -35,35 +35,27 @@ export default function EventPage() {
     if (!eventId) return;
     (async () => {
       try {
-        const eSnap = await getDoc(doc(db, 'events', eventId));
+        const [eSnap, cSnap, solvesSnap] = await Promise.all([
+          getDoc(doc(db, 'events', eventId)),
+          getDocs(query(collection(db, 'events', eventId, 'challenges'), where('published', '==', true))),
+          getDocs(collection(db, 'events', eventId, 'solves')),
+        ]);
+
         if (eSnap.exists()) setEvent(eSnap.data() as EventDoc);
+        setChallenges(cSnap.docs.map((d) => ({ id: d.id, ...(d.data() as ChallengeDoc) })));
 
-        const cSnap = await getDocs(
-          query(
-            collection(db, 'events', eventId, 'challenges'),
-            where('published', '==', true),
-          ),
-        );
-        setChallenges(
-          cSnap.docs.map((d) => ({ id: d.id, ...(d.data() as ChallengeDoc) })),
-        );
-
+        // User solves + ranking from same snapshot
         if (user) {
-          const sSnap = await getDocs(collection(db, 'events', eventId, 'solves'));
           const solved = new Set<string>();
-          sSnap.docs.forEach((d) => {
+          solvesSnap.docs.forEach((d) => {
             const s = d.data() as SolveDoc;
             if (s.uid === user.uid) solved.add(s.challengeId);
           });
           setMySolves(solved);
         }
 
-        // Fetch event ranking
-        const rSnap = await getDocs(
-          query(collection(db, 'events', eventId, 'solves')),
-        );
         const scoreMap: Record<string, { uid: string; displayName: string; score: number }> = {};
-        rSnap.docs.forEach((d) => {
+        solvesSnap.docs.forEach((d) => {
           const s = d.data() as SolveDoc;
           if (!scoreMap[s.uid]) scoreMap[s.uid] = { uid: s.uid, displayName: s.displayName || s.uid, score: 0 };
           scoreMap[s.uid].score += s.points || 0;

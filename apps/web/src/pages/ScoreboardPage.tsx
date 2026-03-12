@@ -28,18 +28,14 @@ export default function ScoreboardPage() {
   useEffect(() => {
     (async () => {
       try {
-        const eSnap = await getDocs(
-          query(collection(db, 'events'), where('published', '==', true)),
-        );
+        const [eSnap, lSnap] = await Promise.all([
+          getDocs(query(collection(db, 'events'), where('published', '==', true))),
+          getDocs(query(collection(db, 'leagues'), where('published', '==', true))),
+        ]);
         const evts = eSnap.docs.map((d) => ({ id: d.id, ...(d.data() as EventDoc) }));
         setEvents(evts);
-
-        const lSnap = await getDocs(
-          query(collection(db, 'leagues'), where('published', '==', true)),
-        );
         const lgs = lSnap.docs.map((d) => ({ id: d.id, ...(d.data() as LeagueDoc) }));
         setLeagues(lgs);
-
         if (evts.length > 0) setSelectedId(evts[0].id);
       } catch {}
       setLoading(false);
@@ -49,26 +45,27 @@ export default function ScoreboardPage() {
   useEffect(() => {
     if (!selectedId) return;
     (async () => {
-      // Load leaderboard
-      const path =
+      const leaderboardPath =
         scope === 'event'
           ? `events/${selectedId}/leaderboards/${mode}`
           : `leagues/${selectedId}/standings/${mode}`;
-      const snap = await getDoc(doc(db, path));
+      const analyticsPath =
+        scope === 'league'
+          ? `leagues/${selectedId}/analytics/summary`
+          : `events/${selectedId}/analytics/summary`;
+
+      const [snap, aSnap] = await Promise.all([
+        getDoc(doc(db, leaderboardPath)),
+        getDoc(doc(db, analyticsPath)).catch(() => null),
+      ]);
+
       setRows(snap.exists() ? snap.data().rows || [] : []);
 
-      // Load analytics
       if (scope === 'league') {
-        try {
-          const aSnap = await getDoc(doc(db, 'leagues', selectedId, 'analytics', 'summary'));
-          setLeagueAnalytics(aSnap.exists() ? (aSnap.data() as LeagueAnalyticsSummary) : null);
-        } catch { setLeagueAnalytics(null); }
+        setLeagueAnalytics(aSnap?.exists() ? (aSnap.data() as LeagueAnalyticsSummary) : null);
         setEventAnalytics(null);
       } else {
-        try {
-          const aSnap = await getDoc(doc(db, 'events', selectedId, 'analytics', 'summary'));
-          setEventAnalytics(aSnap.exists() ? (aSnap.data() as EventAnalyticsSummary) : null);
-        } catch { setEventAnalytics(null); }
+        setEventAnalytics(aSnap?.exists() ? (aSnap.data() as EventAnalyticsSummary) : null);
         setLeagueAnalytics(null);
       }
     })();
