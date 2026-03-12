@@ -6,7 +6,7 @@ import { StatCard } from '../components/StatCard';
 import { CountdownTimer } from '../components/CountdownTimer';
 import { TabBar, TabPanel } from '../components/TabBar';
 import { PageHeader } from '../components/PageHeader';
-import { apiPost, apiGet } from '../lib/api';
+import { apiPost, apiGet, apiPut, apiDelete } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { EventDoc, LeagueDoc, EventAnalyticsSummary, LeagueAnalyticsSummary, BadgeDoc, DEFAULT_BADGES, DEFAULT_CLASS_TYPES, getTagColor } from '@mdavelctf/shared';
 import { useTranslation } from 'react-i18next';
@@ -875,65 +875,155 @@ function AdminUsers() {
 
 /* ─── Badges Tab ─── */
 function AdminBadges() {
+  const { t } = useTranslation();
   const [badges, setBadges] = useState<any[]>([]);
   const [msg, setMsg] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [form, setForm] = useState({ name: '', description: '', icon: '🏅', rarity: 'common', criteriaKey: '', xpReward: 50 });
 
   const loadBadges = async () => {
     try {
-      const res = await apiGet('/gamification/badges');
+      const res = await apiGet('/admin/badges');
       setBadges(res.badges || []);
     } catch {}
   };
 
   useEffect(() => { loadBadges(); }, []);
 
+  const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 3000); };
+
   const handleSeedBadges = async () => {
     setLoading(true);
     try {
       const res = await apiPost('/admin/badges/seed-default', {});
-      setMsg(`Seeded ${res.count} badges`);
+      flash(`Seeded ${res.count} badges`);
       await loadBadges();
-    } catch (e: any) { setMsg(e.message); }
+    } catch (e: any) { flash(e.message); }
     setLoading(false);
-    setTimeout(() => setMsg(''), 3000);
+  };
+
+  const resetForm = () => {
+    setForm({ name: '', description: '', icon: '🏅', rarity: 'common', criteriaKey: '', xpReward: 50 });
+    setEditId(null);
+    setShowForm(false);
+  };
+
+  const openEdit = (b: any) => {
+    setForm({ name: b.name, description: b.description, icon: b.icon, rarity: b.rarity, criteriaKey: b.id, xpReward: b.xpReward });
+    setEditId(b.id);
+    setShowForm(true);
+  };
+
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      if (editId) {
+        await apiPut(`/admin/badge/${editId}`, { name: form.name, description: form.description, icon: form.icon, rarity: form.rarity, xpReward: form.xpReward });
+      } else {
+        await apiPost('/admin/badge', form);
+      }
+      flash(editId ? t('admin.badgeUpdated') : t('admin.badgeCreated'));
+      resetForm();
+      await loadBadges();
+    } catch (e: any) { flash(e.message); }
+    setLoading(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm(t('admin.confirmDeleteBadge'))) return;
+    try {
+      await apiDelete(`/admin/badge/${id}`);
+      flash(t('admin.badgeDeleted'));
+      await loadBadges();
+    } catch (e: any) { flash(e.message); }
+  };
+
+  const rarityColors: Record<string, string> = {
+    common: '#aaaaaa', rare: '#00aaff', epic: '#aa00ff', legendary: '#ffaa00',
   };
 
   return (
-    <HudPanel title="Badge Catalog">
-      <div className="flex gap-2 mb-4">
-        <NeonButton size="sm" variant="solid" onClick={handleSeedBadges} disabled={loading}>
-          {loading ? 'Seeding...' : 'Seed Default Badges'}
+    <HudPanel title={t('admin.badges')}>
+      <div className="flex gap-2 mb-4 flex-wrap">
+        <NeonButton size="sm" variant="solid" onClick={() => { resetForm(); setShowForm(!showForm); }}>
+          {showForm ? t('common.cancel') : `+ ${t('admin.createBadge')}`}
+        </NeonButton>
+        <NeonButton size="sm" variant="ghost" onClick={handleSeedBadges} disabled={loading}>
+          {loading ? 'Seeding...' : t('admin.seedDefaults')}
         </NeonButton>
       </div>
       {msg && <p className="text-accent text-xs mb-3">{msg}</p>}
 
+      {showForm && (
+        <div className="p-4 border border-accent/20 mb-4 space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-hud-text/50 block mb-1">{t('admin.badgeName')}</label>
+              <input className="w-full bg-transparent border border-accent/20 px-3 py-2 text-sm" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            </div>
+            <div>
+              <label className="text-xs text-hud-text/50 block mb-1">{t('admin.criteriaKey')}</label>
+              <input className="w-full bg-transparent border border-accent/20 px-3 py-2 text-sm font-mono" value={form.criteriaKey} onChange={(e) => setForm({ ...form, criteriaKey: e.target.value })} disabled={!!editId} placeholder="e.g. first_solve" />
+            </div>
+            <div>
+              <label className="text-xs text-hud-text/50 block mb-1">{t('admin.icon')}</label>
+              <input className="w-full bg-transparent border border-accent/20 px-3 py-2 text-sm" value={form.icon} onChange={(e) => setForm({ ...form, icon: e.target.value })} />
+            </div>
+            <div>
+              <label className="text-xs text-hud-text/50 block mb-1">{t('admin.rarity')}</label>
+              <select className="w-full bg-transparent border border-accent/20 px-3 py-2 text-sm" value={form.rarity} onChange={(e) => setForm({ ...form, rarity: e.target.value })}>
+                <option value="common">Common</option>
+                <option value="rare">Rare</option>
+                <option value="epic">Epic</option>
+                <option value="legendary">Legendary</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-hud-text/50 block mb-1">XP Reward</label>
+              <input type="number" className="w-full bg-transparent border border-accent/20 px-3 py-2 text-sm" value={form.xpReward} onChange={(e) => setForm({ ...form, xpReward: Number(e.target.value) })} />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-hud-text/50 block mb-1">{t('common.description')}</label>
+            <input className="w-full bg-transparent border border-accent/20 px-3 py-2 text-sm" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+          </div>
+          <NeonButton size="sm" variant="solid" onClick={handleSave} disabled={loading || !form.name || !form.criteriaKey}>
+            {loading ? '...' : editId ? t('common.save') : t('admin.createBadge')}
+          </NeonButton>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {badges.map((b: any) => {
-          const rarity = b.rarity || 'common';
-          const rarityColors: Record<string, string> = {
-            common: '#aaaaaa', rare: '#00aaff', epic: '#aa00ff', legendary: '#ffaa00',
-          };
-          const color = rarityColors[rarity] || '#aaaaaa';
+          const color = rarityColors[b.rarity] || '#aaaaaa';
           return (
-            <div key={b.id} className="p-3 border border-accent/15 flex items-center gap-3">
+            <div key={b.id} className="p-3 border border-accent/15 flex items-center gap-3 group">
               <span className="text-2xl">{b.icon}</span>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-sm" style={{ color }}>{b.name}</span>
                   <span className="text-[10px] uppercase tracking-widest px-1 py-0.5 font-bold" style={{ color, border: `1px solid ${color}44` }}>
-                    {rarity}
+                    {b.rarity}
                   </span>
                 </div>
                 <p className="text-xs text-hud-text/50 truncate">{b.description}</p>
-                <span className="text-[10px] text-warning">+{b.xpReward} XP</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-warning">+{b.xpReward} XP</span>
+                  <span className="text-[10px] text-hud-text/30 font-mono">{b.id}</span>
+                </div>
+              </div>
+              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={() => openEdit(b)} className="text-xs px-2 py-1 border border-accent/20 text-accent hover:bg-accent/10">✏️</button>
+                <button onClick={() => handleDelete(b.id)} className="text-xs px-2 py-1 border border-danger/20 text-danger hover:bg-danger/10">🗑️</button>
               </div>
             </div>
           );
         })}
       </div>
       {badges.length === 0 && (
-        <p className="text-center text-hud-text/30 text-sm py-6">No badges seeded yet. Click the button above.</p>
+        <p className="text-center text-hud-text/30 text-sm py-6">{t('admin.noBadges')}</p>
       )}
     </HudPanel>
   );
@@ -941,38 +1031,169 @@ function AdminBadges() {
 
 /* ─── Quests Tab ─── */
 function AdminQuests() {
+  const { t } = useTranslation();
   const [quests, setQuests] = useState<any[]>([]);
   const [msg, setMsg] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+
+  const defaultForm = () => {
+    const now = new Date();
+    const weekEnd = new Date(now.getTime() + 7 * 86400000);
+    return {
+      title: '', description: '',
+      activeFrom: now.toISOString().slice(0, 16),
+      activeTo: weekEnd.toISOString().slice(0, 16),
+      xpReward: 100, badgeReward: '',
+      ruleType: 'solve_total' as string, ruleTarget: 3, ruleCategory: '',
+    };
+  };
+  const [form, setForm] = useState(defaultForm);
 
   const loadQuests = async () => {
     try {
-      const res = await apiGet('/gamification/quests');
+      const res = await apiGet('/admin/quests');
       setQuests(res.quests || []);
     } catch {}
   };
 
   useEffect(() => { loadQuests(); }, []);
 
+  const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 3000); };
+
   const handleSeedQuests = async () => {
     setLoading(true);
     try {
       const res = await apiPost('/admin/quests/seed-default', {});
-      setMsg(`Seeded ${res.count} quests`);
+      flash(`Seeded ${res.count} quests`);
       await loadQuests();
-    } catch (e: any) { setMsg(e.message); }
+    } catch (e: any) { flash(e.message); }
     setLoading(false);
-    setTimeout(() => setMsg(''), 3000);
+  };
+
+  const resetForm = () => { setForm(defaultForm()); setEditId(null); setShowForm(false); };
+
+  const openEdit = (q: any) => {
+    setForm({
+      title: q.title, description: q.description || '',
+      activeFrom: q.activeFrom?.slice(0, 16) || '',
+      activeTo: q.activeTo?.slice(0, 16) || '',
+      xpReward: q.xpReward || 100, badgeReward: q.badgeReward || '',
+      ruleType: q.rules?.type || 'solve_total',
+      ruleTarget: q.rules?.target || 1,
+      ruleCategory: q.rules?.category || '',
+    });
+    setEditId(q.id);
+    setShowForm(true);
+  };
+
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      const body = {
+        title: form.title, description: form.description,
+        activeFrom: new Date(form.activeFrom).toISOString(),
+        activeTo: new Date(form.activeTo).toISOString(),
+        xpReward: form.xpReward,
+        ...(form.badgeReward ? { badgeReward: form.badgeReward } : {}),
+        rules: {
+          type: form.ruleType, target: form.ruleTarget,
+          ...(form.ruleCategory ? { category: form.ruleCategory } : {}),
+        },
+      };
+      if (editId) {
+        await apiPut(`/admin/quest/${editId}`, body);
+      } else {
+        await apiPost('/admin/quest', body);
+      }
+      flash(editId ? t('admin.questUpdated') : t('admin.questCreated'));
+      resetForm();
+      await loadQuests();
+    } catch (e: any) { flash(e.message); }
+    setLoading(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm(t('admin.confirmDeleteQuest'))) return;
+    try {
+      await apiDelete(`/admin/quest/${id}`);
+      flash(t('admin.questDeleted'));
+      await loadQuests();
+    } catch (e: any) { flash(e.message); }
   };
 
   return (
-    <HudPanel title="Quests Management">
-      <div className="flex gap-2 mb-4">
-        <NeonButton size="sm" variant="solid" onClick={handleSeedQuests} disabled={loading}>
-          {loading ? 'Seeding...' : 'Seed Default Quests'}
+    <HudPanel title={t('admin.quests')}>
+      <div className="flex gap-2 mb-4 flex-wrap">
+        <NeonButton size="sm" variant="solid" onClick={() => { resetForm(); setShowForm(!showForm); }}>
+          {showForm ? t('common.cancel') : `+ ${t('admin.createQuest')}`}
+        </NeonButton>
+        <NeonButton size="sm" variant="ghost" onClick={handleSeedQuests} disabled={loading}>
+          {loading ? 'Seeding...' : t('admin.seedDefaults')}
         </NeonButton>
       </div>
       {msg && <p className="text-accent text-xs mb-3">{msg}</p>}
+
+      {showForm && (
+        <div className="p-4 border border-accent/20 mb-4 space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-hud-text/50 block mb-1">{t('admin.questTitle')}</label>
+              <input className="w-full bg-transparent border border-accent/20 px-3 py-2 text-sm" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+            </div>
+            <div>
+              <label className="text-xs text-hud-text/50 block mb-1">XP Reward</label>
+              <input type="number" className="w-full bg-transparent border border-accent/20 px-3 py-2 text-sm" value={form.xpReward} onChange={(e) => setForm({ ...form, xpReward: Number(e.target.value) })} />
+            </div>
+            <div>
+              <label className="text-xs text-hud-text/50 block mb-1">{t('common.start')}</label>
+              <input type="datetime-local" className="w-full bg-transparent border border-accent/20 px-3 py-2 text-sm" value={form.activeFrom} onChange={(e) => setForm({ ...form, activeFrom: e.target.value })} />
+            </div>
+            <div>
+              <label className="text-xs text-hud-text/50 block mb-1">{t('common.end')}</label>
+              <input type="datetime-local" className="w-full bg-transparent border border-accent/20 px-3 py-2 text-sm" value={form.activeTo} onChange={(e) => setForm({ ...form, activeTo: e.target.value })} />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-hud-text/50 block mb-1">{t('common.description')}</label>
+            <input className="w-full bg-transparent border border-accent/20 px-3 py-2 text-sm" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+          </div>
+
+          <div className="border-t border-accent/10 pt-3">
+            <p className="text-xs font-bold text-hud-text/60 mb-2 uppercase tracking-widest">{t('admin.questRules')}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="text-xs text-hud-text/50 block mb-1">{t('admin.ruleType')}</label>
+                <select className="w-full bg-transparent border border-accent/20 px-3 py-2 text-sm" value={form.ruleType} onChange={(e) => setForm({ ...form, ruleType: e.target.value })}>
+                  <option value="solve_total">{t('admin.solveTotal')}</option>
+                  <option value="solve_category">{t('admin.solveCategory')}</option>
+                  <option value="participate_event">{t('admin.participateEvent')}</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-hud-text/50 block mb-1">{t('admin.target')}</label>
+                <input type="number" min={1} className="w-full bg-transparent border border-accent/20 px-3 py-2 text-sm" value={form.ruleTarget} onChange={(e) => setForm({ ...form, ruleTarget: Number(e.target.value) })} />
+              </div>
+              {form.ruleType === 'solve_category' && (
+                <div>
+                  <label className="text-xs text-hud-text/50 block mb-1">{t('event.categories')}</label>
+                  <input className="w-full bg-transparent border border-accent/20 px-3 py-2 text-sm" value={form.ruleCategory} onChange={(e) => setForm({ ...form, ruleCategory: e.target.value })} placeholder="e.g. WEB" />
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs text-hud-text/50 block mb-1">{t('admin.badgeReward')} ({t('common.optional')})</label>
+            <input className="w-full bg-transparent border border-accent/20 px-3 py-2 text-sm font-mono" value={form.badgeReward} onChange={(e) => setForm({ ...form, badgeReward: e.target.value })} placeholder="badge_key" />
+          </div>
+
+          <NeonButton size="sm" variant="solid" onClick={handleSave} disabled={loading || !form.title}>
+            {loading ? '...' : editId ? t('common.save') : t('admin.createQuest')}
+          </NeonButton>
+        </div>
+      )}
 
       <div className="space-y-2">
         {quests.map((q: any) => {
@@ -981,24 +1202,32 @@ function AdminQuests() {
           const to = new Date(q.activeTo);
           const active = now >= from && now <= to;
           return (
-            <div key={q.id} className={`p-4 border transition-all ${active ? 'border-success/30' : 'border-accent/10 opacity-50'}`}>
+            <div key={q.id} className={`p-4 border transition-all group ${active ? 'border-success/30' : 'border-accent/10 opacity-50'}`}>
               <div className="flex items-start justify-between gap-3">
-                <div>
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-sm">{q.title}</span>
                     {active && <HudTag color="var(--success)">ACTIVE</HudTag>}
                     {!active && now > to && <HudTag color="var(--danger)">EXPIRED</HudTag>}
+                    {!active && now < from && <HudTag color="var(--warning)">SCHEDULED</HudTag>}
                   </div>
                   <p className="text-xs text-hud-text/50 mt-0.5">{q.description}</p>
                   <div className="text-[10px] text-hud-text/30 mt-1 font-mono">
                     {from.toLocaleDateString()} — {to.toLocaleDateString()}
                   </div>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <span className="text-warning font-bold text-xs">+{q.xpReward} XP</span>
                   <div className="text-[10px] text-hud-text/40 mt-0.5">
                     {q.rules?.type}: {q.rules?.target}
                     {q.rules?.category && ` (${q.rules.category})`}
+                    {q.badgeReward && ` → 🎖️ ${q.badgeReward}`}
+                  </div>
+                </div>
+                <div className="text-right flex-shrink-0 flex items-start gap-2">
+                  <div>
+                    <span className="text-warning font-bold text-xs">+{q.xpReward} XP</span>
+                  </div>
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => openEdit(q)} className="text-xs px-2 py-1 border border-accent/20 text-accent hover:bg-accent/10">✏️</button>
+                    <button onClick={() => handleDelete(q.id)} className="text-xs px-2 py-1 border border-danger/20 text-danger hover:bg-danger/10">🗑️</button>
                   </div>
                 </div>
               </div>
@@ -1007,7 +1236,7 @@ function AdminQuests() {
         })}
       </div>
       {quests.length === 0 && (
-        <p className="text-center text-hud-text/30 text-sm py-6">No quests created yet. Click the button above.</p>
+        <p className="text-center text-hud-text/30 text-sm py-6">{t('admin.noQuests')}</p>
       )}
     </HudPanel>
   );

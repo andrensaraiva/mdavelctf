@@ -260,7 +260,32 @@
     "disable": "Desativar",
     "enable": "Ativar",
     "guide": "Guia",
-    "seed": "Seed"
+    "seed": "Seed",
+    "createBadge": "Criar Badge",
+    "badgeCreated": "Badge criada!",
+    "badgeUpdated": "Badge atualizada!",
+    "badgeDeleted": "Badge excluída.",
+    "confirmDeleteBadge": "Excluir esta badge? Não pode ser desfeito.",
+    "badgeName": "Nome da Badge",
+    "criteriaKey": "Chave de Critério",
+    "icon": "Ícone",
+    "rarity": "Raridade",
+    "noBadges": "Nenhuma badge ainda. Crie uma ou carregue os padrões.",
+    "seedDefaults": "Carregar Padrões",
+    "createQuest": "Criar Quest",
+    "questCreated": "Quest criada!",
+    "questUpdated": "Quest atualizada!",
+    "questDeleted": "Quest excluída.",
+    "confirmDeleteQuest": "Excluir esta quest? Não pode ser desfeito.",
+    "questTitle": "Título da Quest",
+    "questRules": "Regras",
+    "ruleType": "Tipo de Regra",
+    "solveTotal": "Resolver N desafios",
+    "solveCategory": "Resolver N em categoria",
+    "participateEvent": "Participar de evento",
+    "target": "Meta",
+    "badgeReward": "Badge de Recompensa",
+    "noQuests": "Nenhuma quest ainda. Crie uma ou carregue os padrões."
   },
   "hints": {
     "title": "Dicas",
@@ -303,6 +328,7 @@
     "description": "Descrição",
     "points": "pontos",
     "start": "Início",
-    "end": "Fim"
+    "end": "Fim",
+    "optional": "opcional"
   }
 }

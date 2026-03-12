@@ -260,7 +260,32 @@
     "disable": "Disable",
     "enable": "Enable",
     "guide": "Guide",
-    "seed": "Seed"
+    "seed": "Seed",
+    "createBadge": "Create Badge",
+    "badgeCreated": "Badge created!",
+    "badgeUpdated": "Badge updated!",
+    "badgeDeleted": "Badge deleted.",
+    "confirmDeleteBadge": "Delete this badge? This cannot be undone.",
+    "badgeName": "Badge Name",
+    "criteriaKey": "Criteria Key",
+    "icon": "Icon",
+    "rarity": "Rarity",
+    "noBadges": "No badges yet. Create one or seed the defaults.",
+    "seedDefaults": "Seed Defaults",
+    "createQuest": "Create Quest",
+    "questCreated": "Quest created!",
+    "questUpdated": "Quest updated!",
+    "questDeleted": "Quest deleted.",
+    "confirmDeleteQuest": "Delete this quest? This cannot be undone.",
+    "questTitle": "Quest Title",
+    "questRules": "Rules",
+    "ruleType": "Rule Type",
+    "solveTotal": "Solve N challenges",
+    "solveCategory": "Solve N in category",
+    "participateEvent": "Participate in event",
+    "target": "Target",
+    "badgeReward": "Badge Reward",
+    "noQuests": "No quests yet. Create one or seed the defaults."
   },
   "hints": {
     "title": "Hints",
@@ -303,6 +328,7 @@
     "description": "Description",
     "points": "points",
     "start": "Start",
-    "end": "End"
+    "end": "End",
+    "optional": "optional"
   }
 }

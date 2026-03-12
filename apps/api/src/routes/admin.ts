@@ -471,6 +471,53 @@ adminRouter.post('/badges/seed-default', asyncHandler(async (req: AuthRequest, r
   return res.json({ success: true, count });
 }));
 
+/* ─── List Badges (admin) ─── */
+adminRouter.get('/badges', asyncHandler(async (_req: AuthRequest, res: Response) => {
+  const db = getDb();
+  const snap = await db.collection('badges').get();
+  const badges = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  return res.json({ badges });
+}));
+
+/* ─── Create Badge ─── */
+adminRouter.post('/badge', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const db = getDb();
+  const { name, description, icon, rarity, criteriaKey, xpReward } = req.body;
+  if (!name || !criteriaKey) return res.status(400).json({ error: 'name and criteriaKey are required' });
+
+  const badge = {
+    name, description: description || '', icon: icon || '🏅',
+    rarity: rarity || 'common', criteriaKey, xpReward: Number(xpReward) || 50,
+  };
+  const ref = db.collection('badges').doc(criteriaKey);
+  await ref.set(badge);
+  await writeAuditLog(req.uid!, 'CREATE_BADGE', criteriaKey, null, badge);
+  return res.json({ id: criteriaKey, ...badge });
+}));
+
+/* ─── Update Badge ─── */
+adminRouter.put('/badge/:badgeId', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const db = getDb();
+  const { badgeId } = req.params;
+  const updates: Record<string, any> = {};
+  for (const key of ['name', 'description', 'icon', 'rarity', 'xpReward']) {
+    if (req.body[key] !== undefined) updates[key] = key === 'xpReward' ? Number(req.body[key]) : req.body[key];
+  }
+  if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'No fields to update' });
+  await db.collection('badges').doc(badgeId).update(updates);
+  await writeAuditLog(req.uid!, 'UPDATE_BADGE', badgeId, null, updates);
+  return res.json({ success: true });
+}));
+
+/* ─── Delete Badge ─── */
+adminRouter.delete('/badge/:badgeId', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const db = getDb();
+  const { badgeId } = req.params;
+  await db.collection('badges').doc(badgeId).delete();
+  await writeAuditLog(req.uid!, 'DELETE_BADGE', badgeId, null, null);
+  return res.json({ success: true });
+}));
+
 /* ─── Seed Default Quests ─── */
 adminRouter.post('/quests/seed-default', asyncHandler(async (req: AuthRequest, res: Response) => {
   const db = getDb();
@@ -512,6 +559,65 @@ adminRouter.post('/quests/seed-default', asyncHandler(async (req: AuthRequest, r
   await batch.commit();
   await writeAuditLog(req.uid!, 'SEED_QUESTS', 'quests/*', null, { count: defaultQuests.length });
   return res.json({ success: true, count: defaultQuests.length });
+}));
+
+/* ─── List Quests (admin — includes expired) ─── */
+adminRouter.get('/quests', asyncHandler(async (_req: AuthRequest, res: Response) => {
+  const db = getDb();
+  const snap = await db.collection('quests').orderBy('activeTo', 'desc').get();
+  const quests = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  return res.json({ quests });
+}));
+
+/* ─── Create Quest ─── */
+adminRouter.post('/quest', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const db = getDb();
+  const { title, description, activeFrom, activeTo, xpReward, badgeReward, rules } = req.body;
+  if (!title || !activeFrom || !activeTo || !rules?.type || !rules?.target) {
+    return res.status(400).json({ error: 'title, activeFrom, activeTo, and rules (type + target) are required' });
+  }
+
+  const quest = {
+    title, description: description || '', activeFrom, activeTo,
+    xpReward: Number(xpReward) || 100,
+    ...(badgeReward ? { badgeReward } : {}),
+    rules: { type: rules.type, target: Number(rules.target), ...(rules.category ? { category: rules.category } : {}) },
+  };
+  const ref = await db.collection('quests').add(quest);
+  await writeAuditLog(req.uid!, 'CREATE_QUEST', ref.id, null, quest);
+  return res.json({ id: ref.id, ...quest });
+}));
+
+/* ─── Update Quest ─── */
+adminRouter.put('/quest/:questId', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const db = getDb();
+  const { questId } = req.params;
+  const updates: Record<string, any> = {};
+  for (const key of ['title', 'description', 'activeFrom', 'activeTo', 'xpReward', 'badgeReward', 'rules']) {
+    if (req.body[key] !== undefined) {
+      if (key === 'xpReward') updates[key] = Number(req.body[key]);
+      else if (key === 'rules') {
+        updates[key] = {
+          type: req.body[key].type,
+          target: Number(req.body[key].target),
+          ...(req.body[key].category ? { category: req.body[key].category } : {}),
+        };
+      } else updates[key] = req.body[key];
+    }
+  }
+  if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'No fields to update' });
+  await db.collection('quests').doc(questId).update(updates);
+  await writeAuditLog(req.uid!, 'UPDATE_QUEST', questId, null, updates);
+  return res.json({ success: true });
+}));
+
+/* ─── Delete Quest ─── */
+adminRouter.delete('/quest/:questId', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const db = getDb();
+  const { questId } = req.params;
+  await db.collection('quests').doc(questId).delete();
+  await writeAuditLog(req.uid!, 'DELETE_QUEST', questId, null, null);
+  return res.json({ success: true });
 }));
 
 /* ─── Dashboard Summary ─── */
