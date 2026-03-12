@@ -74,6 +74,7 @@ function AdminOverview() {
   const [leagues, setLeagues] = useState<(LeagueDoc & { id: string })[]>([]);
   const [analytics, setAnalytics] = useState<Record<string, EventAnalyticsSummary>>({});
   const [leagueAnalytics, setLeagueAnalytics] = useState<Record<string, LeagueAnalyticsSummary>>({});
+  const [initialLoading, setInitialLoading] = useState(true);
 
   // Activity feed state
   const [feedMode, setFeedMode] = useState<'submissions' | 'solves'>('submissions');
@@ -98,6 +99,7 @@ function AdminOverview() {
         const lgs = (lRes.leagues || []).map((d: any) => ({ ...d } as LeagueDoc & { id: string }));
         setLeagues(lgs);
       } catch {}
+      setInitialLoading(false);
     })();
   }, []);
 
@@ -133,6 +135,14 @@ function AdminOverview() {
   };
 
   useEffect(() => { if (events.length > 0) loadFeed(feedMode); }, [feedMode, correctOnly, events.length]);
+
+  if (initialLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="inline-block w-6 h-6 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   const liveCount = events.filter((e) => getEventStatus(e) === 'LIVE').length;
   const totalSubs = summary?.totalSubmissions ?? Object.values(analytics).reduce((s, a) => s + (a.submissionsTotal || 0), 0);
@@ -433,12 +443,14 @@ function AdminEvents() {
   const [classType, setClassType] = useState('');
   const [customClassType, setCustomClassType] = useState('');
   const [msg, setMsg] = useState('');
+  const [initialLoading, setInitialLoading] = useState(true);
 
   const load = async () => {
     try {
       const res = await apiGet('/admin/events');
       setEvents(res.events || []);
     } catch {}
+    setInitialLoading(false);
   };
   useEffect(() => { load(); }, []);
 
@@ -459,6 +471,14 @@ function AdminEvents() {
       load();
     } catch (e: any) { setMsg(e.message); }
   };
+
+  if (initialLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="inline-block w-6 h-6 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <HudPanel title="Events Management">
@@ -511,12 +531,14 @@ function AdminLeagues() {
   const [name, setName] = useState('');
   const [eventIds, setEventIds] = useState('');
   const [msg, setMsg] = useState('');
+  const [initialLoading, setInitialLoading] = useState(true);
 
   const load = async () => {
     try {
       const res = await apiGet('/admin/leagues');
       setLeagues(res.leagues || []);
     } catch {}
+    setInitialLoading(false);
   };
   useEffect(() => { load(); }, []);
 
@@ -532,6 +554,14 @@ function AdminLeagues() {
       load();
     } catch (e: any) { setMsg(e.message); }
   };
+
+  if (initialLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="inline-block w-6 h-6 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <HudPanel title="Leagues Management">
@@ -579,6 +609,8 @@ function AdminChallenges() {
   const [inlineHints, setInlineHints] = useState<{ title: string; content: string; cost: string }[]>([]);
   const [hintMsg, setHintMsg] = useState('');
   const [filterTag, setFilterTag] = useState('ALL');
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [loadingChallenges, setLoadingChallenges] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -586,15 +618,18 @@ function AdminChallenges() {
         const res = await apiGet('/admin/events');
         setEvents(res.events || []);
       } catch {}
+      setInitialLoading(false);
     })();
   }, []);
 
   const loadChallenges = async (eid: string) => {
     if (!eid) return;
+    setLoadingChallenges(true);
     try {
       const res = await apiGet(`/admin/events/${eid}/challenges`);
       setChallenges(res.challenges || []);
     } catch {}
+    setLoadingChallenges(false);
   };
 
   const handleCreate = async () => {
@@ -630,6 +665,14 @@ function AdminChallenges() {
       loadChallenges(eventId);
     } catch (e: any) { setMsg(e.message); }
   };
+
+  if (initialLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="inline-block w-6 h-6 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <HudPanel title="Challenges Management">
@@ -715,6 +758,12 @@ function AdminChallenges() {
       <NeonButton size="sm" variant="solid" onClick={handleCreate}>Create Challenge</NeonButton>
       {msg && <p className="text-accent text-xs mt-2">{msg}</p>}
 
+      {loadingChallenges && (
+        <div className="flex items-center justify-center py-8">
+          <div className="inline-block w-5 h-5 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+        </div>
+      )}
+
       {/* Tag filter */}
       {challenges.length > 0 && (
         <div className="mt-4 flex gap-2 flex-wrap">
@@ -781,12 +830,14 @@ function AdminChallenges() {
 function AdminUsers() {
   const [users, setUsers] = useState<any[]>([]);
   const [roleChange, setRoleChange] = useState<Record<string, string>>({});
+  const [initialLoading, setInitialLoading] = useState(true);
 
   const load = async () => {
     try {
       const res = await apiGet('/admin/users');
       setUsers(res.users || []);
     } catch {}
+    setInitialLoading(false);
   };
 
   useEffect(() => { load(); }, []);
@@ -816,6 +867,14 @@ function AdminUsers() {
       setUsers((prev) => prev.filter((u) => u.uid !== uid));
     } catch {}
   };
+
+  if (initialLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="inline-block w-6 h-6 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <HudPanel title="Users">
@@ -879,6 +938,7 @@ function AdminBadges() {
   const [badges, setBadges] = useState<any[]>([]);
   const [msg, setMsg] = useState('');
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: '', description: '', icon: '🏅', rarity: 'common', criteriaKey: '', xpReward: 50 });
@@ -888,6 +948,7 @@ function AdminBadges() {
       const res = await apiGet('/admin/badges');
       setBadges(res.badges || []);
     } catch {}
+    setInitialLoading(false);
   };
 
   useEffect(() => { loadBadges(); }, []);
@@ -943,6 +1004,14 @@ function AdminBadges() {
   const rarityColors: Record<string, string> = {
     common: '#aaaaaa', rare: '#00aaff', epic: '#aa00ff', legendary: '#ffaa00',
   };
+
+  if (initialLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="inline-block w-6 h-6 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <HudPanel title={t('admin.badges')}>
@@ -1035,6 +1104,7 @@ function AdminQuests() {
   const [quests, setQuests] = useState<any[]>([]);
   const [msg, setMsg] = useState('');
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
 
@@ -1056,6 +1126,7 @@ function AdminQuests() {
       const res = await apiGet('/admin/quests');
       setQuests(res.quests || []);
     } catch {}
+    setInitialLoading(false);
   };
 
   useEffect(() => { loadQuests(); }, []);
@@ -1122,6 +1193,14 @@ function AdminQuests() {
       await loadQuests();
     } catch (e: any) { flash(e.message); }
   };
+
+  if (initialLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="inline-block w-6 h-6 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <HudPanel title={t('admin.quests')}>
@@ -1332,6 +1411,11 @@ function AdminLogs() {
         </table>
         {items.length === 0 && !loading && (
           <p className="text-center text-hud-text/30 py-8 text-sm">No logs yet.</p>
+        )}
+        {items.length === 0 && loading && (
+          <div className="flex items-center justify-center py-12">
+            <div className="inline-block w-5 h-5 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+          </div>
         )}
       </div>
 

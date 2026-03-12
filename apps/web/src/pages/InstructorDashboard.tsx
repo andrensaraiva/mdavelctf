@@ -76,6 +76,8 @@ export default function InstructorDashboard() {
   const [chalClassType, setChalClassType] = useState('');
   const [chalCustomClassType, setChalCustomClassType] = useState('');
   const [chalInlineHints, setChalInlineHints] = useState<{ title: string; content: string; cost: string }[]>([]);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [loadingChallenges, setLoadingChallenges] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -87,17 +89,20 @@ export default function InstructorDashboard() {
         const res = await apiGet('/classes/instructor/events');
         setEvents(res.events || []);
       } catch {}
+      setInitialLoading(false);
     })();
   }, []);
 
   // Load challenges when event selected
   useEffect(() => {
     if (!selectedEventId) { setChallenges([]); return; }
+    setLoadingChallenges(true);
     (async () => {
       try {
         const res = await apiGet(`/classes/instructor/events/${selectedEventId}/challenges`);
         setChallenges(res.challenges || []);
       } catch { setChallenges([]); }
+      setLoadingChallenges(false);
     })();
   }, [selectedEventId]);
 
@@ -105,6 +110,15 @@ export default function InstructorDashboard() {
     return (
       <div className="p-8 text-center text-danger text-lg font-semibold">
         Access denied. Instructor or Admin only.
+      </div>
+    );
+  }
+
+  if (initialLoading) {
+    return (
+      <div className="max-w-5xl mx-auto px-4 py-20 text-center">
+        <div className="inline-block w-6 h-6 border-2 border-accent/30 border-t-accent rounded-full animate-spin mb-3" />
+        <p className="text-sm text-hud-text/40">{t('common.loading')}</p>
       </div>
     );
   }
@@ -330,7 +344,11 @@ export default function InstructorDashboard() {
             <>
               {/* Existing challenges */}
               <HudPanel title={`Challenges (${challenges.length})`}>
-                {challenges.length === 0 ? (
+                {loadingChallenges ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="inline-block w-5 h-5 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+                  </div>
+                ) : challenges.length === 0 ? (
                   <p className="text-center text-hud-text/30 py-4 text-sm">No challenges yet. Create one below.</p>
                 ) : (
                   <div className="space-y-2">
