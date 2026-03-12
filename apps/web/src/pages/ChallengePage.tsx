@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
-import { ChallengeDoc, EventDoc, getTagColor } from '@mdavelctf/shared';
+import { useAuth } from '../context/AuthContext';
+import { ChallengeDoc, EventDoc, SolveDoc, getTagColor } from '@mdavelctf/shared';
 import { HudPanel } from '../components/HudPanel';
 import { HudTag } from '../components/HudTag';
 import { NeonButton } from '../components/NeonButton';
@@ -26,6 +27,7 @@ export default function ChallengePage() {
     challengeId: string;
   }>();
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [challenge, setChallenge] = useState<ChallengeDoc | null>(null);
   const [event, setEvent] = useState<EventDoc | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -33,24 +35,45 @@ export default function ChallengePage() {
   const [unlocking, setUnlocking] = useState<number | null>(null);
   const [hintMsg, setHintMsg] = useState('');
   const [contentTab, setContentTab] = useState('description');
+  const [loading, setLoading] = useState(true);
+  const [solved, setSolved] = useState(false);
+  const [solvePoints, setSolvePoints] = useState<number | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
 
-  useEffect(() => {
+  const loadData = useCallback(async () => {
     if (!eventId || !challengeId) return;
-    (async () => {
-      const eSnap = await getDoc(doc(db, 'events', eventId));
+    setLoading(true);
+    try {
+      const [eSnap, cSnap] = await Promise.all([
+        getDoc(doc(db, 'events', eventId)),
+        getDoc(doc(db, 'events', eventId, 'challenges', challengeId)),
+      ]);
       if (eSnap.exists()) setEvent(eSnap.data() as EventDoc);
-
-      const cSnap = await getDoc(
-        doc(db, 'events', eventId, 'challenges', challengeId),
-      );
       if (cSnap.exists()) setChallenge(cSnap.data() as ChallengeDoc);
 
+      // Check if user already solved
+      if (user) {
+        const solvesSnap = await getDocs(collection(db, 'events', eventId, 'solves'));
+        const mySolve = solvesSnap.docs.find((d) => {
+          const s = d.data() as SolveDoc;
+          return s.uid === user.uid && s.challengeId === challengeId;
+        });
+        if (mySolve) {
+          setSolved(true);
+          setSolvePoints((mySolve.data() as SolveDoc).pointsAwarded);
+        }
+      }
+
+      // Load hints
       try {
         const res = await apiGet(`/challenges/${challengeId}/hints?eventId=${encodeURIComponent(eventId)}`);
         setHints(res.hints || []);
       } catch {}
-    })();
-  }, [eventId, challengeId]);
+    } catch {}
+    setLoading(false);
+  }, [eventId, challengeId, user]);
+
+  useEffect(() => { loadData(); }, [loadData]);
 
   const handleUnlockHint = async (hintIndex: number) => {
     if (!eventId || !challengeId) return;
@@ -69,6 +92,26 @@ export default function ChallengePage() {
     setUnlocking(null);
   };
 
+  const handleSolve = (scoreAwarded: number) => {
+    setShowModal(false);
+    setShowSuccess(true);
+    setSolvePoints(scoreAwarded);
+    // After animation, update state
+    setTimeout(() => {
+      setShowSuccess(false);
+      setSolved(true);
+    }, 2800);
+  };
+
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-20 text-center">
+        <div className="inline-block w-6 h-6 border-2 border-accent/30 border-t-accent rounded-full animate-spin mb-3" />
+        <p className="text-sm text-hud-text/40">{t('common.loading')}</p>
+      </div>
+    );
+  }
+
   if (!challenge || !eventId || !challengeId) {
     return <div className="p-8 text-center text-accent/50">{t('event.loading')}</div>;
   }
@@ -77,8 +120,23 @@ export default function ChallengePage() {
   const hasAttachments = challenge.attachments.length > 0;
   const hasHints = hints.length > 0;
 
+  // Calculate effective points after hint penalties
+  const hintPenalty = hints.filter((h) => h.unlocked).reduce((sum, h) => sum + h.cost, 0);
+  const effectivePoints = challenge.pointsFixed - hintPenalty;
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-5">
+      {/* ── Success Animation Overlay ── */}
+      {showSuccess && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg/80 backdrop-blur-sm animate-fadeIn">
+          <div className="text-center animate-scaleIn">
+            <div className="text-6xl mb-4 animate-bounce">✅</div>
+            <h2 className="text-2xl font-bold text-success mb-2">{t('challenge.solved')}</h2>
+            <p className="text-lg text-accent font-mono">+{solvePoints} {t('common.points')}</p>
+          </div>
+        </div>
+      )}
+
       {/* ── Breadcrumb ── */}
       <nav className="flex items-center gap-2 text-xs text-hud-text/40">
         <Link to={`/event/${eventId}`} className="hover:text-accent transition-colors">
@@ -87,6 +145,21 @@ export default function ChallengePage() {
         <span>/</span>
         <span className="text-hud-text/60">{challenge.title}</span>
       </nav>
+
+      {/* ── Solved Banner ── */}
+      {solved && (
+        <div className="flex items-center gap-3 p-4 border border-success/30 bg-success/5">
+          <span className="text-2xl">✅</span>
+          <div>
+            <div className="font-bold text-success text-sm">{t('challenge.alreadySolved')}</div>
+            {solvePoints !== null && (
+              <div className="text-xs text-hud-text/50">
+                {t('challenge.scoreEarned')}: <span className="font-bold text-success">+{solvePoints} {t('common.points')}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── Header Block ── */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
@@ -120,10 +193,16 @@ export default function ChallengePage() {
           )}
         </div>
         <div className="text-right shrink-0">
-          <div className="text-3xl font-bold" style={{ color }}>
-            {challenge.pointsFixed}
+          <div className="text-3xl font-bold" style={{ color: solved ? 'var(--success)' : color }}>
+            {solved ? solvePoints : effectivePoints}
           </div>
           <div className="text-xs uppercase tracking-widest text-hud-text/50">{t('common.points')}</div>
+          {!solved && hintPenalty > 0 && (
+            <div className="text-[10px] text-warning">
+              <span className="line-through text-hud-text/30 mr-1">{challenge.pointsFixed}</span>
+              -{hintPenalty} {t('challenge.hintPenalty')}
+            </div>
+          )}
           {challenge.flagMode === 'decay' && challenge.solveCount ? (
             <div className="text-[10px] text-hud-text/40">{challenge.solveCount} {t('event.solves')}</div>
           ) : null}
@@ -220,16 +299,21 @@ export default function ChallengePage() {
       )}
 
       {/* ── Fixed Submit Area ── */}
-      <div className="sticky bottom-4 z-10">
-        <div className="hud-panel p-4 flex items-center justify-between border-accent/25">
-          <div className="text-sm text-hud-text/60">
-            {t('challenge.readyToSubmit')}
+      {!solved && (
+        <div className="sticky bottom-4 z-10">
+          <div className="hud-panel p-4 flex items-center justify-between border-accent/25">
+            <div className="text-sm text-hud-text/60">
+              {t('challenge.readyToSubmit')}
+              {hintPenalty > 0 && (
+                <span className="ml-2 text-xs text-warning">({t('challenge.worthNow')}: {effectivePoints} pts)</span>
+              )}
+            </div>
+            <NeonButton variant="solid" onClick={() => setShowModal(true)}>
+              {t('challenge.submitFlag')}
+            </NeonButton>
           </div>
-          <NeonButton variant="solid" onClick={() => setShowModal(true)}>
-            {t('challenge.submitFlag')}
-          </NeonButton>
         </div>
-      </div>
+      )}
 
       <TerminalSubmitModal
         isOpen={showModal}
@@ -237,7 +321,7 @@ export default function ChallengePage() {
         eventId={eventId}
         challengeId={challengeId}
         challengeTitle={challenge.title}
-        onSolve={() => {}}
+        onSolve={handleSolve}
       />
     </div>
   );

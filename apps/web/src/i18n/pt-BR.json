@@ -74,7 +74,13 @@
     "attachments": "Anexos",
     "submitFlag": "Enviar Flag",
     "files": "Arquivos",
-    "readyToSubmit": "Pronto para enviar sua flag?"
+    "readyToSubmit": "Pronto para enviar sua flag?",
+    "solved": "Desafio Concluído!",
+    "alreadySolved": "✅ Já Resolvido",
+    "scoreEarned": "Pontuação obtida",
+    "hintPenalty": "penalidade de dica",
+    "worthNow": "Vale agora",
+    "loading": "Carregando desafio..."
   },
   "scoreboard": {
     "title": "Placar",

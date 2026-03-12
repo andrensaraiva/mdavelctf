@@ -74,7 +74,13 @@
     "attachments": "Attachments",
     "submitFlag": "Submit Flag",
     "files": "Files",
-    "readyToSubmit": "Ready to submit your flag?"
+    "readyToSubmit": "Ready to submit your flag?",
+    "solved": "Challenge Completed!",
+    "alreadySolved": "✅ Already Solved",
+    "scoreEarned": "Score earned",
+    "hintPenalty": "hint penalty",
+    "worthNow": "Worth now",
+    "loading": "Loading challenge..."
   },
   "scoreboard": {
     "title": "Scoreboard",

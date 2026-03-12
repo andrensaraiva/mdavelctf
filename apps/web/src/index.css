@@ -209,6 +209,23 @@ code, pre, .font-mono, .terminal-input {
   background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
+/* ─── Success Animations ─── */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.5); }
+  to { opacity: 1; transform: scale(1); }
+}
+.animate-scaleIn {
+  animation: scaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
 /* ─── Live Pulse Animation ─── */
 @keyframes livePulse {
   0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--success), 0 0 24px rgba(57, 255, 20, 0.3); }

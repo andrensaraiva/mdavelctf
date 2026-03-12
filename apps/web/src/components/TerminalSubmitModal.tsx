@@ -9,7 +9,7 @@ interface TerminalSubmitModalProps {
   eventId: string;
   challengeId: string;
   challengeTitle: string;
-  onSolve?: () => void;
+  onSolve?: (scoreAwarded: number) => void;
 }
 
 export function TerminalSubmitModal({
@@ -51,7 +51,7 @@ export function TerminalSubmitModal({
       });
       setResult(res);
       if (res.correct && !res.alreadySolved && onSolve) {
-        onSolve();
+        onSolve(res.scoreAwarded ?? 0);
       }
     } catch (err: any) {
       setError(err.message || 'Submission failed');
