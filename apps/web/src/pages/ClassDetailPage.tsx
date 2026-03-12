@@ -5,6 +5,8 @@ import { apiGet, apiPost } from '../lib/api';
 import { HudPanel } from '../components/HudPanel';
 import { NeonButton } from '../components/NeonButton';
 import { HudTag } from '../components/HudTag';
+import { TabBar, TabPanel } from '../components/TabBar';
+import { EmptyState } from '../components/EmptyState';
 import { useTranslation } from 'react-i18next';
 
 interface ClassDetail {
@@ -43,7 +45,7 @@ export default function ClassDetailPage() {
   const [members, setMembers] = useState<ClassMember[]>([]);
   const [events, setEvents] = useState<ClassEvent[]>([]);
   const [msg, setMsg] = useState('');
-  const [tab, setTab] = useState<'details' | 'roster' | 'events'>('details');
+  const [tab, setTab] = useState('details');
 
   const load = async () => {
     if (!classId) return;
@@ -83,54 +85,36 @@ export default function ClassDetailPage() {
     } catch (e: any) { setMsg(e.message); }
   };
 
-  const tabs = [
-    { key: 'details' as const, label: t('classes.details') },
-    { key: 'roster' as const, label: t('classes.roster') },
-    { key: 'events' as const, label: t('classes.events') },
-  ];
-
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+    <div className="max-w-5xl mx-auto px-4 py-6 space-y-5">
       {/* Header */}
-      <HudPanel>
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-extrabold text-accent glow-text">{classData.name}</h1>
-            {classData.description && (
-              <p className="text-sm text-hud-text/60 mt-1">{classData.description}</p>
-            )}
-            <div className="flex items-center gap-2 mt-2">
-              <span className="text-xs text-hud-text/40">
-                {classData.memberCount} {t('classes.members')} · {t('classes.createdBy')} {classData.ownerInstructorId.slice(0, 8)}
-              </span>
-              {classData.classType && <HudTag color="var(--accent2)">🏷️ {classData.classType}</HudTag>}
-            </div>
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl md:text-2xl font-bold text-accent">{classData.name}</h1>
+            <HudTag color={isOwner ? 'var(--warning)' : 'var(--accent)'}>
+              {isOwner ? t('classes.owner') : t('classes.student')}
+            </HudTag>
+            {classData.classType && <HudTag color="var(--accent2)">🏷️ {classData.classType}</HudTag>}
           </div>
-          <HudTag color={isOwner ? 'var(--warning)' : 'var(--accent)'}>
-            {isOwner ? t('classes.owner') : t('classes.student')}
-          </HudTag>
+          {classData.description && <p className="text-sm text-hud-text/60">{classData.description}</p>}
+          <p className="text-xs text-hud-text/40">{classData.memberCount} {t('classes.members')}</p>
         </div>
-      </HudPanel>
-
-      {/* Tabs */}
-      <div className="flex gap-1">
-        {tabs.map((tb) => (
-          <button
-            key={tb.key}
-            onClick={() => setTab(tb.key)}
-            className={`px-4 py-2 text-xs font-semibold uppercase tracking-widest border transition-all ${
-              tab === tb.key
-                ? 'border-accent text-accent bg-accent/10'
-                : 'border-accent/20 text-hud-text/50 hover:text-accent'
-            }`}
-          >
-            {tb.label}
-          </button>
-        ))}
       </div>
 
+      {/* Tabs */}
+      <TabBar
+        tabs={[
+          { key: 'details', label: t('classes.details'), icon: 'ℹ️' },
+          { key: 'roster', label: t('classes.roster'), icon: '👥', badge: members.length || undefined },
+          { key: 'events', label: t('classes.events'), icon: '🎯', badge: events.length || undefined },
+        ]}
+        active={tab}
+        onChange={setTab}
+      />
+
       {/* Details Tab */}
-      {tab === 'details' && (
+      <TabPanel active={tab} tab="details">
         <HudPanel>
           {isOwner && (
             <div className="space-y-3">
@@ -151,10 +135,10 @@ export default function ClassDetailPage() {
             </p>
           )}
         </HudPanel>
-      )}
+      </TabPanel>
 
       {/* Roster Tab */}
-      {tab === 'roster' && (
+      <TabPanel active={tab} tab="roster">
         <HudPanel title={`${t('classes.roster')} (${members.length})`}>
           <div className="space-y-2">
             {members.map((m) => (
@@ -178,14 +162,14 @@ export default function ClassDetailPage() {
               </div>
             ))}
             {members.length === 0 && (
-              <p className="text-center text-hud-text/30 py-4 text-sm">{t('classes.noMembers')}</p>
+              <EmptyState icon="👥" title={t('classes.noMembers')} />
             )}
           </div>
         </HudPanel>
-      )}
+      </TabPanel>
 
       {/* Events Tab */}
-      {tab === 'events' && (
+      <TabPanel active={tab} tab="events">
         <HudPanel title={t('classes.events')}>
           <div className="space-y-2">
             {events.map((e) => {
@@ -208,13 +192,13 @@ export default function ClassDetailPage() {
               );
             })}
             {events.length === 0 && (
-              <p className="text-center text-hud-text/30 py-4 text-sm">{t('classes.noEvents')}</p>
+              <EmptyState icon="🎯" title={t('classes.noEvents')} />
             )}
           </div>
         </HudPanel>
-      )}
+      </TabPanel>
 
-      {msg && <div className="text-center text-sm text-accent">{msg}</div>}
+      {msg && <div className="text-center text-sm text-accent font-medium py-1 border border-accent/20 bg-accent/5">{msg}</div>}
     </div>
   );
 }

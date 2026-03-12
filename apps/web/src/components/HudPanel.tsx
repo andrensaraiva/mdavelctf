@@ -11,9 +11,9 @@ export function HudPanel({ children, title, className = '', noPad }: HudPanelPro
   return (
     <div className={`hud-panel ${noPad ? 'p-0' : 'p-5 md:p-6'} ${className}`}>
       {title && (
-        <div className={`flex items-center gap-2 mb-4 pb-2.5 border-b border-accent/15 ${noPad ? 'px-5 pt-5 md:px-6 md:pt-6' : ''}`}>
-          <div className="w-2 h-2 bg-accent rotate-45 flex-shrink-0" />
-          <h2 className="text-accent font-semibold uppercase tracking-widest text-sm glow-text">
+        <div className={`flex items-center gap-2 mb-4 pb-2.5 border-b border-accent/10 ${noPad ? 'px-5 pt-5 md:px-6 md:pt-6' : ''}`}>
+          <div className="w-1.5 h-1.5 bg-accent rotate-45 flex-shrink-0 opacity-60" />
+          <h2 className="text-accent/90 font-semibold uppercase tracking-widest text-xs">
             {title}
           </h2>
         </div>

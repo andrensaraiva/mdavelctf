@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { HudPanel } from '../components/HudPanel';
 import { HudTag } from '../components/HudTag';
+import { PageHeader } from '../components/PageHeader';
+import { TabBar } from '../components/TabBar';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
@@ -53,34 +55,29 @@ export default function StudentGuidePage() {
   return (
     <div className="max-w-4xl mx-auto space-y-4 p-4">
       {/* Header */}
-      <HudPanel>
-        <div className="flex items-center gap-3 mb-2">
-          <span className="text-3xl">📖</span>
-          <div>
-            <h1 className="text-xl font-extrabold text-accent glow-text">
-              Guia do Aluno / Student Guide
-            </h1>
-            <p className="text-xs text-hud-text/50 mt-1">
-              Tudo que você precisa saber para participar do MdavelCTF
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2 mt-3">
-          {['welcome', 'account', 'classes', 'events', 'challenges', 'hints', 'flags', 'teams', 'progress', 'classtypes', 'categories', 'tips'].map((id) => (
-            <button
-              key={id}
-              onClick={() => setOpenSection(id)}
-              className={`text-xs px-2 py-1 border transition-colors ${
-                openSection === id
-                  ? 'border-accent text-accent bg-accent/10'
-                  : 'border-accent/20 text-hud-text/50 hover:border-accent/40'
-              }`}
-            >
-              {id}
-            </button>
-          ))}
-        </div>
-      </HudPanel>
+      <PageHeader
+        title={t('nav.guide')}
+        subtitle="Tudo que você precisa saber para participar do MdavelCTF"
+        icon="📖"
+      />
+      <TabBar
+        tabs={[
+          { key: 'welcome', label: '👋 Welcome' },
+          { key: 'account', label: '🔐 Account' },
+          { key: 'classes', label: '📚 Classes' },
+          { key: 'events', label: '🏁 Events' },
+          { key: 'challenges', label: '🎯 Challenges' },
+          { key: 'hints', label: '💡 Hints' },
+          { key: 'flags', label: '🚩 Flags' },
+          { key: 'teams', label: '🛡️ Teams' },
+          { key: 'progress', label: '📈 Progress' },
+          { key: 'categories', label: '🏷️ Tags' },
+          { key: 'tips', label: '⚡ Tips' },
+        ]}
+        active={openSection || 'welcome'}
+        onChange={setOpenSection}
+        size="sm"
+      />
 
       {/* Sections */}
       <div className="space-y-1">

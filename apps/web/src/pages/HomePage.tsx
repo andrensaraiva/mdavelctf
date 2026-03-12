@@ -9,6 +9,10 @@ import { StatCard } from '../components/StatCard';
 import { CountdownTimer } from '../components/CountdownTimer';
 import { XPProgressBar } from '../components/XPProgressBar';
 import { QuestCard } from '../components/QuestCard';
+import { PageHeader } from '../components/PageHeader';
+import { TabBar, TabPanel } from '../components/TabBar';
+import { EmptyState } from '../components/EmptyState';
+import { NeonButton } from '../components/NeonButton';
 import { Link } from 'react-router-dom';
 import { apiGet } from '../lib/api';
 import { useTranslation } from 'react-i18next';
@@ -26,6 +30,11 @@ export default function HomePage() {
   const [leagues, setLeagues] = useState<(LeagueDoc & { id: string })[]>([]);
   const [events, setEvents] = useState<(EventDoc & { id: string })[]>([]);
   const [quests, setQuests] = useState<any[]>([]);
+  const [eventsTab, setEventsTab] = useState('live');
+
+  const role = userDoc?.role || 'participant';
+  const isInstructor = role === 'instructor' || role === 'admin' || role === 'superadmin';
+  const isAdmin = role === 'admin' || role === 'superadmin';
 
   useEffect(() => {
     (async () => {
@@ -50,64 +59,120 @@ export default function HomePage() {
   const upcomingEvents = events.filter((e) => getStatus(e) === 'UPCOMING');
   const endedEvents = events.filter((e) => getStatus(e) === 'ENDED');
 
+  // Determine the primary CTA
+  const primaryEvent = liveEvents[0] || upcomingEvents[0];
+  const greeting = t('home.welcomeBack');
+  const displayName = userDoc?.displayName || 'Hacker';
+
+  // Auto-select events tab based on what's available
+  useEffect(() => {
+    if (liveEvents.length > 0) setEventsTab('live');
+    else if (upcomingEvents.length > 0) setEventsTab('upcoming');
+    else setEventsTab('past');
+  }, [events.length]);
+
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
-      {/* Hero Header */}
-      <div className="text-center py-6">
-        <h1 className="text-4xl md:text-5xl font-extrabold text-accent glow-text tracking-widest">
-          MdavelCTF
-        </h1>
-        <p className="text-base text-hud-text/60 mt-2 font-light">
-          {t('home.welcomeBack')} <span className="text-accent font-semibold">{userDoc?.displayName || 'Hacker'}</span>
-        </p>
+    <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+      {/* ── Hero Greeting + Primary CTA ── */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <p className="text-sm text-hud-text/50">{greeting}</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-accent tracking-wide">
+            {displayName}
+          </h1>
+        </div>
+        {primaryEvent && (
+          <Link to={`/event/${primaryEvent.id}`}>
+            <NeonButton variant="solid" size="md">
+              {getStatus(primaryEvent) === 'LIVE'
+                ? `▶ ${t('home.enterNow')} — ${primaryEvent.name}`
+                : `⏳ ${primaryEvent.name}`}
+            </NeonButton>
+          </Link>
+        )}
       </div>
 
-      {/* Stats Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard label={t('home.liveEvents')} value={liveEvents.length} icon={<span className="live-dot" />} color="var(--success)" />
-        <StatCard label={t('home.upcoming')} value={upcomingEvents.length} color="var(--warning)" />
-        <StatCard label={t('home.completed')} value={endedEvents.length} color="var(--danger)" />
-        <StatCard label={t('home.leagues')} value={leagues.length} color="var(--accent2)" />
-      </div>
-
-      {/* XP Progress */}
+      {/* ── Progress Strip ── */}
       {userDoc && (
-        <HudPanel>
-          <XPProgressBar xp={userDoc.xp || 0} level={userDoc.level || 1} />
-        </HudPanel>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="md:col-span-2">
+            <HudPanel>
+              <XPProgressBar xp={userDoc.xp || 0} level={userDoc.level || 1} />
+            </HudPanel>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <StatCard label={t('profile.totalSolves')} value={userDoc.stats?.solvesTotal || 0} color="var(--success)" />
+            <StatCard label={t('profile.badgesEarned')} value={(userDoc.badges || []).length} color="var(--warning)" />
+          </div>
+        </div>
       )}
 
-      {/* Team CTA */}
-      {userDoc && !userDoc.teamId && (
-        <Link to="/profile" className="block">
-          <HudPanel>
-            <div className="flex items-center gap-4">
-              <span className="text-3xl">🛡️</span>
-              <div className="flex-1">
-                <h3 className="font-bold text-accent text-base">{t('home.joinOrCreateTeam')}</h3>
-                <p className="text-sm text-hud-text/50">{t('home.teamUpDescription')}</p>
-              </div>
-              <span className="text-accent text-xl">→</span>
+      {/* ── Quick Access Cards ── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {userDoc?.teamId ? (
+          <Link to={`/team/${userDoc.teamId}`} className="block">
+            <div className="hud-panel p-4 h-full hover:border-accent/30 transition-all">
+              <span className="text-xl mb-2 block">🛡️</span>
+              <h3 className="font-semibold text-sm text-accent">{t('home.myTeamHub')}</h3>
+              <p className="text-xs text-hud-text/40 mt-1">{t('home.teamHubDescription')}</p>
             </div>
-          </HudPanel>
+          </Link>
+        ) : (
+          <Link to="/profile" className="block">
+            <div className="hud-panel p-4 h-full hover:border-accent/30 transition-all">
+              <span className="text-xl mb-2 block">🛡️</span>
+              <h3 className="font-semibold text-sm text-accent">{t('home.joinOrCreateTeam')}</h3>
+              <p className="text-xs text-hud-text/40 mt-1">{t('home.teamUpDescription')}</p>
+            </div>
+          </Link>
+        )}
+        <Link to="/scoreboard" className="block">
+          <div className="hud-panel p-4 h-full hover:border-accent/30 transition-all">
+            <span className="text-xl mb-2 block">🏆</span>
+            <h3 className="font-semibold text-sm text-accent">{t('nav.scores')}</h3>
+            <p className="text-xs text-hud-text/40 mt-1">{t('home.seasonRanking')}</p>
+          </div>
         </Link>
-      )}
-      {userDoc?.teamId && (
-        <Link to={`/team/${userDoc.teamId}`} className="block">
-          <HudPanel>
-            <div className="flex items-center gap-4">
-              <span className="text-3xl">🛡️</span>
-              <div className="flex-1">
-                <h3 className="font-bold text-accent text-base">{t('home.myTeamHub')}</h3>
-                <p className="text-sm text-hud-text/50">{t('home.teamHubDescription')}</p>
+        <Link to="/classes" className="block">
+          <div className="hud-panel p-4 h-full hover:border-accent/30 transition-all">
+            <span className="text-xl mb-2 block">📚</span>
+            <h3 className="font-semibold text-sm text-accent">{t('nav.classes')}</h3>
+            <p className="text-xs text-hud-text/40 mt-1">{t('classes.joinClass')}</p>
+          </div>
+        </Link>
+        <Link to="/guide" className="block">
+          <div className="hud-panel p-4 h-full hover:border-accent/30 transition-all">
+            <span className="text-xl mb-2 block">📖</span>
+            <h3 className="font-semibold text-sm text-accent">{t('nav.guide')}</h3>
+            <p className="text-xs text-hud-text/40 mt-1">{t('home.getStarted')}</p>
+          </div>
+        </Link>
+      </div>
+
+      {/* ── Active Event Highlight (only if LIVE) ── */}
+      {liveEvents.length > 0 && (
+        <Link to={`/event/${liveEvents[0].id}`} className="block">
+          <div className="hud-panel p-5 md:p-6 border-success/30 hover:border-success/50 transition-all">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="live-dot" />
+                  <h3 className="text-lg md:text-xl font-bold text-success">
+                    {liveEvents[0].name}
+                  </h3>
+                  <HudTag color="var(--success)">LIVE</HudTag>
+                </div>
+                <p className="text-xs text-hud-text/40">
+                  {t('common.started')} {new Date(liveEvents[0].startsAt).toLocaleDateString()}
+                </p>
               </div>
-              <span className="text-accent text-xl">→</span>
+              <CountdownTimer targetDate={liveEvents[0].endsAt} label={t('home.endsIn')} />
             </div>
-          </HudPanel>
+          </div>
         </Link>
       )}
 
-      {/* Weekly Quests */}
+      {/* ── Weekly Quests (collapsible) ── */}
       {quests.length > 0 && (
         <HudPanel title={t('home.weeklyQuests')}>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -127,59 +192,104 @@ export default function HomePage() {
         </HudPanel>
       )}
 
-      {/* ═══ LIVE EVENTS — Big hero cards ═══ */}
-      {liveEvents.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="flex items-center gap-3 text-lg font-bold uppercase tracking-widest">
-            <span className="live-dot" />
-            <span className="text-success">{t('home.liveNow')}</span>
-          </h2>
-          {liveEvents.map((e) => (
-            <Link
-              key={e.id}
-              to={`/event/${e.id}`}
-              className="block live-pulse rounded-sm"
-            >
-              <div className="hud-panel p-6 md:p-8 border-success/40 hover:border-success/70 transition-all">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-3">
-                      <span className="live-dot" />
-                      <h3 className="text-2xl md:text-3xl font-extrabold text-success glow-text">
-                        {e.name}
-                      </h3>
-                    </div>
-                    <p className="text-sm text-hud-text/50 font-mono">
-                      {t('common.started')} {new Date(e.startsAt).toLocaleDateString()} • {t('home.enterNow')}
-                    </p>
-                  </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <CountdownTimer targetDate={e.endsAt} label={t('home.endsIn')} />
-                    <span className="text-xs font-semibold uppercase tracking-widest text-success/70 border border-success/30 px-3 py-1">
-                      {t('home.joinCompetition')}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
+      {/* ── Events Section (tabbed) ── */}
+      <div className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-hud-text/50">
+          {t('admin.events')}
+        </h2>
+        <TabBar
+          tabs={[
+            { key: 'live', label: t('home.liveNow'), icon: '🟢', badge: liveEvents.length || undefined },
+            { key: 'upcoming', label: t('home.comingSoon'), icon: '⏳', badge: upcomingEvents.length || undefined },
+            { key: 'past', label: t('home.pastEvents'), icon: '📁' },
+          ]}
+          active={eventsTab}
+          onChange={setEventsTab}
+          size="sm"
+        />
 
-      {/* ═══ LEAGUES ═══ */}
+        <TabPanel active={eventsTab} tab="live">
+          {liveEvents.length === 0 ? (
+            <EmptyState icon="🏁" title={t('home.noLiveEvents')} description={t('home.checkBackSoon')} />
+          ) : (
+            <div className="space-y-3">
+              {liveEvents.map((e) => (
+                <Link key={e.id} to={`/event/${e.id}`} className="block">
+                  <div className="hud-panel p-4 border-success/20 hover:border-success/40 transition-all">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <span className="live-dot" />
+                        <span className="font-bold text-success">{e.name}</span>
+                        {e.classType && <HudTag color="var(--accent2)">🏷️ {e.classType}</HudTag>}
+                      </div>
+                      <CountdownTimer targetDate={e.endsAt} label={t('home.endsIn')} />
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </TabPanel>
+
+        <TabPanel active={eventsTab} tab="upcoming">
+          {upcomingEvents.length === 0 ? (
+            <EmptyState icon="⏳" title={t('home.noUpcomingEvents')} />
+          ) : (
+            <div className="space-y-2">
+              {upcomingEvents.map((e) => (
+                <Link key={e.id} to={`/event/${e.id}`} className="block">
+                  <div className="hud-panel p-4 hover:border-warning/30 transition-all">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-warning">⏳</span>
+                        <span className="font-bold">{e.name}</span>
+                        {e.classType && <HudTag color="var(--accent2)">🏷️ {e.classType}</HudTag>}
+                      </div>
+                      <CountdownTimer targetDate={e.startsAt} label={t('home.startsIn')} />
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </TabPanel>
+
+        <TabPanel active={eventsTab} tab="past">
+          {endedEvents.length === 0 ? (
+            <EmptyState icon="📁" title={t('home.noPastEvents')} />
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {endedEvents.map((e) => (
+                <Link key={e.id} to={`/event/${e.id}`} className="block">
+                  <div className="hud-panel p-3 opacity-60 hover:opacity-90 transition-all">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-sm">{e.name}</span>
+                      <span className="text-xs font-mono text-hud-text/40">
+                        {new Date(e.endsAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </TabPanel>
+      </div>
+
+      {/* ── Leagues ── */}
       {leagues.length > 0 && (
         <HudPanel title={t('home.activeLeagues')}>
-          <div className="space-y-3">
+          <div className="space-y-2">
             {leagues.map((l) => (
               <Link
                 key={l.id}
                 to={`/league/${l.id}`}
-                className="flex items-center justify-between p-4 border border-accent2/20 hover:border-accent2/50 hover:bg-accent2/5 transition-all"
+                className="flex items-center justify-between p-3 border border-accent2/15 hover:border-accent2/30 hover:bg-accent2/5 transition-all"
               >
-                <div className="space-y-1">
-                  <span className="font-bold text-lg text-accent2">{l.name}</span>
-                  <p className="text-xs text-hud-text/40 font-mono">
-                    {l.eventIds.length} {t('home.events')} • {t('home.seasonRanking')}
+                <div>
+                  <span className="font-bold text-accent2">{l.name}</span>
+                  <p className="text-xs text-hud-text/40 mt-0.5">
+                    {l.eventIds.length} {t('home.events')}
                   </p>
                 </div>
                 <HudTag color="var(--accent2)">{l.eventIds.length} {t('home.events')}</HudTag>
@@ -189,49 +299,28 @@ export default function HomePage() {
         </HudPanel>
       )}
 
-      {/* ═══ UPCOMING — Countdown focus ═══ */}
-      {upcomingEvents.length > 0 && (
-        <HudPanel title={t('home.comingSoon')}>
-          <div className="space-y-3">
-            {upcomingEvents.map((e) => (
-              <Link
-                key={e.id}
-                to={`/event/${e.id}`}
-                className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border border-warning/20 hover:border-warning/50 hover:bg-warning/5 transition-all gap-3"
-              >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-warning text-lg">⏳</span>
-                    <span className="font-bold text-lg">{e.name}</span>
-                  </div>
-                  <p className="text-xs text-hud-text/40 font-mono">
-                    {new Date(e.startsAt).toLocaleDateString()} at{' '}
-                    {new Date(e.startsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </p>
+      {/* ── Instructor Quick Access ── */}
+      {isInstructor && (
+        <HudPanel title={t('nav.instructor')}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Link to="/instructor" className="block">
+              <div className="p-3 border border-accent/15 hover:border-accent/30 transition-all">
+                <div className="flex items-center gap-2">
+                  <span>🎓</span>
+                  <span className="font-semibold text-sm text-accent">{t('instructor.title')}</span>
                 </div>
-                <CountdownTimer targetDate={e.startsAt} label={t('home.startsIn')} />
-              </Link>
-            ))}
-          </div>
-        </HudPanel>
-      )}
-
-      {/* ═══ ENDED — Compact ═══ */}
-      {endedEvents.length > 0 && (
-        <HudPanel title={t('home.pastEvents')}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {endedEvents.map((e) => (
-              <Link
-                key={e.id}
-                to={`/event/${e.id}`}
-                className="flex items-center justify-between p-3 border border-hud-text/10 hover:border-hud-text/25 transition-all opacity-60 hover:opacity-90"
-              >
-                <span className="font-medium">{e.name}</span>
-                <span className="text-xs font-mono text-hud-text/40">
-                  {new Date(e.endsAt).toLocaleDateString()}
-                </span>
-              </Link>
-            ))}
+                <p className="text-xs text-hud-text/40 mt-1">{t('home.manageClassesEvents')}</p>
+              </div>
+            </Link>
+            <Link to="/classes" className="block">
+              <div className="p-3 border border-accent/15 hover:border-accent/30 transition-all">
+                <div className="flex items-center gap-2">
+                  <span>📚</span>
+                  <span className="font-semibold text-sm text-accent">{t('nav.classes')}</span>
+                </div>
+                <p className="text-xs text-hud-text/40 mt-1">{t('home.viewYourClasses')}</p>
+              </div>
+            </Link>
           </div>
         </HudPanel>
       )}

@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { ChallengeDoc, EventDoc, getTagColor } from '@mdavelctf/shared';
 import { HudPanel } from '../components/HudPanel';
 import { HudTag } from '../components/HudTag';
 import { NeonButton } from '../components/NeonButton';
+import { TabBar, TabPanel } from '../components/TabBar';
 import { TerminalSubmitModal } from '../components/TerminalSubmitModal';
 import { apiGet, apiPost } from '../lib/api';
+import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 
 interface HintView {
@@ -23,28 +25,28 @@ export default function ChallengePage() {
     eventId: string;
     challengeId: string;
   }>();
+  const { t } = useTranslation();
   const [challenge, setChallenge] = useState<ChallengeDoc | null>(null);
   const [event, setEvent] = useState<EventDoc | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [hints, setHints] = useState<HintView[]>([]);
   const [unlocking, setUnlocking] = useState<number | null>(null);
   const [hintMsg, setHintMsg] = useState('');
+  const [contentTab, setContentTab] = useState('description');
+
   useEffect(() => {
     if (!eventId || !challengeId) return;
     (async () => {
       const eSnap = await getDoc(doc(db, 'events', eventId));
-      if (eSnap.exists()) {
-        setEvent(eSnap.data() as EventDoc);
-      }
+      if (eSnap.exists()) setEvent(eSnap.data() as EventDoc);
 
       const cSnap = await getDoc(
         doc(db, 'events', eventId, 'challenges', challengeId),
       );
       if (cSnap.exists()) setChallenge(cSnap.data() as ChallengeDoc);
 
-      // Load hints
       try {
-        const res = await apiGet(`/challenges/${challengeId}/hints?eventId=${eventId}`);
+        const res = await apiGet(`/challenges/${challengeId}/hints?eventId=${encodeURIComponent(eventId)}`);
         setHints(res.hints || []);
       } catch {}
     })();
@@ -68,130 +70,166 @@ export default function ChallengePage() {
   };
 
   if (!challenge || !eventId || !challengeId) {
-    return <div className="p-8 text-center text-accent/50">Loading...</div>;
+    return <div className="p-8 text-center text-accent/50">{t('event.loading')}</div>;
   }
 
   const color = getTagColor(challenge.category);
+  const hasAttachments = challenge.attachments.length > 0;
+  const hasHints = hints.length > 0;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
-      <HudPanel>
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <HudTag color={color}>{challenge.category}</HudTag>
-              <div className="flex gap-0.5 ml-2">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="w-2 h-2"
-                    style={{
-                      backgroundColor:
-                        i < challenge.difficulty ? color : `${color}22`,
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-            <h1 className="text-xl font-bold">{challenge.title}</h1>
-          </div>
-          <div className="text-right">
-            <div className="text-3xl font-bold glow-text" style={{ color }}>
-              {challenge.pointsFixed}
-            </div>
-            <div className="text-xs uppercase tracking-widest text-hud-text/50">
-              points
-            </div>
-          </div>
-        </div>
+    <div className="max-w-4xl mx-auto px-4 py-6 space-y-5">
+      {/* ── Breadcrumb ── */}
+      <nav className="flex items-center gap-2 text-xs text-hud-text/40">
+        <Link to={`/event/${eventId}`} className="hover:text-accent transition-colors">
+          {event?.name || t('event.backToEvent')}
+        </Link>
+        <span>/</span>
+        <span className="text-hud-text/60">{challenge.title}</span>
+      </nav>
 
-        {challenge.tags.length > 0 && (
-          <div className="flex gap-1 mb-4 flex-wrap">
-            {challenge.tags.map((t) => (
-              <HudTag key={t}>{t}</HudTag>
-            ))}
-          </div>
-        )}
-
-        {/* Markdown Description */}
-        <div className="prose prose-invert prose-sm max-w-none border-t border-accent/10 pt-4">
-          <ReactMarkdown>{challenge.descriptionMd}</ReactMarkdown>
-        </div>
-
-        {/* Attachments */}
-        {challenge.attachments.length > 0 && (
-          <div className="mt-4 border-t border-accent/10 pt-4">
-            <h3 className="text-xs uppercase tracking-widest text-accent/70 mb-2">
-              Attachments
-            </h3>
-            <div className="space-y-1">
-              {challenge.attachments.map((a, i) => (
-                <div key={i} className="text-sm text-accent hover:underline cursor-pointer">
-                  📎 {a.name} ({(a.size / 1024).toFixed(1)}KB)
-                </div>
+      {/* ── Header Block ── */}
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <div className="space-y-2">
+          <h1 className="text-xl md:text-2xl font-bold">{challenge.title}</h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <HudTag color={color}>{challenge.category}</HudTag>
+            <div className="flex gap-0.5">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="w-2 h-2"
+                  style={{ backgroundColor: i < challenge.difficulty ? color : `${color}22` }}
+                />
               ))}
             </div>
+            <span className="text-xs text-hud-text/40">{t('event.diff')} {challenge.difficulty}</span>
+            {challenge.flagMode === 'unique' && (
+              <HudTag color="var(--warning)">🏆 {t('event.firstSolver')}</HudTag>
+            )}
+            {challenge.flagMode === 'decay' && (
+              <HudTag color="var(--accent)">📉 {t('event.dynamicScore')}</HudTag>
+            )}
           </div>
-        )}
-
-        {/* Submit Button */}
-        <div className="mt-6 flex justify-end">
-          <NeonButton variant="solid" onClick={() => setShowModal(true)}>
-            Submit Flag
-          </NeonButton>
+          {challenge.tags.length > 0 && (
+            <div className="flex gap-1 flex-wrap">
+              {challenge.tags.map((tag) => (
+                <HudTag key={tag}>{tag}</HudTag>
+              ))}
+            </div>
+          )}
         </div>
-      </HudPanel>
-
-      {/* Hints Panel */}
-      {hints.length > 0 && (
-        <HudPanel>
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-lg">💡</span>
-            <h3 className="text-sm font-semibold uppercase tracking-widest text-accent/70">
-              Hints ({hints.filter((h) => h.unlocked).length}/{hints.length})
-            </h3>
+        <div className="text-right shrink-0">
+          <div className="text-3xl font-bold" style={{ color }}>
+            {challenge.pointsFixed}
           </div>
-          {hintMsg && <p className="text-xs text-danger mb-2">{hintMsg}</p>}
-          <div className="space-y-2">
-            {hints.map((hint) => (
-              <div
-                key={hint.index}
-                className={`p-3 border transition-all ${
-                  hint.unlocked
-                    ? 'border-success/30 bg-success/5'
-                    : 'border-accent/20 bg-panel/50'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-1">
+          <div className="text-xs uppercase tracking-widest text-hud-text/50">{t('common.points')}</div>
+          {challenge.flagMode === 'decay' && challenge.solveCount ? (
+            <div className="text-[10px] text-hud-text/40">{challenge.solveCount} {t('event.solves')}</div>
+          ) : null}
+        </div>
+      </div>
+
+      {/* ── Content Tabs ── */}
+      <TabBar
+        tabs={[
+          { key: 'description', label: t('common.description'), icon: '📝' },
+          ...(hasAttachments ? [{ key: 'files', label: t('challenge.files'), icon: '📎', badge: challenge.attachments.length }] : []),
+          ...(hasHints ? [{ key: 'hints', label: t('hints.title'), icon: '💡', badge: `${hints.filter(h => h.unlocked).length}/${hints.length}` }] : []),
+        ]}
+        active={contentTab}
+        onChange={setContentTab}
+        size="sm"
+      />
+
+      {/* Description Tab */}
+      <TabPanel active={contentTab} tab="description">
+        <HudPanel>
+          <div className="prose prose-invert prose-sm max-w-none">
+            <ReactMarkdown>{challenge.descriptionMd}</ReactMarkdown>
+          </div>
+        </HudPanel>
+      </TabPanel>
+
+      {/* Files Tab */}
+      {hasAttachments && (
+        <TabPanel active={contentTab} tab="files">
+          <HudPanel>
+            <div className="space-y-2">
+              {challenge.attachments.map((a, i) => (
+                <a
+                  key={i}
+                  href={a.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between p-3 border border-accent/15 hover:border-accent/30 transition-all"
+                >
                   <div className="flex items-center gap-2">
+                    <span>📎</span>
+                    <span className="text-sm font-medium text-accent">{a.name}</span>
+                  </div>
+                  <span className="text-xs text-hud-text/40">{(a.size / 1024).toFixed(1)} KB</span>
+                </a>
+              ))}
+            </div>
+          </HudPanel>
+        </TabPanel>
+      )}
+
+      {/* Hints Tab */}
+      {hasHints && (
+        <TabPanel active={contentTab} tab="hints">
+          <HudPanel>
+            {hintMsg && <p className="text-xs text-danger mb-3">{hintMsg}</p>}
+            <div className="space-y-2">
+              {hints.map((hint) => (
+                <div
+                  key={hint.index}
+                  className={`p-3 border transition-all ${
+                    hint.unlocked ? 'border-success/30 bg-success/5' : 'border-accent/20'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
                     <span className="font-semibold text-sm">
                       {hint.unlocked ? '🔓' : '🔒'} {hint.title}
                     </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-warning font-semibold">-{hint.cost} pts</span>
+                      {!hint.unlocked && (
+                        <NeonButton
+                          size="sm"
+                          variant="solid"
+                          onClick={() => handleUnlockHint(hint.index)}
+                          disabled={unlocking === hint.index}
+                        >
+                          {unlocking === hint.index ? '...' : t('hints.buy')}
+                        </NeonButton>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-warning font-semibold">-{hint.cost} pts</span>
-                    {!hint.unlocked && (
-                      <NeonButton
-                        size="sm"
-                        variant="solid"
-                        onClick={() => handleUnlockHint(hint.index)}
-                        disabled={unlocking === hint.index}
-                      >
-                        {unlocking === hint.index ? '...' : 'Buy'}
-                      </NeonButton>
-                    )}
-                  </div>
+                  {hint.unlocked && hint.content && (
+                    <div className="mt-2 pt-2 border-t border-success/20 text-sm text-hud-text/80">
+                      <ReactMarkdown>{hint.content}</ReactMarkdown>
+                    </div>
+                  )}
                 </div>
-                {hint.unlocked && hint.content && (
-                  <div className="mt-2 pt-2 border-t border-success/20 text-sm text-hud-text/80">
-                    <ReactMarkdown>{hint.content}</ReactMarkdown>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </HudPanel>
+              ))}
+            </div>
+          </HudPanel>
+        </TabPanel>
       )}
+
+      {/* ── Fixed Submit Area ── */}
+      <div className="sticky bottom-4 z-10">
+        <div className="hud-panel p-4 flex items-center justify-between border-accent/25">
+          <div className="text-sm text-hud-text/60">
+            {t('challenge.readyToSubmit')}
+          </div>
+          <NeonButton variant="solid" onClick={() => setShowModal(true)}>
+            {t('challenge.submitFlag')}
+          </NeonButton>
+        </div>
+      </div>
 
       <TerminalSubmitModal
         isOpen={showModal}
@@ -199,9 +237,7 @@ export default function ChallengePage() {
         eventId={eventId}
         challengeId={challengeId}
         challengeTitle={challenge.title}
-        onSolve={() => {
-          // Could refresh solve status
-        }}
+        onSolve={() => {}}
       />
     </div>
   );

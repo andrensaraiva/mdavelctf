@@ -4,6 +4,8 @@ import { apiGet, apiPost } from '../lib/api';
 import { HudPanel } from '../components/HudPanel';
 import { NeonButton } from '../components/NeonButton';
 import { HudTag } from '../components/HudTag';
+import { EmptyState } from '../components/EmptyState';
+import { PageHeader } from '../components/PageHeader';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { DEFAULT_CLASS_TYPES } from '@mdavelctf/shared';
@@ -64,10 +66,8 @@ export default function ClassesPage() {
   const isInstructor = userDoc?.role === 'instructor' || userDoc?.role === 'admin' || userDoc?.role === 'superadmin';
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
-      <h1 className="text-2xl font-extrabold text-accent glow-text tracking-wider">
-        {t('classes.title')}
-      </h1>
+    <div className="max-w-4xl mx-auto px-4 py-6 space-y-5">
+      <PageHeader title={t('classes.title')} icon="📚" />
 
       {/* Join a Class */}
       <HudPanel title={t('classes.joinClass')}>
@@ -145,9 +145,7 @@ export default function ClassesPage() {
         ))}
 
         {classes.length === 0 && (
-          <div className="text-center py-12 text-hud-text/30 text-sm">
-            {t('classes.noClasses')}
-          </div>
+          <EmptyState icon="📚" title={t('classes.noClasses')} description={t('classes.joinClassHint')} />
         )}
       </div>
     </div>

@@ -12,7 +12,9 @@
     "profile": "Perfil",
     "admin": "Admin",
     "instructor": "Instrutor",
-    "logout": "Sair"
+    "logout": "Sair",
+    "guide": "Guia",
+    "more": "Mais"
   },
   "home": {
     "welcomeBack": "Bem-vindo(a) de volta,",
@@ -34,7 +36,14 @@
     "pastEvents": "Eventos Anteriores",
     "enterNow": "Entre agora e compita!",
     "startsIn": "Começa em",
-    "endsIn": "Termina em"
+    "endsIn": "Termina em",
+    "noLiveEvents": "Nenhum evento ao vivo no momento",
+    "checkBackSoon": "Volte em breve!",
+    "noUpcomingEvents": "Nenhum evento próximo",
+    "noPastEvents": "Nenhum evento anterior",
+    "manageClassesEvents": "Gerencie suas turmas e eventos",
+    "viewYourClasses": "Visualize e gerencie suas turmas",
+    "getStarted": "Como começar"
   },
   "event": {
     "loading": "Carregando...",
@@ -47,11 +56,25 @@
     "createEventTeam": "Criar Equipe do Evento",
     "joinEventTeam": "Entrar em Equipe do Evento",
     "myEventTeam": "Minha Equipe do Evento",
-    "leaveEventTeam": "Sair da Equipe do Evento"
+    "leaveEventTeam": "Sair da Equipe do Evento",
+    "solved": "resolvido",
+    "solves": "resoluções",
+    "firstSolver": "Primeiro a resolver",
+    "firstSolverOnly": "Só uma pessoa pode resolver",
+    "dynamicScore": "Dinâmico",
+    "dynamicScoreDesc": "Pontos diminuem a cada resolução",
+    "noSolvesYet": "Nenhuma resolução ainda — seja o primeiro!",
+    "categories": "Categorias",
+    "participants": "Participantes",
+    "schedule": "Cronograma",
+    "classType": "Tipo de Turma",
+    "backToEvent": "Voltar ao evento"
   },
   "challenge": {
     "attachments": "Anexos",
-    "submitFlag": "Enviar Flag"
+    "submitFlag": "Enviar Flag",
+    "files": "Arquivos",
+    "readyToSubmit": "Pronto para enviar sua flag?"
   },
   "scoreboard": {
     "title": "Placar",
@@ -60,6 +83,7 @@
     "individual": "Individual",
     "teams": "Equipes",
     "noScores": "Nenhuma pontuação disponível ainda.",
+    "noData": "Nenhum dado disponível",
     "submissions": "Submissões",
     "solves": "Resoluções",
     "solveRate": "Taxa de Acerto",
@@ -150,12 +174,20 @@
     "recentActivity": "Atividade Recente",
     "solved": "resolveu",
     "teamChat": "Chat da Equipe",
-    "teamUpdated": "Equipe atualizada!"
+    "teamUpdated": "Equipe atualizada!",
+    "overview": "Visão Geral",
+    "settings": "Configurações",
+    "teamAvatar": "Avatar da Equipe",
+    "noActivity": "Nenhuma atividade ainda",
+    "updated": "Equipe atualizada!",
+    "newJoinCode": "Novo código de acesso",
+    "avatarUpdated": "Avatar atualizado"
   },
   "classes": {
     "title": "Minhas Turmas",
     "noClasses": "Você ainda não está em nenhuma turma.",
     "joinClass": "Entrar em uma Turma",
+    "joinClassHint": "Digite o código de convite do seu instrutor para entrar na turma.",
     "inviteCodePlaceholder": "Digite o código de convite",
     "join": "Entrar",
     "createClass": "Criar uma Turma",
@@ -238,7 +270,8 @@
     "penalty": "Penalidade",
     "noHints": "Nenhuma dica disponível para este desafio.",
     "unlockConfirm": "Desbloquear esta dica? Penalidade: {{penalty}}% dos pontos.",
-    "sequential": "Desbloqueie as dicas anteriores primeiro."
+    "sequential": "Desbloqueie as dicas anteriores primeiro.",
+    "buy": "Comprar"
   },
   "themeSettings": {
     "themeSource": "Fonte do Tema",
@@ -263,6 +296,13 @@
     "upcoming": "EM BREVE",
     "ended": "ENCERRADO",
     "players": "jogadores",
-    "subs": "envios"
+    "subs": "envios",
+    "viewAll": "Ver tudo",
+    "info": "Info",
+    "status": "Status",
+    "description": "Descrição",
+    "points": "pontos",
+    "start": "Início",
+    "end": "Fim"
   }
 }

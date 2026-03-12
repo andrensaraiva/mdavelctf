@@ -11,8 +11,9 @@
   --success: #39ff14;
   --warning: #ffbf00;
   --danger: #ff003c;
-  --glow: 0 0 6px var(--accent), 0 0 18px rgba(0, 240, 255, 0.1);
-  --glow2: 0 0 6px var(--accent2), 0 0 18px rgba(0, 119, 255, 0.1);
+  --glow: 0 0 4px color-mix(in srgb, var(--accent) 40%, transparent);
+  --glow2: 0 0 4px color-mix(in srgb, var(--accent2) 40%, transparent);
+  --grid-opacity: 0.012;
   --font-body: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
 }
@@ -59,18 +60,17 @@ code, pre, .font-mono, .terminal-input {
 /* ─── HUD Panel (clip-path corners) ─── */
 .hud-panel {
   background: var(--panel-bg);
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
   clip-path: polygon(
-    0 12px,
-    12px 0,
-    calc(100% - 12px) 0,
-    100% 12px,
-    100% calc(100% - 12px),
-    calc(100% - 12px) 100%,
-    12px 100%,
-    0 calc(100% - 12px)
+    0 8px,
+    8px 0,
+    calc(100% - 8px) 0,
+    100% 8px,
+    100% calc(100% - 8px),
+    calc(100% - 8px) 100%,
+    8px 100%,
+    0 calc(100% - 8px)
   );
-  box-shadow: var(--glow);
   position: relative;
 }
 
@@ -80,7 +80,7 @@ code, pre, .font-mono, .terminal-input {
   inset: 0;
   background: linear-gradient(
     135deg,
-    rgba(0, 240, 255, 0.02) 0%,
+    rgba(0, 240, 255, 0.01) 0%,
     transparent 50%
   );
   pointer-events: none;
@@ -132,11 +132,11 @@ code, pre, .font-mono, .terminal-input {
   background: color-mix(in srgb, var(--accent) 85%, white);
 }
 
-/* ─── Glow effects ─── */
+/* ─── Glow effects (toned down for readability) ─── */
 .glow { box-shadow: var(--glow); }
 .glow2 { box-shadow: var(--glow2); }
-.glow-text { text-shadow: 0 0 6px var(--accent), 0 0 12px rgba(0, 240, 255, 0.2); }
-.glow-text2 { text-shadow: 0 0 6px var(--accent2), 0 0 12px rgba(0, 119, 255, 0.2); }
+.glow-text { text-shadow: 0 0 4px color-mix(in srgb, var(--accent) 30%, transparent); }
+.glow-text2 { text-shadow: 0 0 4px color-mix(in srgb, var(--accent2) 30%, transparent); }
 
 /* ─── Terminal Submit Modal ─── */
 .terminal-modal-overlay {
@@ -173,9 +173,9 @@ code, pre, .font-mono, .terminal-input {
 /* ─── Grid Background ─── */
 .grid-bg {
   background-image:
-    linear-gradient(rgba(0, 240, 255, 0.018) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 240, 255, 0.018) 1px, transparent 1px);
-  background-size: 40px 40px;
+    linear-gradient(rgba(0, 240, 255, var(--grid-opacity, 0.012)) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 255, var(--grid-opacity, 0.012)) 1px, transparent 1px);
+  background-size: 48px 48px;
 }
 
 /* ─── HUD Tag ─── */

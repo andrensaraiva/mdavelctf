@@ -12,7 +12,9 @@
     "profile": "Profile",
     "admin": "Admin",
     "instructor": "Instructor",
-    "logout": "Logout"
+    "logout": "Logout",
+    "guide": "Guide",
+    "more": "More"
   },
   "home": {
     "welcomeBack": "Welcome back,",
@@ -34,7 +36,14 @@
     "pastEvents": "Past Events",
     "enterNow": "Enter now and compete!",
     "startsIn": "Starts in",
-    "endsIn": "Ends in"
+    "endsIn": "Ends in",
+    "noLiveEvents": "No live events right now",
+    "checkBackSoon": "Check back soon!",
+    "noUpcomingEvents": "No upcoming events",
+    "noPastEvents": "No past events",
+    "manageClassesEvents": "Manage your classes and events",
+    "viewYourClasses": "View and manage your classes",
+    "getStarted": "How to get started"
   },
   "event": {
     "loading": "Loading...",
@@ -47,11 +56,25 @@
     "createEventTeam": "Create Event Team",
     "joinEventTeam": "Join Event Team",
     "myEventTeam": "My Event Team",
-    "leaveEventTeam": "Leave Event Team"
+    "leaveEventTeam": "Leave Event Team",
+    "solved": "solved",
+    "solves": "solves",
+    "firstSolver": "First solver",
+    "firstSolverOnly": "Only one person can solve this",
+    "dynamicScore": "Dynamic",
+    "dynamicScoreDesc": "Points decrease with each solve",
+    "noSolvesYet": "No solves yet — be the first!",
+    "categories": "Categories",
+    "participants": "Participants",
+    "schedule": "Schedule",
+    "classType": "Class Type",
+    "backToEvent": "Back to event"
   },
   "challenge": {
     "attachments": "Attachments",
-    "submitFlag": "Submit Flag"
+    "submitFlag": "Submit Flag",
+    "files": "Files",
+    "readyToSubmit": "Ready to submit your flag?"
   },
   "scoreboard": {
     "title": "Scoreboard",
@@ -60,6 +83,7 @@
     "individual": "Individual",
     "teams": "Teams",
     "noScores": "No scores available yet.",
+    "noData": "No data available",
     "submissions": "Submissions",
     "solves": "Solves",
     "solveRate": "Solve Rate",
@@ -150,12 +174,20 @@
     "recentActivity": "Recent Activity",
     "solved": "solved",
     "teamChat": "Team Chat",
-    "teamUpdated": "Team updated!"
+    "teamUpdated": "Team updated!",
+    "overview": "Overview",
+    "settings": "Settings",
+    "teamAvatar": "Team Avatar",
+    "noActivity": "No activity yet",
+    "updated": "Team updated!",
+    "newJoinCode": "New join code",
+    "avatarUpdated": "Avatar updated"
   },
   "classes": {
     "title": "My Classes",
     "noClasses": "You're not in any classes yet.",
     "joinClass": "Join a Class",
+    "joinClassHint": "Enter an invite code from your instructor to join a class.",
     "inviteCodePlaceholder": "Enter invite code",
     "join": "Join",
     "createClass": "Create a Class",
@@ -238,7 +270,8 @@
     "penalty": "Penalty",
     "noHints": "No hints available for this challenge.",
     "unlockConfirm": "Unlock this hint? Penalty: {{penalty}}% of points.",
-    "sequential": "Unlock previous hints first."
+    "sequential": "Unlock previous hints first.",
+    "buy": "Buy"
   },
   "themeSettings": {
     "themeSource": "Theme Source",
@@ -263,6 +296,13 @@
     "upcoming": "UPCOMING",
     "ended": "ENDED",
     "players": "players",
-    "subs": "subs"
+    "subs": "subs",
+    "viewAll": "View all",
+    "info": "Info",
+    "status": "Status",
+    "description": "Description",
+    "points": "points",
+    "start": "Start",
+    "end": "End"
   }
 }

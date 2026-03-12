@@ -4,12 +4,12 @@ import { NeonButton } from '../components/NeonButton';
 import { HudTag } from '../components/HudTag';
 import { StatCard } from '../components/StatCard';
 import { CountdownTimer } from '../components/CountdownTimer';
+import { TabBar, TabPanel } from '../components/TabBar';
+import { PageHeader } from '../components/PageHeader';
 import { apiPost, apiGet } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { EventDoc, LeagueDoc, EventAnalyticsSummary, LeagueAnalyticsSummary, BadgeDoc, DEFAULT_BADGES, DEFAULT_CLASS_TYPES, getTagColor } from '@mdavelctf/shared';
 import { useTranslation } from 'react-i18next';
-
-type Tab = 'overview' | 'events' | 'leagues' | 'challenges' | 'users' | 'logs' | 'badges' | 'quests' | 'seed' | 'docs';
 
 function getEventStatus(e: EventDoc) {
   const now = Date.now();
@@ -21,7 +21,7 @@ function getEventStatus(e: EventDoc) {
 export default function AdminPage() {
   const { t } = useTranslation();
   const { userDoc } = useAuth();
-  const [tab, setTab] = useState<Tab>('overview');
+  const [tab, setTab] = useState('overview');
 
   if (userDoc?.role !== 'admin' && userDoc?.role !== 'superadmin') {
     return (
@@ -31,56 +31,38 @@ export default function AdminPage() {
     );
   }
 
-  const tabs: { key: Tab; label: string; icon: string }[] = [
-    { key: 'overview', label: t('admin.dashboard'), icon: '📊' },
-    { key: 'events', label: t('admin.events'), icon: '🏁' },
-    { key: 'leagues', label: t('admin.leagues'), icon: '🏆' },
-    { key: 'challenges', label: t('admin.challenges'), icon: '🧩' },
-    { key: 'users', label: t('admin.users'), icon: '👤' },
-    { key: 'badges', label: t('admin.badges'), icon: '🎖️' },
-    { key: 'quests', label: t('admin.quests'), icon: '📜' },
-    { key: 'logs', label: t('admin.logs'), icon: '📋' },
-    { key: 'seed', label: 'Seed', icon: '🌱' },
-    { key: 'docs', label: t('admin.guide'), icon: '📖' },
-  ];
-
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
-      <div className="flex items-center gap-3 mb-2">
-        <span className="text-warning text-2xl">⚡</span>
-        <h1 className="text-2xl font-extrabold text-accent glow-text tracking-wider">
-          {t('admin.title')}
-        </h1>
-      </div>
+    <div className="max-w-7xl mx-auto px-4 py-6 space-y-5">
+      <PageHeader title={t('admin.title')} icon="⚡" />
 
-      {/* Tabs — scrollable on mobile */}
-      <div className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold uppercase tracking-widest border transition-all whitespace-nowrap flex-shrink-0 ${
-              tab === t.key
-                ? 'border-accent text-accent bg-accent/10'
-                : 'border-accent/20 text-hud-text/50 hover:text-accent hover:border-accent/40'
-            }`}
-          >
-            <span>{t.icon}</span>
-            <span className="hidden sm:inline">{t.label}</span>
-          </button>
-        ))}
-      </div>
+      <TabBar
+        tabs={[
+          { key: 'overview', label: t('admin.dashboard'), icon: '📊' },
+          { key: 'events', label: t('admin.events'), icon: '🏁' },
+          { key: 'leagues', label: t('admin.leagues'), icon: '🏆' },
+          { key: 'challenges', label: t('admin.challenges'), icon: '🧩' },
+          { key: 'users', label: t('admin.users'), icon: '👤' },
+          { key: 'badges', label: t('admin.badges'), icon: '🎖️' },
+          { key: 'quests', label: t('admin.quests'), icon: '📜' },
+          { key: 'logs', label: t('admin.logs'), icon: '📋' },
+          { key: 'seed', label: 'Seed', icon: '🌱' },
+          { key: 'docs', label: t('admin.guide'), icon: '📖' },
+        ]}
+        active={tab}
+        onChange={setTab}
+        size="sm"
+      />
 
-      {tab === 'overview' && <AdminOverview />}
-      {tab === 'events' && <AdminEvents />}
-      {tab === 'leagues' && <AdminLeagues />}
-      {tab === 'challenges' && <AdminChallenges />}
-      {tab === 'users' && <AdminUsers />}
-      {tab === 'badges' && <AdminBadges />}
-      {tab === 'quests' && <AdminQuests />}
-      {tab === 'logs' && <AdminLogs />}
-      {tab === 'seed' && <AdminSeedManager />}
-      {tab === 'docs' && <AdminDocs />}
+      <TabPanel active={tab} tab="overview"><AdminOverview /></TabPanel>
+      <TabPanel active={tab} tab="events"><AdminEvents /></TabPanel>
+      <TabPanel active={tab} tab="leagues"><AdminLeagues /></TabPanel>
+      <TabPanel active={tab} tab="challenges"><AdminChallenges /></TabPanel>
+      <TabPanel active={tab} tab="users"><AdminUsers /></TabPanel>
+      <TabPanel active={tab} tab="badges"><AdminBadges /></TabPanel>
+      <TabPanel active={tab} tab="quests"><AdminQuests /></TabPanel>
+      <TabPanel active={tab} tab="logs"><AdminLogs /></TabPanel>
+      <TabPanel active={tab} tab="seed"><AdminSeedManager /></TabPanel>
+      <TabPanel active={tab} tab="docs"><AdminDocs /></TabPanel>
     </div>
   );
 }
@@ -711,19 +693,19 @@ function AdminChallenges() {
           <div>
             <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Flag Mode</label>
             <select value={flagMode} onChange={(e) => setFlagMode(e.target.value as any)} className="terminal-input px-3 py-2 text-sm w-full">
-              <option value="standard">Standard (multiple solves)</option>
-              <option value="unique">Unique (first solves only)</option>
-              <option value="decay">Decay (points decrease)</option>
+              <option value="standard">Standard</option>
+              <option value="unique">🏆 First solver only</option>
+              <option value="decay">📉 Dynamic score</option>
             </select>
           </div>
           {flagMode === 'decay' && (
             <>
               <div>
-                <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Min Points</label>
+                <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Minimum Points</label>
                 <input value={decayMin} onChange={(e) => setDecayMin(e.target.value)} type="number" className="terminal-input px-3 py-2 text-sm w-full" />
               </div>
               <div>
-                <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Decay % per solve</label>
+                <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Score reduction % per solve</label>
                 <input value={decayPercent} onChange={(e) => setDecayPercent(e.target.value)} type="number" className="terminal-input px-3 py-2 text-sm w-full" />
               </div>
             </>

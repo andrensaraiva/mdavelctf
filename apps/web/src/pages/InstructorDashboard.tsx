@@ -5,6 +5,8 @@ import { HudPanel } from '../components/HudPanel';
 import { NeonButton } from '../components/NeonButton';
 import { HudTag } from '../components/HudTag';
 import { StatCard } from '../components/StatCard';
+import { TabBar, TabPanel } from '../components/TabBar';
+import { PageHeader } from '../components/PageHeader';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { DEFAULT_CLASS_TYPES, getTagColor } from '@mdavelctf/shared';
@@ -41,7 +43,7 @@ export default function InstructorDashboard() {
   const { userDoc } = useAuth();
   const [classes, setClasses] = useState<ClassSummary[]>([]);
   const [events, setEvents] = useState<EventSummary[]>([]);
-  const [tab, setTab] = useState<'classes' | 'create-event' | 'challenges' | 'guide'>('classes');
+  const [tab, setTab] = useState('classes');
 
   // Create event form
   const [eventName, setEventName] = useState('');
@@ -184,48 +186,31 @@ export default function InstructorDashboard() {
     } catch (e: any) { setChalMsg(e.message); }
   };
 
-  const tabs = [
-    { key: 'classes' as const, label: t('instructor.myClasses'), icon: '📚' },
-    { key: 'create-event' as const, label: t('instructor.createEvent'), icon: '🏁' },
-    { key: 'challenges' as const, label: 'Challenges', icon: '🧩' },
-    { key: 'guide' as const, label: t('admin.guide'), icon: '📖' },
-  ];
-
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
-      <div className="flex items-center gap-3">
-        <span className="text-2xl">🎓</span>
-        <h1 className="text-2xl font-extrabold text-accent glow-text tracking-wider">
-          {t('instructor.title')}
-        </h1>
-      </div>
+    <div className="max-w-5xl mx-auto px-4 py-6 space-y-5">
+      <PageHeader title={t('instructor.title')} icon="🎓" />
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <StatCard label={t('instructor.totalClasses')} value={classes.length} color="var(--accent)" />
         <StatCard label={t('instructor.totalStudents')} value={totalStudents} color="var(--accent2)" />
-        <StatCard label={t('instructor.totalEvents')} value="-" color="var(--success)" />
+        <StatCard label={t('instructor.totalEvents')} value={events.length} color="var(--success)" />
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1">
-        {tabs.map((tb) => (
-          <button
-            key={tb.key}
-            onClick={() => setTab(tb.key)}
-            className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold uppercase tracking-widest border transition-all ${
-              tab === tb.key
-                ? 'border-accent text-accent bg-accent/10'
-                : 'border-accent/20 text-hud-text/50 hover:text-accent'
-            }`}
-          >
-            <span>{tb.icon}</span> {tb.label}
-          </button>
-        ))}
-      </div>
+      <TabBar
+        tabs={[
+          { key: 'classes', label: t('instructor.myClasses'), icon: '📚' },
+          { key: 'create-event', label: t('instructor.createEvent'), icon: '🏁' },
+          { key: 'challenges', label: t('admin.challenges'), icon: '🧩' },
+          { key: 'guide', label: t('admin.guide'), icon: '📖' },
+        ]}
+        active={tab}
+        onChange={setTab}
+      />
 
       {/* Classes Tab */}
-      {tab === 'classes' && (
+      <TabPanel active={tab} tab="classes">
         <div className="space-y-3">
           {classes.map((c) => (
             <Link key={c.id} to={`/classes/${c.id}`} className="block">
@@ -258,10 +243,10 @@ export default function InstructorDashboard() {
             </HudPanel>
           )}
         </div>
-      )}
+      </TabPanel>
 
       {/* Create Event Tab */}
-      {tab === 'create-event' && (
+      <TabPanel active={tab} tab="create-event">
         <HudPanel title={t('instructor.createEvent')}>
           <div className="space-y-3">
             <input
@@ -322,10 +307,10 @@ export default function InstructorDashboard() {
             {msg && <p className="text-accent text-xs mt-2">{msg}</p>}
           </div>
         </HudPanel>
-      )}
+      </TabPanel>
 
       {/* Challenges Tab */}
-      {tab === 'challenges' && (
+      <TabPanel active={tab} tab="challenges">
         <div className="space-y-4">
           {/* Event selector */}
           <HudPanel title="Select Event">
@@ -426,8 +411,8 @@ export default function InstructorDashboard() {
                       <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Flag Mode</label>
                       <select value={chalFlagMode} onChange={(e) => setChalFlagMode(e.target.value as any)} className="terminal-input w-full px-3 py-2 text-sm">
                         <option value="standard">Standard</option>
-                        <option value="unique">Unique (1st only)</option>
-                        <option value="decay">Decay (pts decrease)</option>
+                        <option value="unique">🏆 First solver only</option>
+                        <option value="decay">📉 Dynamic score</option>
                       </select>
                     </div>
                     {chalFlagMode === 'decay' && (
@@ -437,7 +422,7 @@ export default function InstructorDashboard() {
                           <input type="number" value={chalDecayMin} onChange={(e) => setChalDecayMin(Number(e.target.value))} className="terminal-input w-full px-3 py-2 text-sm" />
                         </div>
                         <div>
-                          <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Decay % per solve</label>
+                          <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Score reduction % per solve</label>
                           <input type="number" value={chalDecayPercent} onChange={(e) => setChalDecayPercent(Number(e.target.value))} className="terminal-input w-full px-3 py-2 text-sm" />
                         </div>
                       </>
@@ -480,10 +465,12 @@ export default function InstructorDashboard() {
             </>
           )}
         </div>
-      )}
+      </TabPanel>
 
       {/* Guide Tab */}
-      {tab === 'guide' && <InstructorGuide />}
+      <TabPanel active={tab} tab="guide">
+        <InstructorGuide />
+      </TabPanel>
     </div>
   );
 }
