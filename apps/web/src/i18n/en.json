@@ -231,7 +231,8 @@
     "none": "None",
     "totalStudents": "Total Students",
     "totalClasses": "Total Classes",
-    "totalEvents": "Total Events"
+    "totalEvents": "Total Events",
+    "events": "Events"
   },
   "admin": {
     "title": "Admin Dashboard",
@@ -291,7 +292,17 @@
     "participateEvent": "Participate in event",
     "target": "Target",
     "badgeReward": "Badge Reward",
-    "noQuests": "No quests yet. Create one or seed the defaults."
+    "noQuests": "No quests yet. Create one or seed the defaults.",
+    "tags": "Tags",
+    "createTag": "Create Tag",
+    "editTag": "Edit Tag",
+    "deleteTag": "Delete Tag",
+    "tagCreated": "Tag created!",
+    "tagUpdated": "Tag updated!",
+    "tagDeleted": "Tag deleted.",
+    "confirmDeleteTag": "Delete this tag? This cannot be undone.",
+    "tagName": "Tag Name",
+    "noTags": "No tags yet. Create one."
   },
   "hints": {
     "title": "Hints",

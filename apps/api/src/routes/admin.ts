@@ -44,6 +44,7 @@ adminRouter.post('/event', asyncHandler(async (req: AuthRequest, res: Response) 
     teamMode: teamMode || 'publicTeams',
     requireClassMembership: requireClassMembership ?? false,
     classType,
+    tags: Array.isArray(req.body.tags) ? req.body.tags : [],
     createdAt: new Date().toISOString(),
   };
   await ref.set(data);
@@ -60,7 +61,7 @@ adminRouter.put('/event/:eventId', asyncHandler(async (req: AuthRequest, res: Re
 
   const before = snap.data();
   const updates: Record<string, any> = {};
-  const allowed = ['name', 'startsAt', 'endsAt', 'timezone', 'published', 'leagueId', 'visibility', 'classId', 'ownerId', 'teamMode', 'requireClassMembership', 'classType'];
+  const allowed = ['name', 'startsAt', 'endsAt', 'timezone', 'published', 'leagueId', 'visibility', 'classId', 'ownerId', 'teamMode', 'requireClassMembership', 'classType', 'tags'];
   for (const k of allowed) {
     if (req.body[k] !== undefined) updates[k] = req.body[k];
   }
@@ -75,12 +76,13 @@ adminRouter.post('/league', asyncHandler(async (req: AuthRequest, res: Response)
   if (!name) return res.status(400).json({ error: 'name required' });
   const db = getDb();
   const ref = db.collection('leagues').doc();
-  const data = {
+  const data: Record<string, any> = {
     name,
     startsAt: startsAt || new Date().toISOString(),
     endsAt: endsAt || new Date(Date.now() + 90 * 86400000).toISOString(),
     published: published ?? false,
     eventIds: eventIds || [],
+    tags: Array.isArray(req.body.tags) ? req.body.tags : [],
     createdAt: new Date().toISOString(),
   };
   await ref.set(data);
@@ -97,7 +99,7 @@ adminRouter.put('/league/:leagueId', asyncHandler(async (req: AuthRequest, res: 
 
   const before = snap.data();
   const updates: Record<string, any> = {};
-  const allowed = ['name', 'startsAt', 'endsAt', 'published', 'eventIds'];
+  const allowed = ['name', 'startsAt', 'endsAt', 'published', 'eventIds', 'tags'];
   for (const k of allowed) {
     if (req.body[k] !== undefined) updates[k] = req.body[k];
   }
@@ -810,3 +812,51 @@ function isSeedAllowed(req: AuthRequest): boolean {
   if (seedToken && req.headers['x-seed-token'] === seedToken) return true;
   return false;
 }
+
+/* ─── Tags CRUD (admin only) ─── */
+adminRouter.get('/tags', asyncHandler(async (_req: AuthRequest, res: Response) => {
+  const db = getDb();
+  const snap = await db.collection('tags').orderBy('name').get();
+  const tags = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  return res.json({ tags });
+}));
+
+adminRouter.post('/tag', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { name, icon } = req.body;
+  if (!name || typeof name !== 'string' || name.trim().length < 1) {
+    return res.status(400).json({ error: 'name is required' });
+  }
+  const db = getDb();
+  const tag = {
+    name: name.trim(),
+    icon: icon || '📁',
+    createdAt: new Date().toISOString(),
+  };
+  const ref = await db.collection('tags').add(tag);
+  await writeAuditLog(req.uid!, 'CREATE_TAG', `tags/${ref.id}`, null, tag);
+  return res.json({ id: ref.id, ...tag });
+}));
+
+adminRouter.put('/tag/:tagId', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { tagId } = req.params;
+  const db = getDb();
+  const ref = db.collection('tags').doc(tagId);
+  const snap = await ref.get();
+  if (!snap.exists) return res.status(404).json({ error: 'Tag not found' });
+  const before = snap.data();
+  const updates: Record<string, any> = {};
+  if (req.body.name !== undefined) updates.name = String(req.body.name).trim();
+  if (req.body.icon !== undefined) updates.icon = req.body.icon;
+  if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'No fields to update' });
+  await ref.update(updates);
+  await writeAuditLog(req.uid!, 'UPDATE_TAG', `tags/${tagId}`, before, updates);
+  return res.json({ id: tagId, ...updates });
+}));
+
+adminRouter.delete('/tag/:tagId', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { tagId } = req.params;
+  const db = getDb();
+  await db.collection('tags').doc(tagId).delete();
+  await writeAuditLog(req.uid!, 'DELETE_TAG', `tags/${tagId}`, null, null);
+  return res.json({ success: true });
+}));

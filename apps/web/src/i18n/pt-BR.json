@@ -231,7 +231,8 @@
     "none": "Nenhuma",
     "totalStudents": "Total de Alunos",
     "totalClasses": "Total de Turmas",
-    "totalEvents": "Total de Eventos"
+    "totalEvents": "Total de Eventos",
+    "events": "Eventos"
   },
   "admin": {
     "title": "Painel Admin",
@@ -291,7 +292,17 @@
     "participateEvent": "Participar de evento",
     "target": "Meta",
     "badgeReward": "Badge de Recompensa",
-    "noQuests": "Nenhuma quest ainda. Crie uma ou carregue os padrões."
+    "noQuests": "Nenhuma quest ainda. Crie uma ou carregue os padrões.",
+    "tags": "Tags",
+    "createTag": "Criar Tag",
+    "editTag": "Editar Tag",
+    "deleteTag": "Excluir Tag",
+    "tagCreated": "Tag criada!",
+    "tagUpdated": "Tag atualizada!",
+    "tagDeleted": "Tag excluída.",
+    "confirmDeleteTag": "Excluir esta tag? Isso não pode ser desfeito.",
+    "tagName": "Nome da Tag",
+    "noTags": "Nenhuma tag ainda. Crie uma."
   },
   "hints": {
     "title": "Dicas",

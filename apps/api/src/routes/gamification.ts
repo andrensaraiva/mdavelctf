@@ -191,6 +191,14 @@ export async function updateQuestProgress(
   }
 }
 
+/* ─── GET /gamification/tags — Get all tags (public for authenticated users) ─── */
+gamificationRouter.get('/tags', asyncHandler(async (_req: AuthRequest, res: Response) => {
+  const db = getDb();
+  const snap = await db.collection('tags').orderBy('name').get();
+  const tags = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  return res.json({ tags });
+}));
+
 /* ─── GET /gamification/badges — Get badge catalog ─── */
 gamificationRouter.get('/badges', asyncHandler(async (req: AuthRequest, res: Response) => {
   const db = getDb();

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { apiGet, apiPost } from '../lib/api';
+import { apiGet, apiPost, apiPut } from '../lib/api';
 import { HudPanel } from '../components/HudPanel';
 import { NeonButton } from '../components/NeonButton';
 import { HudTag } from '../components/HudTag';
@@ -78,16 +78,26 @@ export default function InstructorDashboard() {
   const [chalInlineHints, setChalInlineHints] = useState<{ title: string; content: string; cost: string }[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadingChallenges, setLoadingChallenges] = useState(false);
+  const [availableTags, setAvailableTags] = useState<any[]>([]);
+  const [eventTags, setEventTags] = useState<string[]>([]);
+  // Edit event state
+  const [editEventId, setEditEventId] = useState<string | null>(null);
+  const [showEventForm, setShowEventForm] = useState(false);
+  // Edit challenge state
+  const [editChalId, setEditChalId] = useState<string | null>(null);
+  const [showChalForm, setShowChalForm] = useState(false);
 
   useEffect(() => {
     (async () => {
       try {
-        const [classesRes, eventsRes] = await Promise.all([
+        const [classesRes, eventsRes, tagsRes] = await Promise.all([
           apiGet('/classes/my'),
           apiGet('/classes/instructor/events'),
+          apiGet('/gamification/tags'),
         ]);
         setClasses((classesRes.classes || []).filter((c: ClassSummary) => c.isOwner));
         setEvents(eventsRes.events || []);
+        setAvailableTags(tagsRes.tags || []);
       } catch {}
       setInitialLoading(false);
     })();
@@ -125,31 +135,94 @@ export default function InstructorDashboard() {
 
   const totalStudents = classes.reduce((s, c) => s + c.memberCount, 0);
 
-  const handleCreateEvent = async () => {
+  const resetEventForm = () => {
+    setEventName(''); setStartsAt(''); setEndsAt(''); setEventClassType(''); setEventCustomClassType('');
+    setVisibility('private'); setTeamMode('eventTeams'); setLinkedClassId(''); setEventTags([]);
+    setEditEventId(null); setShowEventForm(false);
+  };
+
+  const openEditEvent = (ev: EventSummary & { classType?: string; tags?: string[] }) => {
+    setEventName(ev.name || '');
+    setStartsAt(ev.startsAt ? new Date(ev.startsAt).toISOString().slice(0, 16) : '');
+    setEndsAt(ev.endsAt ? new Date(ev.endsAt).toISOString().slice(0, 16) : '');
+    setVisibility((ev.visibility as any) || 'private');
+    setLinkedClassId((ev as any).classId || '');
+    setEventClassType((ev as any).classType || '');
+    setEventTags((ev as any).tags || []);
+    setEditEventId(ev.id);
+    setShowEventForm(true);
+    setTab('create-event');
+  };
+
+  const toggleEventTag = (tagId: string) => {
+    setEventTags((prev) => prev.includes(tagId) ? prev.filter((t) => t !== tagId) : [...prev, tagId]);
+  };
+
+  const handleSaveEvent = async () => {
     const finalClassType = eventClassType === '__custom__' ? eventCustomClassType : eventClassType;
     if (!finalClassType) { setMsg('classType is required'); return; }
     try {
-      const res = await apiPost('/classes/instructor/event', {
-        name: eventName,
-        startsAt: new Date(startsAt).toISOString(),
-        endsAt: new Date(endsAt).toISOString(),
-        published: true,
-        visibility,
-        teamMode,
-        classId: linkedClassId || null,
-        classType: finalClassType,
-        requireClassMembership: visibility === 'private',
-      });
-      setMsg('Event created!');
-      setEventName('');
-      setStartsAt('');
-      setEndsAt('');
-      setEvents((prev) => [...prev, { id: res.id, name: res.name, startsAt: res.startsAt, endsAt: res.endsAt, visibility: res.visibility, classId: res.classId, published: res.published }]);
+      if (editEventId) {
+        await apiPut(`/classes/instructor/event/${editEventId}`, {
+          name: eventName,
+          startsAt: new Date(startsAt).toISOString(),
+          endsAt: new Date(endsAt).toISOString(),
+          visibility,
+          classType: finalClassType,
+          tags: eventTags,
+        });
+        setMsg('Event updated!');
+        setEvents((prev) => prev.map((e) => e.id === editEventId ? { ...e, name: eventName, startsAt: new Date(startsAt).toISOString(), endsAt: new Date(endsAt).toISOString(), visibility } : e));
+        resetEventForm();
+      } else {
+        const res = await apiPost('/classes/instructor/event', {
+          name: eventName,
+          startsAt: new Date(startsAt).toISOString(),
+          endsAt: new Date(endsAt).toISOString(),
+          published: true,
+          visibility,
+          teamMode,
+          classId: linkedClassId || null,
+          classType: finalClassType,
+          tags: eventTags,
+          requireClassMembership: visibility === 'private',
+        });
+        setMsg('Event created!');
+        resetEventForm();
+        setEvents((prev) => [...prev, { id: res.id, name: res.name, startsAt: res.startsAt, endsAt: res.endsAt, visibility: res.visibility, classId: res.classId, published: res.published }]);
+      }
       setTimeout(() => setMsg(''), 3000);
     } catch (e: any) { setMsg(e.message); }
   };
 
-  const handleCreateChallenge = async () => {
+  const resetChalForm = () => {
+    setChalTitle(''); setChalDesc(''); setChalFlag(''); setChalPoints(100);
+    setChalCategory(''); setChalCustomCategory(''); setChalDifficulty(1);
+    setChalClassType(''); setChalCustomClassType(''); setChalInlineHints([]);
+    setChalFlagMode('standard'); setChalDecayMin(50); setChalDecayPercent(10);
+    setEditChalId(null); setShowChalForm(false);
+  };
+
+  const openEditChallenge = (ch: any) => {
+    setChalTitle(ch.title || '');
+    setChalCategory(ch.category || '');
+    setChalCustomCategory('');
+    setChalDifficulty(ch.difficulty || 1);
+    setChalPoints(ch.pointsFixed || 100);
+    setChalDesc(ch.descriptionMd || '');
+    setChalFlag('');
+    setChalClassType(ch.classType || '');
+    setChalCustomClassType('');
+    setChalFlagMode(ch.flagMode || 'standard');
+    setChalDecayMin(ch.decayConfig?.minPoints || 50);
+    setChalDecayPercent(ch.decayConfig?.decayPercent || 10);
+    setChalInlineHints((ch.hints || []).map((h: any) => ({ title: h.title, content: h.content, cost: String(h.cost) })));
+    setChalPublished(ch.published ?? true);
+    setEditChalId(ch.id);
+    setShowChalForm(true);
+  };
+
+  const handleSaveChallenge = async () => {
     const finalClassType = chalClassType === '__custom__' ? chalCustomClassType : chalClassType;
     const finalCategory = chalCategory === '__custom__' ? chalCustomCategory : chalCategory;
     if (!selectedEventId || !chalTitle || !finalCategory) {
@@ -158,34 +231,53 @@ export default function InstructorDashboard() {
     }
     if (!finalClassType) { setChalMsg('classType is required'); return; }
     try {
-      const res = await apiPost('/classes/instructor/challenge', {
-        eventId: selectedEventId,
-        title: chalTitle,
-        category: finalCategory,
-        difficulty: chalDifficulty,
-        pointsFixed: chalPoints,
-        descriptionMd: chalDesc,
-        published: chalPublished,
-        flagText: chalFlag || undefined,
-        caseSensitive: chalCaseSensitive,
-        classType: finalClassType,
-        hints: chalInlineHints.map((h) => ({ title: h.title, content: h.content, cost: Number(h.cost) })),
-        flagMode: chalFlagMode,
-        ...(chalFlagMode === 'decay' ? {
-          decayConfig: { minPoints: chalDecayMin, decayPercent: chalDecayPercent },
-        } : {}),
-      });
-      setChallenges((prev) => [...prev, { id: res.id, title: res.title, category: res.category, difficulty: res.difficulty, pointsFixed: res.pointsFixed, published: res.published }]);
-      setChalMsg('Challenge created!');
-      setChalTitle('');
-      setChalDesc('');
-      setChalFlag('');
-      setChalPoints(100);
-      setChalCategory('');
-      setChalCustomCategory('');
-      setChalDifficulty(1);
-      setChalClassType('');
-      setChalInlineHints([]);
+      if (editChalId) {
+        await apiPut(`/classes/instructor/challenge/${editChalId}`, {
+          eventId: selectedEventId,
+          title: chalTitle,
+          category: finalCategory,
+          difficulty: chalDifficulty,
+          pointsFixed: chalPoints,
+          descriptionMd: chalDesc,
+          classType: finalClassType,
+          hints: chalInlineHints.map((h) => ({ title: h.title, content: h.content, cost: Number(h.cost) })),
+          flagMode: chalFlagMode,
+          ...(chalFlagMode === 'decay' ? {
+            decayConfig: { minPoints: chalDecayMin, decayPercent: chalDecayPercent },
+          } : {}),
+        });
+        if (chalFlag) {
+          await apiPost(`/classes/instructor/challenge/${editChalId}/set-flag`, {
+            eventId: selectedEventId, flagText: chalFlag, caseSensitive: chalCaseSensitive,
+          });
+        }
+        setChalMsg('Challenge updated!');
+        resetChalForm();
+        // Reload challenges
+        const res = await apiGet(`/classes/instructor/events/${selectedEventId}/challenges`);
+        setChallenges(res.challenges || []);
+      } else {
+        const res = await apiPost('/classes/instructor/challenge', {
+          eventId: selectedEventId,
+          title: chalTitle,
+          category: finalCategory,
+          difficulty: chalDifficulty,
+          pointsFixed: chalPoints,
+          descriptionMd: chalDesc,
+          published: chalPublished,
+          flagText: chalFlag || undefined,
+          caseSensitive: chalCaseSensitive,
+          classType: finalClassType,
+          hints: chalInlineHints.map((h) => ({ title: h.title, content: h.content, cost: Number(h.cost) })),
+          flagMode: chalFlagMode,
+          ...(chalFlagMode === 'decay' ? {
+            decayConfig: { minPoints: chalDecayMin, decayPercent: chalDecayPercent },
+          } : {}),
+        });
+        setChallenges((prev) => [...prev, { id: res.id, title: res.title, category: res.category, difficulty: res.difficulty, pointsFixed: res.pointsFixed, published: res.published }]);
+        setChalMsg('Challenge created!');
+        resetChalForm();
+      }
       setTimeout(() => setChalMsg(''), 3000);
     } catch (e: any) { setChalMsg(e.message); }
   };
@@ -215,7 +307,7 @@ export default function InstructorDashboard() {
       <TabBar
         tabs={[
           { key: 'classes', label: t('instructor.myClasses'), icon: '📚' },
-          { key: 'create-event', label: t('instructor.createEvent'), icon: '🏁' },
+          { key: 'create-event', label: t('instructor.events') || 'Events', icon: '🏁' },
           { key: 'challenges', label: t('admin.challenges'), icon: '🧩' },
           { key: 'guide', label: t('admin.guide'), icon: '📖' },
         ]}
@@ -259,9 +351,34 @@ export default function InstructorDashboard() {
         </div>
       </TabPanel>
 
-      {/* Create Event Tab */}
+      {/* Events Tab */}
       <TabPanel active={tab} tab="create-event">
-        <HudPanel title={t('instructor.createEvent')}>
+        <HudPanel title={editEventId ? 'Edit Event' : t('instructor.events') || 'Events'}>
+          {/* Event list */}
+          {!showEventForm && (
+            <div className="space-y-2 mb-4">
+              {events.map((ev) => {
+                const evTags = ((ev as any).tags || []).map((tid: string) => availableTags.find((t: any) => t.id === tid)).filter(Boolean);
+                return (
+                  <div key={ev.id} className="flex items-center justify-between p-3 border border-accent/20 hover:border-accent/40 transition-colors group">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-sm text-accent">{ev.name}</span>
+                      <HudTag color={ev.published ? 'var(--success)' : 'var(--warning)'}>{ev.published ? 'Live' : 'Draft'}</HudTag>
+                      <span className="text-xs text-hud-text/40">{ev.visibility}</span>
+                      {evTags.map((tag: any) => (
+                        <HudTag key={tag.id} color="var(--accent)">{tag.icon} {tag.name}</HudTag>
+                      ))}
+                    </div>
+                    <button onClick={() => openEditEvent(ev as any)} className="text-xs px-2 py-1 border border-accent/20 text-accent hover:bg-accent/10 opacity-0 group-hover:opacity-100 transition-opacity">✏️</button>
+                  </div>
+                );
+              })}
+              {events.length === 0 && <p className="text-center text-hud-text/30 py-4 text-sm">No events yet.</p>}
+              <NeonButton size="sm" variant="solid" onClick={() => { resetEventForm(); setShowEventForm(true); }}>+ Create Event</NeonButton>
+            </div>
+          )}
+
+          {showEventForm && (
           <div className="space-y-3">
             <input
               value={eventName}
@@ -317,9 +434,30 @@ export default function InstructorDashboard() {
                 )}
               </div>
             </div>
-            <NeonButton size="sm" variant="solid" onClick={handleCreateEvent}>{t('instructor.createEvent')}</NeonButton>
+            {availableTags.length > 0 && (
+              <div>
+                <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Tags</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {availableTags.map((tag: any) => (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      onClick={() => toggleEventTag(tag.id)}
+                      className={`px-2.5 py-1 text-xs border transition-all flex items-center gap-1 ${eventTags.includes(tag.id) ? 'border-accent bg-accent/15 text-accent' : 'border-accent/20 text-hud-text/50 hover:border-accent/40'}`}
+                    >
+                      <span>{tag.icon}</span> {tag.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="flex gap-2">
+              <NeonButton size="sm" variant="solid" onClick={handleSaveEvent}>{editEventId ? 'Save Changes' : t('instructor.createEvent')}</NeonButton>
+              <NeonButton size="sm" onClick={resetEventForm}>Cancel</NeonButton>
+            </div>
             {msg && <p className="text-accent text-xs mt-2">{msg}</p>}
           </div>
+          )}
         </HudPanel>
       </TabPanel>
 
@@ -353,7 +491,7 @@ export default function InstructorDashboard() {
                 ) : (
                   <div className="space-y-2">
                     {challenges.map((ch) => (
-                      <div key={ch.id} className="flex items-center justify-between border border-accent/15 px-3 py-2">
+                      <div key={ch.id} className="flex items-center justify-between border border-accent/15 px-3 py-2 group">
                         <div className="flex items-center gap-3">
                           <HudTag color={ch.published ? 'var(--success)' : 'var(--warning)'}>{ch.published ? 'Live' : 'Draft'}</HudTag>
                           <span className="text-sm font-bold text-accent">{ch.title}</span>
@@ -361,15 +499,22 @@ export default function InstructorDashboard() {
                           <span className="text-xs text-hud-text/40">⭐{ch.difficulty}</span>
                           <span className="text-xs text-hud-text/40">{ch.pointsFixed}pts</span>
                         </div>
-                        <NeonButton size="sm" onClick={() => handleSetFlag(ch.id)}>Set Flag</NeonButton>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => openEditChallenge(ch)} className="text-xs px-2 py-1 border border-accent/20 text-accent hover:bg-accent/10 opacity-0 group-hover:opacity-100 transition-opacity">✏️</button>
+                          <NeonButton size="sm" onClick={() => handleSetFlag(ch.id)}>Set Flag</NeonButton>
+                        </div>
                       </div>
                     ))}
                   </div>
                 )}
               </HudPanel>
 
-              {/* Create challenge form */}
-              <HudPanel title="Create Challenge">
+              {/* Create/Edit challenge form */}
+              {!showChalForm && (
+                <NeonButton size="sm" variant="solid" onClick={() => { resetChalForm(); setShowChalForm(true); }}>+ Create Challenge</NeonButton>
+              )}
+              {showChalForm && (
+              <HudPanel title={editChalId ? 'Edit Challenge' : 'Create Challenge'}>
                 <div className="space-y-3">
                   <input
                     value={chalTitle}
@@ -382,6 +527,7 @@ export default function InstructorDashboard() {
                       <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Tag *</label>
                       <select value={chalCategory} onChange={(e) => setChalCategory(e.target.value)} className="terminal-input w-full px-3 py-2 text-sm">
                         <option value="">Select tag...</option>
+                        {availableTags.map((tag) => <option key={tag.id} value={tag.name}>{tag.icon} {tag.name}</option>)}
                         {DEFAULT_CLASS_TYPES.map((ct) => (
                           <option key={ct.value} value={ct.value}>{ct.icon} {ct.label}</option>
                         ))}
@@ -420,7 +566,7 @@ export default function InstructorDashboard() {
                   <input
                     value={chalFlag}
                     onChange={(e) => setChalFlag(e.target.value)}
-                    placeholder="Flag (e.g. CTF{example_flag})"
+                    placeholder={editChalId ? 'New flag (leave empty to keep current)' : 'Flag (e.g. CTF{example_flag})'}
                     className="terminal-input w-full px-3 py-2 text-sm font-mono"
                   />
                   {/* Flag Mode */}
@@ -476,10 +622,14 @@ export default function InstructorDashboard() {
                       </div>
                     ))}
                   </div>
-                  <NeonButton size="sm" variant="solid" onClick={handleCreateChallenge}>Create Challenge</NeonButton>
+                  <div className="flex gap-2">
+                    <NeonButton size="sm" variant="solid" onClick={handleSaveChallenge}>{editChalId ? 'Save Changes' : 'Create Challenge'}</NeonButton>
+                    <NeonButton size="sm" onClick={resetChalForm}>Cancel</NeonButton>
+                  </div>
                   {chalMsg && <p className="text-accent text-xs mt-2">{chalMsg}</p>}
                 </div>
               </HudPanel>
+              )}
             </>
           )}
         </div>

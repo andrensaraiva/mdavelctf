@@ -8,7 +8,7 @@ import { TabBar, TabPanel } from '../components/TabBar';
 import { PageHeader } from '../components/PageHeader';
 import { apiPost, apiGet, apiPut, apiDelete } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
-import { EventDoc, LeagueDoc, EventAnalyticsSummary, LeagueAnalyticsSummary, BadgeDoc, DEFAULT_BADGES, DEFAULT_CLASS_TYPES, getTagColor } from '@mdavelctf/shared';
+import { EventDoc, LeagueDoc, EventAnalyticsSummary, LeagueAnalyticsSummary, BadgeDoc, DEFAULT_BADGES, DEFAULT_CLASS_TYPES, getTagColor, TAG_ICON_OPTIONS } from '@mdavelctf/shared';
 import { useTranslation } from 'react-i18next';
 
 function getEventStatus(e: EventDoc) {
@@ -44,6 +44,7 @@ export default function AdminPage() {
           { key: 'users', label: t('admin.users'), icon: '👤' },
           { key: 'badges', label: t('admin.badges'), icon: '🎖️' },
           { key: 'quests', label: t('admin.quests'), icon: '📜' },
+          { key: 'tags', label: t('admin.tags'), icon: '🏷️' },
           { key: 'logs', label: t('admin.logs'), icon: '📋' },
           { key: 'seed', label: 'Seed', icon: '🌱' },
           { key: 'docs', label: t('admin.guide'), icon: '📖' },
@@ -60,6 +61,7 @@ export default function AdminPage() {
       <TabPanel active={tab} tab="users"><AdminUsers /></TabPanel>
       <TabPanel active={tab} tab="badges"><AdminBadges /></TabPanel>
       <TabPanel active={tab} tab="quests"><AdminQuests /></TabPanel>
+      <TabPanel active={tab} tab="tags"><AdminTags /></TabPanel>
       <TabPanel active={tab} tab="logs"><AdminLogs /></TabPanel>
       <TabPanel active={tab} tab="seed"><AdminSeedManager /></TabPanel>
       <TabPanel active={tab} tab="docs"><AdminDocs /></TabPanel>
@@ -435,40 +437,84 @@ function AdminOverview() {
 /* ─── Events Tab ─── */
 function AdminEvents() {
   const [events, setEvents] = useState<any[]>([]);
-  const [name, setName] = useState('');
-  const [startsAt, setStartsAt] = useState('');
-  const [endsAt, setEndsAt] = useState('');
-  const [leagueId, setLeagueId] = useState('');
-  const [classType, setClassType] = useState('');
-  const [customClassType, setCustomClassType] = useState('');
+  const [availableTags, setAvailableTags] = useState<any[]>([]);
   const [msg, setMsg] = useState('');
   const [initialLoading, setInitialLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [form, setForm] = useState({ name: '', startsAt: '', endsAt: '', leagueId: '', classType: '', customClassType: '', tags: [] as string[] });
 
   const load = async () => {
     try {
-      const res = await apiGet('/admin/events');
-      setEvents(res.events || []);
+      const [eRes, tRes] = await Promise.all([
+        apiGet('/admin/events'),
+        apiGet('/gamification/tags'),
+      ]);
+      setEvents(eRes.events || []);
+      setAvailableTags(tRes.tags || []);
     } catch {}
     setInitialLoading(false);
   };
   useEffect(() => { load(); }, []);
 
-  const handleCreate = async () => {
-    const finalClassType = classType === '__custom__' ? customClassType : classType;
-    if (!finalClassType) { setMsg('classType is required'); return; }
+  const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 3000); };
+
+  const resetForm = () => {
+    setForm({ name: '', startsAt: '', endsAt: '', leagueId: '', classType: '', customClassType: '', tags: [] });
+    setEditId(null);
+    setShowForm(false);
+  };
+
+  const openEdit = (e: any) => {
+    setForm({
+      name: e.name || '',
+      startsAt: e.startsAt ? new Date(e.startsAt).toISOString().slice(0, 16) : '',
+      endsAt: e.endsAt ? new Date(e.endsAt).toISOString().slice(0, 16) : '',
+      leagueId: e.leagueId || '',
+      classType: e.classType || '',
+      customClassType: '',
+      tags: e.tags || [],
+    });
+    setEditId(e.id);
+    setShowForm(true);
+  };
+
+  const handleSave = async () => {
+    const finalClassType = form.classType === '__custom__' ? form.customClassType : form.classType;
+    if (!finalClassType) { flash('classType is required'); return; }
     try {
-      await apiPost('/admin/event', {
-        name,
-        startsAt: new Date(startsAt).toISOString(),
-        endsAt: new Date(endsAt).toISOString(),
-        published: true,
-        leagueId: leagueId || null,
-        classType: finalClassType,
-      });
-      setMsg('Event created');
-      setName(''); setStartsAt(''); setEndsAt(''); setClassType('');
+      if (editId) {
+        await apiPut(`/admin/event/${editId}`, {
+          name: form.name,
+          startsAt: new Date(form.startsAt).toISOString(),
+          endsAt: new Date(form.endsAt).toISOString(),
+          leagueId: form.leagueId || null,
+          classType: finalClassType,
+          tags: form.tags,
+        });
+        flash('Event updated');
+      } else {
+        await apiPost('/admin/event', {
+          name: form.name,
+          startsAt: new Date(form.startsAt).toISOString(),
+          endsAt: new Date(form.endsAt).toISOString(),
+          published: true,
+          leagueId: form.leagueId || null,
+          classType: finalClassType,
+          tags: form.tags,
+        });
+        flash('Event created');
+      }
+      resetForm();
       load();
-    } catch (e: any) { setMsg(e.message); }
+    } catch (e: any) { flash(e.message); }
+  };
+
+  const toggleTag = (tagId: string) => {
+    setForm((f) => ({
+      ...f,
+      tags: f.tags.includes(tagId) ? f.tags.filter((t) => t !== tagId) : [...f.tags, tagId],
+    }));
   };
 
   if (initialLoading) {
@@ -481,41 +527,77 @@ function AdminEvents() {
 
   return (
     <HudPanel title="Events Management">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Event Name" className="terminal-input px-3 py-2 text-sm" />
-        <input type="datetime-local" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} className="terminal-input px-3 py-2 text-sm" />
-        <input type="datetime-local" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} className="terminal-input px-3 py-2 text-sm" />
-        <input value={leagueId} onChange={(e) => setLeagueId(e.target.value)} placeholder="League ID (optional)" className="terminal-input px-3 py-2 text-sm" />
+      <div className="flex gap-2 mb-4">
+        <NeonButton size="sm" variant="solid" onClick={() => { resetForm(); setShowForm(!showForm); }}>
+          {showForm && !editId ? 'Cancel' : editId ? 'Cancel Edit' : '+ Create Event'}
+        </NeonButton>
       </div>
-      <div className="mb-4">
-        <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Class Type *</label>
-        <div className="flex gap-2 items-center">
-          <select value={classType} onChange={(e) => setClassType(e.target.value)} className="terminal-input px-3 py-2 text-sm w-full md:w-auto">
-            <option value="">Select class type...</option>
-            {DEFAULT_CLASS_TYPES.map((ct) => <option key={ct.value} value={ct.value}>{ct.icon} {ct.label}</option>)}
-            <option value="__custom__">+ Custom type...</option>
-          </select>
-          {classType === '__custom__' && (
-            <input value={customClassType} onChange={(e) => setCustomClassType(e.target.value)} placeholder="Type name" className="terminal-input px-3 py-2 text-sm" />
-          )}
-        </div>
-      </div>
-      <NeonButton size="sm" variant="solid" onClick={handleCreate}>Create Event</NeonButton>
-      {msg && <p className="text-accent text-xs mt-2">{msg}</p>}
+      {msg && <p className="text-accent text-xs mb-3">{msg}</p>}
 
-      <div className="mt-6 space-y-2">
+      {showForm && (
+        <div className="p-4 border border-accent/20 mb-4 space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Event Name" className="terminal-input px-3 py-2 text-sm" />
+            <input type="datetime-local" value={form.startsAt} onChange={(e) => setForm({ ...form, startsAt: e.target.value })} className="terminal-input px-3 py-2 text-sm" />
+            <input type="datetime-local" value={form.endsAt} onChange={(e) => setForm({ ...form, endsAt: e.target.value })} className="terminal-input px-3 py-2 text-sm" />
+            <input value={form.leagueId} onChange={(e) => setForm({ ...form, leagueId: e.target.value })} placeholder="League ID (optional)" className="terminal-input px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Class Type *</label>
+            <div className="flex gap-2 items-center">
+              <select value={form.classType} onChange={(e) => setForm({ ...form, classType: e.target.value })} className="terminal-input px-3 py-2 text-sm w-full md:w-auto">
+                <option value="">Select class type...</option>
+                {DEFAULT_CLASS_TYPES.map((ct) => <option key={ct.value} value={ct.value}>{ct.icon} {ct.label}</option>)}
+                <option value="__custom__">+ Custom type...</option>
+              </select>
+              {form.classType === '__custom__' && (
+                <input value={form.customClassType} onChange={(e) => setForm({ ...form, customClassType: e.target.value })} placeholder="Type name" className="terminal-input px-3 py-2 text-sm" />
+              )}
+            </div>
+          </div>
+          {availableTags.length > 0 && (
+            <div>
+              <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Tags</label>
+              <div className="flex flex-wrap gap-1.5">
+                {availableTags.map((tag: any) => (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    onClick={() => toggleTag(tag.id)}
+                    className={`px-2.5 py-1 text-xs border transition-all flex items-center gap-1 ${form.tags.includes(tag.id) ? 'border-accent bg-accent/15 text-accent' : 'border-accent/20 text-hud-text/50 hover:border-accent/40'}`}
+                  >
+                    <span>{tag.icon}</span> {tag.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <NeonButton size="sm" variant="solid" onClick={handleSave} disabled={!form.name || !form.startsAt || !form.endsAt}>
+            {editId ? 'Save Changes' : 'Create Event'}
+          </NeonButton>
+        </div>
+      )}
+
+      <div className="mt-2 space-y-2">
         {events.map((e) => {
           const status = getEventStatus(e);
           const statusColor = status === 'LIVE' ? 'var(--success)' : status === 'UPCOMING' ? 'var(--warning)' : 'var(--hud-text)';
+          const eventTags = (e.tags || []).map((tid: string) => availableTags.find((t: any) => t.id === tid)).filter(Boolean);
           return (
-            <div key={e.id} className="flex items-center justify-between p-3 border border-accent/20 hover:border-accent/40 transition-colors">
-              <div className="flex items-center gap-2">
+            <div key={e.id} className="flex items-center justify-between p-3 border border-accent/20 hover:border-accent/40 transition-colors group">
+              <div className="flex items-center gap-2 flex-wrap">
                 {status === 'LIVE' && <span className="live-dot" />}
                 <span className="font-bold text-sm">{e.name}</span>
                 <HudTag color={statusColor}>{status}</HudTag>
                 {e.classType && <HudTag color="var(--accent2)">🏷️ {e.classType}</HudTag>}
+                {eventTags.map((tag: any) => (
+                  <HudTag key={tag.id} color="var(--accent)">{tag.icon} {tag.name}</HudTag>
+                ))}
               </div>
-              <span className="text-xs text-hud-text/40 font-mono">{e.id.slice(0, 12)}</span>
+              <div className="flex items-center gap-2">
+                <button onClick={() => openEdit(e)} className="text-xs px-2 py-1 border border-accent/20 text-accent hover:bg-accent/10 opacity-0 group-hover:opacity-100 transition-opacity">✏️</button>
+                <span className="text-xs text-hud-text/40 font-mono">{e.id.slice(0, 12)}</span>
+              </div>
             </div>
           );
         })}
@@ -527,31 +609,64 @@ function AdminEvents() {
 /* ─── Leagues Tab ─── */
 function AdminLeagues() {
   const [leagues, setLeagues] = useState<any[]>([]);
-  const [name, setName] = useState('');
-  const [eventIds, setEventIds] = useState('');
+  const [availableTags, setAvailableTags] = useState<any[]>([]);
   const [msg, setMsg] = useState('');
   const [initialLoading, setInitialLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [form, setForm] = useState({ name: '', eventIds: '', tags: [] as string[] });
 
   const load = async () => {
     try {
-      const res = await apiGet('/admin/leagues');
-      setLeagues(res.leagues || []);
+      const [lRes, tRes] = await Promise.all([
+        apiGet('/admin/leagues'),
+        apiGet('/gamification/tags'),
+      ]);
+      setLeagues(lRes.leagues || []);
+      setAvailableTags(tRes.tags || []);
     } catch {}
     setInitialLoading(false);
   };
   useEffect(() => { load(); }, []);
 
-  const handleCreate = async () => {
+  const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 3000); };
+
+  const resetForm = () => {
+    setForm({ name: '', eventIds: '', tags: [] });
+    setEditId(null);
+    setShowForm(false);
+  };
+
+  const openEdit = (l: any) => {
+    setForm({
+      name: l.name || '',
+      eventIds: (l.eventIds || []).join(', '),
+      tags: l.tags || [],
+    });
+    setEditId(l.id);
+    setShowForm(true);
+  };
+
+  const handleSave = async () => {
     try {
-      await apiPost('/admin/league', {
-        name,
-        published: true,
-        eventIds: eventIds.split(',').map((s) => s.trim()).filter(Boolean),
-      });
-      setMsg('League created');
-      setName(''); setEventIds('');
+      const eventIdsArr = form.eventIds.split(',').map((s) => s.trim()).filter(Boolean);
+      if (editId) {
+        await apiPut(`/admin/league/${editId}`, { name: form.name, eventIds: eventIdsArr, tags: form.tags });
+        flash('League updated');
+      } else {
+        await apiPost('/admin/league', { name: form.name, published: true, eventIds: eventIdsArr, tags: form.tags });
+        flash('League created');
+      }
+      resetForm();
       load();
-    } catch (e: any) { setMsg(e.message); }
+    } catch (e: any) { flash(e.message); }
+  };
+
+  const toggleTag = (tagId: string) => {
+    setForm((f) => ({
+      ...f,
+      tags: f.tags.includes(tagId) ? f.tags.filter((t) => t !== tagId) : [...f.tags, tagId],
+    }));
   };
 
   if (initialLoading) {
@@ -564,23 +679,61 @@ function AdminLeagues() {
 
   return (
     <HudPanel title="Leagues Management">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="League Name" className="terminal-input px-3 py-2 text-sm" />
-        <input value={eventIds} onChange={(e) => setEventIds(e.target.value)} placeholder="Event IDs (comma-separated)" className="terminal-input px-3 py-2 text-sm" />
+      <div className="flex gap-2 mb-4">
+        <NeonButton size="sm" variant="solid" onClick={() => { resetForm(); setShowForm(!showForm); }}>
+          {showForm && !editId ? 'Cancel' : editId ? 'Cancel Edit' : '+ Create League'}
+        </NeonButton>
       </div>
-      <NeonButton size="sm" variant="solid" onClick={handleCreate}>Create League</NeonButton>
-      {msg && <p className="text-accent text-xs mt-2">{msg}</p>}
+      {msg && <p className="text-accent text-xs mb-3">{msg}</p>}
 
-      <div className="mt-6 space-y-2">
-        {leagues.map((l) => (
-          <div key={l.id} className="flex items-center justify-between p-3 border border-accent/20">
-            <div>
-              <span className="font-bold text-sm">{l.name}</span>
-              <span className="text-xs text-hud-text/40 ml-2">{l.eventIds?.length || 0} events</span>
-            </div>
-            <span className="text-xs text-accent/50 font-mono">{l.id.slice(0, 12)}</span>
+      {showForm && (
+        <div className="p-4 border border-accent/20 mb-4 space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="League Name" className="terminal-input px-3 py-2 text-sm" />
+            <input value={form.eventIds} onChange={(e) => setForm({ ...form, eventIds: e.target.value })} placeholder="Event IDs (comma-separated)" className="terminal-input px-3 py-2 text-sm" />
           </div>
-        ))}
+          {availableTags.length > 0 && (
+            <div>
+              <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Tags</label>
+              <div className="flex flex-wrap gap-1.5">
+                {availableTags.map((tag: any) => (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    onClick={() => toggleTag(tag.id)}
+                    className={`px-2.5 py-1 text-xs border transition-all flex items-center gap-1 ${form.tags.includes(tag.id) ? 'border-accent bg-accent/15 text-accent' : 'border-accent/20 text-hud-text/50 hover:border-accent/40'}`}
+                  >
+                    <span>{tag.icon}</span> {tag.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <NeonButton size="sm" variant="solid" onClick={handleSave} disabled={!form.name}>
+            {editId ? 'Save Changes' : 'Create League'}
+          </NeonButton>
+        </div>
+      )}
+
+      <div className="mt-2 space-y-2">
+        {leagues.map((l) => {
+          const leagueTags = (l.tags || []).map((tid: string) => availableTags.find((t: any) => t.id === tid)).filter(Boolean);
+          return (
+            <div key={l.id} className="flex items-center justify-between p-3 border border-accent/20 hover:border-accent/40 transition-colors group">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-sm">{l.name}</span>
+                <span className="text-xs text-hud-text/40">{l.eventIds?.length || 0} events</span>
+                {leagueTags.map((tag: any) => (
+                  <HudTag key={tag.id} color="var(--accent)">{tag.icon} {tag.name}</HudTag>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => openEdit(l)} className="text-xs px-2 py-1 border border-accent/20 text-accent hover:bg-accent/10 opacity-0 group-hover:opacity-100 transition-opacity">✏️</button>
+                <span className="text-xs text-accent/50 font-mono">{l.id.slice(0, 12)}</span>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </HudPanel>
   );
@@ -591,22 +744,18 @@ function AdminChallenges() {
   const [events, setEvents] = useState<any[]>([]);
   const [eventId, setEventId] = useState('');
   const [challenges, setChallenges] = useState<any[]>([]);
-  const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('');
-  const [customCategory, setCustomCategory] = useState('');
-  const [difficulty, setDifficulty] = useState('1');
-  const [points, setPoints] = useState('100');
-  const [desc, setDesc] = useState('');
-  const [flagText, setFlagText] = useState('');
-  const [flagMode, setFlagMode] = useState<'standard' | 'unique' | 'decay'>('standard');
-  const [decayMin, setDecayMin] = useState('50');
-  const [decayPercent, setDecayPercent] = useState('10');
-  const [classType, setClassType] = useState('');
-  const [customClassType, setCustomClassType] = useState('');
+  const [availableTags, setAvailableTags] = useState<any[]>([]);
   const [msg, setMsg] = useState('');
-  // Inline hints for challenge creation
-  const [inlineHints, setInlineHints] = useState<{ title: string; content: string; cost: string }[]>([]);
-  const [hintMsg, setHintMsg] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+
+  const emptyForm = {
+    title: '', category: '', customCategory: '', difficulty: '1', points: '100',
+    desc: '', flagText: '', flagMode: 'standard' as 'standard' | 'unique' | 'decay',
+    decayMin: '50', decayPercent: '10', classType: '', customClassType: '',
+    inlineHints: [] as { title: string; content: string; cost: string }[],
+  };
+  const [form, setForm] = useState(emptyForm);
   const [filterTag, setFilterTag] = useState('ALL');
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadingChallenges, setLoadingChallenges] = useState(false);
@@ -614,8 +763,12 @@ function AdminChallenges() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await apiGet('/admin/events');
-        setEvents(res.events || []);
+        const [eRes, tRes] = await Promise.all([
+          apiGet('/admin/events'),
+          apiGet('/gamification/tags'),
+        ]);
+        setEvents(eRes.events || []);
+        setAvailableTags(tRes.tags || []);
       } catch {}
       setInitialLoading(false);
     })();
@@ -631,38 +784,92 @@ function AdminChallenges() {
     setLoadingChallenges(false);
   };
 
-  const handleCreate = async () => {
-    const finalClassType = classType === '__custom__' ? customClassType : classType;
-    if (!finalClassType) { setMsg('classType is required'); return; }
-    const finalCategory = category === '__custom__' ? customCategory : category;
-    if (!finalCategory) { setMsg('Tag is required'); return; }
+  const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 3000); };
+
+  const resetForm = () => {
+    setForm(emptyForm);
+    setEditId(null);
+    setShowForm(false);
+  };
+
+  const openEdit = (c: any) => {
+    setForm({
+      title: c.title || '',
+      category: c.category || '',
+      customCategory: '',
+      difficulty: String(c.difficulty || 1),
+      points: String(c.pointsFixed || 100),
+      desc: c.descriptionMd || '',
+      flagText: '',
+      flagMode: c.flagMode || 'standard',
+      decayMin: String(c.decayConfig?.minPoints || 50),
+      decayPercent: String(c.decayConfig?.decayPercent || 10),
+      classType: c.classType || '',
+      customClassType: '',
+      inlineHints: (c.hints || []).map((h: any) => ({ title: h.title, content: h.content, cost: String(h.cost) })),
+    });
+    setEditId(c.id);
+    setShowForm(true);
+  };
+
+  const handleSave = async () => {
+    const finalClassType = form.classType === '__custom__' ? form.customClassType : form.classType;
+    if (!finalClassType) { flash('classType is required'); return; }
+    const finalCategory = form.category === '__custom__' ? form.customCategory : form.category;
+    if (!finalCategory) { flash('Tag is required'); return; }
     try {
-      const res = await apiPost('/admin/challenge', {
-        eventId, title, category: finalCategory,
-        difficulty: Number(difficulty),
-        pointsFixed: Number(points),
-        descriptionMd: desc,
-        tags: [],
-        published: true,
-        classType: finalClassType,
-        hints: inlineHints.map((h) => ({ title: h.title, content: h.content, cost: Number(h.cost) })),
-        flagMode,
-        ...(flagMode === 'decay' ? {
-          decayConfig: {
-            minPoints: Number(decayMin) || 50,
-            decayPercent: Number(decayPercent) || 10,
-          },
-        } : {}),
-      });
-      if (flagText) {
-        await apiPost(`/admin/challenge/${res.id}/set-flag`, {
-          eventId, flagText, caseSensitive: false,
+      if (editId) {
+        await apiPut(`/admin/challenge/${editId}`, {
+          eventId,
+          title: form.title,
+          category: finalCategory,
+          difficulty: Number(form.difficulty),
+          pointsFixed: Number(form.points),
+          descriptionMd: form.desc,
+          classType: finalClassType,
+          hints: form.inlineHints.map((h) => ({ title: h.title, content: h.content, cost: Number(h.cost) })),
+          flagMode: form.flagMode,
+          ...(form.flagMode === 'decay' ? {
+            decayConfig: {
+              minPoints: Number(form.decayMin) || 50,
+              decayPercent: Number(form.decayPercent) || 10,
+            },
+          } : {}),
         });
+        if (form.flagText) {
+          await apiPost(`/admin/challenge/${editId}/set-flag`, {
+            eventId, flagText: form.flagText, caseSensitive: false,
+          });
+        }
+        flash('Challenge updated');
+      } else {
+        const res = await apiPost('/admin/challenge', {
+          eventId, title: form.title, category: finalCategory,
+          difficulty: Number(form.difficulty),
+          pointsFixed: Number(form.points),
+          descriptionMd: form.desc,
+          tags: [],
+          published: true,
+          classType: finalClassType,
+          hints: form.inlineHints.map((h) => ({ title: h.title, content: h.content, cost: Number(h.cost) })),
+          flagMode: form.flagMode,
+          ...(form.flagMode === 'decay' ? {
+            decayConfig: {
+              minPoints: Number(form.decayMin) || 50,
+              decayPercent: Number(form.decayPercent) || 10,
+            },
+          } : {}),
+        });
+        if (form.flagText) {
+          await apiPost(`/admin/challenge/${res.id}/set-flag`, {
+            eventId, flagText: form.flagText, caseSensitive: false,
+          });
+        }
+        flash('Challenge created');
       }
-      setMsg('Challenge created');
-      setTitle(''); setDesc(''); setFlagText(''); setClassType(''); setCategory(''); setCustomCategory(''); setInlineHints([]);
+      resetForm();
       loadChallenges(eventId);
-    } catch (e: any) { setMsg(e.message); }
+    } catch (e: any) { flash(e.message); }
   };
 
   if (initialLoading) {
@@ -687,75 +894,89 @@ function AdminChallenges() {
             <option key={ev.id} value={ev.id}>{ev.name} ({ev.id.slice(0, 8)})</option>
           ))}
         </select>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" className="terminal-input px-3 py-2 text-sm" />
-          <div>
-            <select value={category} onChange={(e) => setCategory(e.target.value)} className="terminal-input px-3 py-2 text-sm w-full">
-              <option value="">Select tag...</option>
-              {DEFAULT_CLASS_TYPES.map((ct) => <option key={ct.value} value={ct.value}>{ct.icon} {ct.label}</option>)}
-              <option value="__custom__">+ Custom tag...</option>
-            </select>
-            {category === '__custom__' && <input value={customCategory} onChange={(e) => setCustomCategory(e.target.value)} placeholder="Tag name" className="terminal-input px-2 py-1 text-sm mt-1 w-full" />}
-          </div>
-          <input value={difficulty} onChange={(e) => setDifficulty(e.target.value)} placeholder="Difficulty 1-5" className="terminal-input px-3 py-2 text-sm" type="number" min="1" max="5" />
-          <input value={points} onChange={(e) => setPoints(e.target.value)} placeholder="Points" className="terminal-input px-3 py-2 text-sm" type="number" />
-        </div>
-        <textarea value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Description (Markdown)" className="terminal-input px-3 py-2 text-sm w-full h-20" />
-        <input value={flagText} onChange={(e) => setFlagText(e.target.value)} placeholder="Flag (e.g. CTF{...})" className="terminal-input px-3 py-2 text-sm w-full" />
-        <div className="mb-2">
-          <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Class Type *</label>
-          <div className="flex gap-2 items-center">
-            <select value={classType} onChange={(e) => setClassType(e.target.value)} className="terminal-input px-3 py-2 text-sm">
-              <option value="">Select...</option>
-              {DEFAULT_CLASS_TYPES.map((ct) => <option key={ct.value} value={ct.value}>{ct.icon} {ct.label}</option>)}
-              <option value="__custom__">+ Custom...</option>
-            </select>
-            {classType === '__custom__' && <input value={customClassType} onChange={(e) => setCustomClassType(e.target.value)} placeholder="Type name" className="terminal-input px-3 py-2 text-sm" />}
-          </div>
-        </div>
-        {/* Inline hints */}
-        <div className="border border-accent/20 p-3 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs uppercase tracking-widest text-accent/70">Hints ({inlineHints.length})</span>
-            <NeonButton size="sm" onClick={() => setInlineHints([...inlineHints, { title: '', content: '', cost: '25' }])}>+ Add Hint</NeonButton>
-          </div>
-          {inlineHints.map((h, i) => (
-            <div key={i} className="grid grid-cols-1 md:grid-cols-4 gap-2 items-start p-2 border border-accent/10">
-              <input value={h.title} onChange={(e) => { const u = [...inlineHints]; u[i].title = e.target.value; setInlineHints(u); }} placeholder="Hint title (visible)" className="terminal-input px-2 py-1 text-sm" />
-              <input value={h.content} onChange={(e) => { const u = [...inlineHints]; u[i].content = e.target.value; setInlineHints(u); }} placeholder="Hint content (hidden)" className="terminal-input px-2 py-1 text-sm md:col-span-2" />
-              <div className="flex gap-2 items-center">
-                <input type="number" min="0" value={h.cost} onChange={(e) => { const u = [...inlineHints]; u[i].cost = e.target.value; setInlineHints(u); }} className="terminal-input px-2 py-1 text-sm w-20" />
-                <span className="text-xs text-hud-text/50">pts</span>
-                <button onClick={() => setInlineHints(inlineHints.filter((_, j) => j !== i))} className="text-danger text-xs">✕</button>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div>
-            <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Flag Mode</label>
-            <select value={flagMode} onChange={(e) => setFlagMode(e.target.value as any)} className="terminal-input px-3 py-2 text-sm w-full">
-              <option value="standard">Standard</option>
-              <option value="unique">🏆 First solver only</option>
-              <option value="decay">📉 Dynamic score</option>
-            </select>
-          </div>
-          {flagMode === 'decay' && (
-            <>
-              <div>
-                <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Minimum Points</label>
-                <input value={decayMin} onChange={(e) => setDecayMin(e.target.value)} type="number" className="terminal-input px-3 py-2 text-sm w-full" />
-              </div>
-              <div>
-                <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Score reduction % per solve</label>
-                <input value={decayPercent} onChange={(e) => setDecayPercent(e.target.value)} type="number" className="terminal-input px-3 py-2 text-sm w-full" />
-              </div>
-            </>
-          )}
-        </div>
       </div>
-      <NeonButton size="sm" variant="solid" onClick={handleCreate}>Create Challenge</NeonButton>
-      {msg && <p className="text-accent text-xs mt-2">{msg}</p>}
+
+      <div className="flex gap-2 mb-4">
+        <NeonButton size="sm" variant="solid" onClick={() => { resetForm(); setShowForm(!showForm); }} disabled={!eventId}>
+          {showForm && !editId ? 'Cancel' : editId ? 'Cancel Edit' : '+ Create Challenge'}
+        </NeonButton>
+      </div>
+      {msg && <p className="text-accent text-xs mb-3">{msg}</p>}
+
+      {showForm && (
+        <div className="p-4 border border-accent/20 mb-4 space-y-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Title" className="terminal-input px-3 py-2 text-sm" />
+            <div>
+              <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="terminal-input px-3 py-2 text-sm w-full">
+                <option value="">Select tag...</option>
+                {availableTags.map((tag) => <option key={tag.id} value={tag.name}>{tag.icon} {tag.name}</option>)}
+                {DEFAULT_CLASS_TYPES.map((ct) => <option key={ct.value} value={ct.value}>{ct.icon} {ct.label}</option>)}
+                <option value="__custom__">+ Custom tag...</option>
+              </select>
+              {form.category === '__custom__' && <input value={form.customCategory} onChange={(e) => setForm({ ...form, customCategory: e.target.value })} placeholder="Tag name" className="terminal-input px-2 py-1 text-sm mt-1 w-full" />}
+            </div>
+            <input value={form.difficulty} onChange={(e) => setForm({ ...form, difficulty: e.target.value })} placeholder="Difficulty 1-5" className="terminal-input px-3 py-2 text-sm" type="number" min="1" max="5" />
+            <input value={form.points} onChange={(e) => setForm({ ...form, points: e.target.value })} placeholder="Points" className="terminal-input px-3 py-2 text-sm" type="number" />
+          </div>
+          <textarea value={form.desc} onChange={(e) => setForm({ ...form, desc: e.target.value })} placeholder="Description (Markdown)" className="terminal-input px-3 py-2 text-sm w-full h-20" />
+          <input value={form.flagText} onChange={(e) => setForm({ ...form, flagText: e.target.value })} placeholder={editId ? 'New flag (leave empty to keep current)' : 'Flag (e.g. CTF{...})'} className="terminal-input px-3 py-2 text-sm w-full" />
+          <div className="mb-2">
+            <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Class Type *</label>
+            <div className="flex gap-2 items-center">
+              <select value={form.classType} onChange={(e) => setForm({ ...form, classType: e.target.value })} className="terminal-input px-3 py-2 text-sm">
+                <option value="">Select...</option>
+                {DEFAULT_CLASS_TYPES.map((ct) => <option key={ct.value} value={ct.value}>{ct.icon} {ct.label}</option>)}
+                <option value="__custom__">+ Custom...</option>
+              </select>
+              {form.classType === '__custom__' && <input value={form.customClassType} onChange={(e) => setForm({ ...form, customClassType: e.target.value })} placeholder="Type name" className="terminal-input px-3 py-2 text-sm" />}
+            </div>
+          </div>
+          {/* Inline hints */}
+          <div className="border border-accent/20 p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs uppercase tracking-widest text-accent/70">Hints ({form.inlineHints.length})</span>
+              <NeonButton size="sm" onClick={() => setForm({ ...form, inlineHints: [...form.inlineHints, { title: '', content: '', cost: '25' }] })}>+ Add Hint</NeonButton>
+            </div>
+            {form.inlineHints.map((h, i) => (
+              <div key={i} className="grid grid-cols-1 md:grid-cols-4 gap-2 items-start p-2 border border-accent/10">
+                <input value={h.title} onChange={(e) => { const u = [...form.inlineHints]; u[i].title = e.target.value; setForm({ ...form, inlineHints: u }); }} placeholder="Hint title (visible)" className="terminal-input px-2 py-1 text-sm" />
+                <input value={h.content} onChange={(e) => { const u = [...form.inlineHints]; u[i].content = e.target.value; setForm({ ...form, inlineHints: u }); }} placeholder="Hint content (hidden)" className="terminal-input px-2 py-1 text-sm md:col-span-2" />
+                <div className="flex gap-2 items-center">
+                  <input type="number" min="0" value={h.cost} onChange={(e) => { const u = [...form.inlineHints]; u[i].cost = e.target.value; setForm({ ...form, inlineHints: u }); }} className="terminal-input px-2 py-1 text-sm w-20" />
+                  <span className="text-xs text-hud-text/50">pts</span>
+                  <button onClick={() => setForm({ ...form, inlineHints: form.inlineHints.filter((_, j) => j !== i) })} className="text-danger text-xs">✕</button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div>
+              <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Flag Mode</label>
+              <select value={form.flagMode} onChange={(e) => setForm({ ...form, flagMode: e.target.value as any })} className="terminal-input px-3 py-2 text-sm w-full">
+                <option value="standard">Standard</option>
+                <option value="unique">🏆 First solver only</option>
+                <option value="decay">📉 Dynamic score</option>
+              </select>
+            </div>
+            {form.flagMode === 'decay' && (
+              <>
+                <div>
+                  <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Minimum Points</label>
+                  <input value={form.decayMin} onChange={(e) => setForm({ ...form, decayMin: e.target.value })} type="number" className="terminal-input px-3 py-2 text-sm w-full" />
+                </div>
+                <div>
+                  <label className="block text-xs uppercase tracking-widest mb-1 text-accent/70">Score reduction % per solve</label>
+                  <input value={form.decayPercent} onChange={(e) => setForm({ ...form, decayPercent: e.target.value })} type="number" className="terminal-input px-3 py-2 text-sm w-full" />
+                </div>
+              </>
+            )}
+          </div>
+          <NeonButton size="sm" variant="solid" onClick={handleSave} disabled={!form.title || !eventId}>
+            {editId ? 'Save Changes' : 'Create Challenge'}
+          </NeonButton>
+        </div>
+      )}
 
       {loadingChallenges && (
         <div className="flex items-center justify-center py-8">
@@ -785,7 +1006,7 @@ function AdminChallenges() {
 
       <div className="mt-4 space-y-2">
         {(filterTag === 'ALL' ? challenges : challenges.filter((c: any) => c.category === filterTag)).map((c: any) => (
-          <div key={c.id} className="p-4 border border-accent/20 hover:border-accent/40 transition-colors">
+          <div key={c.id} className="p-4 border border-accent/20 hover:border-accent/40 transition-colors group">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <HudTag color={getTagColor(c.category)}>{c.category}</HudTag>
@@ -801,6 +1022,7 @@ function AdminChallenges() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
+                <button onClick={() => openEdit(c)} className="text-xs px-2 py-1 border border-accent/20 text-accent hover:bg-accent/10 opacity-0 group-hover:opacity-100 transition-opacity">✏️</button>
                 <span className="text-accent font-extrabold text-lg">{c.pointsFixed} pts</span>
               </div>
             </div>
@@ -1315,6 +1537,136 @@ function AdminQuests() {
       </div>
       {quests.length === 0 && (
         <p className="text-center text-hud-text/30 text-sm py-6">{t('admin.noQuests')}</p>
+      )}
+    </HudPanel>
+  );
+}
+
+/* ─── Tags Tab ─── */
+function AdminTags() {
+  const { t } = useTranslation();
+  const [tags, setTags] = useState<any[]>([]);
+  const [msg, setMsg] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [form, setForm] = useState({ name: '', icon: '📁' });
+
+  const loadTags = async () => {
+    try {
+      const res = await apiGet('/admin/tags');
+      setTags(res.tags || []);
+    } catch {}
+    setInitialLoading(false);
+  };
+
+  useEffect(() => { loadTags(); }, []);
+
+  const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 3000); };
+
+  const resetForm = () => {
+    setForm({ name: '', icon: '📁' });
+    setEditId(null);
+    setShowForm(false);
+  };
+
+  const openEdit = (tag: any) => {
+    setForm({ name: tag.name, icon: tag.icon });
+    setEditId(tag.id);
+    setShowForm(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.name.trim()) { flash(t('admin.tagNameRequired')); return; }
+    setLoading(true);
+    try {
+      if (editId) {
+        await apiPut(`/admin/tag/${editId}`, form);
+        flash(t('admin.tagUpdated'));
+      } else {
+        await apiPost('/admin/tag', form);
+        flash(t('admin.tagCreated'));
+      }
+      resetForm();
+      await loadTags();
+    } catch (e: any) { flash(e.message); }
+    setLoading(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm(t('admin.confirmDeleteTag'))) return;
+    try {
+      await apiDelete(`/admin/tag/${id}`);
+      flash(t('admin.tagDeleted'));
+      await loadTags();
+    } catch (e: any) { flash(e.message); }
+  };
+
+  if (initialLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="inline-block w-6 h-6 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <HudPanel title={t('admin.tags')}>
+      <div className="flex gap-2 mb-4 flex-wrap">
+        <NeonButton size="sm" variant="solid" onClick={() => { resetForm(); setShowForm(!showForm); }}>
+          {showForm ? t('common.cancel') : `+ ${t('admin.createTag')}`}
+        </NeonButton>
+      </div>
+      {msg && <p className="text-accent text-xs mb-3">{msg}</p>}
+
+      {showForm && (
+        <div className="p-4 border border-accent/20 mb-4 space-y-3">
+          <div>
+            <label className="text-xs text-hud-text/50 block mb-1">{t('admin.tagName')}</label>
+            <input className="w-full bg-transparent border border-accent/20 px-3 py-2 text-sm" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Web, Crypto, Forensics" />
+          </div>
+          <div>
+            <label className="text-xs text-hud-text/50 block mb-1">{t('admin.icon')}</label>
+            <div className="flex flex-wrap gap-1.5 p-2 border border-accent/10 max-h-28 overflow-y-auto">
+              {TAG_ICON_OPTIONS.map((ic) => (
+                <button
+                  key={ic}
+                  type="button"
+                  onClick={() => setForm({ ...form, icon: ic })}
+                  className={`w-8 h-8 text-lg flex items-center justify-center border transition-all ${form.icon === ic ? 'border-accent bg-accent/20 scale-110' : 'border-accent/10 hover:border-accent/30'}`}
+                >
+                  {ic}
+                </button>
+              ))}
+            </div>
+            <div className="mt-2 flex items-center gap-2 text-sm text-hud-text/50">
+              {t('admin.selected')}: <span className="text-xl">{form.icon}</span> <span className="font-semibold text-accent">{form.name || '—'}</span>
+            </div>
+          </div>
+          <NeonButton size="sm" variant="solid" onClick={handleSave} disabled={loading || !form.name.trim()}>
+            {loading ? '...' : editId ? t('common.save') : t('admin.createTag')}
+          </NeonButton>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+        {tags.map((tag: any) => (
+          <div key={tag.id} className="p-3 border border-accent/15 flex items-center gap-3 group hover:border-accent/30 transition-all">
+            <span className="text-2xl">{tag.icon}</span>
+            <div className="flex-1 min-w-0">
+              <span className="font-bold text-sm">{tag.name}</span>
+              <div className="text-[10px] text-hud-text/30 font-mono">{tag.id.slice(0, 10)}</div>
+            </div>
+            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button onClick={() => openEdit(tag)} className="text-xs px-2 py-1 border border-accent/20 text-accent hover:bg-accent/10">✏️</button>
+              <button onClick={() => handleDelete(tag.id)} className="text-xs px-2 py-1 border border-danger/20 text-danger hover:bg-danger/10">🗑️</button>
+            </div>
+          </div>
+        ))}
+      </div>
+      {tags.length === 0 && (
+        <p className="text-center text-hud-text/30 text-sm py-6">{t('admin.noTags')}</p>
       )}
     </HudPanel>
   );

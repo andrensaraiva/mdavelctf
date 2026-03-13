@@ -104,6 +104,21 @@ export interface TeamMessageDoc {
   createdAt: string;
 }
 
+/* ─── Tag ─── */
+export interface TagDoc {
+  name: string;
+  icon: string;
+  createdAt: string;
+}
+
+/** Icons available for tag creation */
+export const TAG_ICON_OPTIONS: string[] = [
+  '💻','🌐','🔒','🔐','📊','⚙️','🤖','🎮','🎬','📁',
+  '🧩','🛡️','⚡','🔍','🧪','🏗️','📡','💾','🖥️','📱',
+  '🗄️','🔧','📐','🎯','🏆','📚','✏️','🎨','🧠','💡',
+  '🔥','❄️','🌊','🌿','⭐','💎','🎵','🚀','🛠️','📦',
+];
+
 /* ─── Badge ─── */
 export type BadgeRarity = 'common' | 'rare' | 'epic' | 'legendary';
 
@@ -163,6 +178,7 @@ export interface EventDoc {
   teamMode?: EventTeamMode;            // default 'publicTeams'
   requireClassMembership?: boolean;    // true for private class events
   classType?: string;                  // mandatory class type tag
+  tags?: string[];                     // admin-managed tag IDs
 }
 
 /* ─── Challenge ─── */
@@ -269,6 +285,7 @@ export interface LeagueDoc {
   published: boolean;
   eventIds: string[];
   createdAt: string;
+  tags?: string[];      // admin-managed tag IDs
 }
 
 /* ─── Analytics ─── */

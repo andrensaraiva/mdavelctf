@@ -442,9 +442,109 @@ classesRouter.post('/instructor/event', requireInstructorOrAdmin, asyncHandler(a
     teamMode: teamMode || 'eventTeams',
     requireClassMembership: requireClassMembership ?? (visibility === 'private'),
     classType,
+    tags: Array.isArray(req.body.tags) ? req.body.tags : [],
     createdAt: new Date().toISOString(),
   };
   await ref.set(data);
   await writeAuditLog(uid, 'CREATE_EVENT', `events/${ref.id}`, null, data);
   return res.json({ id: ref.id, ...data });
+}));
+
+/* ─── Edit event (instructor must own the event, or admin) ─── */
+classesRouter.put('/instructor/event/:eventId', requireInstructorOrAdmin, asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { eventId } = req.params;
+  const uid = req.uid!;
+  const db = getDb();
+
+  const eventSnap = await db.collection('events').doc(eventId).get();
+  if (!eventSnap.exists) return res.status(404).json({ error: 'Event not found' });
+  const eventData = eventSnap.data()!;
+
+  const isOwner = eventData.ownerId === uid;
+  const isAdmin = req.userRole === 'admin' || req.userRole === 'superadmin';
+  let classOwner = false;
+  if (eventData.classId) {
+    const cSnap = await db.collection('classes').doc(eventData.classId).get();
+    if (cSnap.exists && cSnap.data()?.ownerInstructorId === uid) classOwner = true;
+  }
+  if (!isOwner && !isAdmin && !classOwner) {
+    return res.status(403).json({ error: 'Not authorized to edit this event' });
+  }
+
+  const before = eventSnap.data();
+  const updates: Record<string, any> = {};
+  const allowed = ['name', 'startsAt', 'endsAt', 'timezone', 'published', 'leagueId', 'visibility', 'classId', 'teamMode', 'requireClassMembership', 'classType', 'tags'];
+  for (const k of allowed) {
+    if (req.body[k] !== undefined) updates[k] = req.body[k];
+  }
+  await db.collection('events').doc(eventId).update(updates);
+  await writeAuditLog(uid, 'UPDATE_EVENT', `events/${eventId}`, before, updates);
+  return res.json({ id: eventId, ...updates });
+}));
+
+/* ─── Edit challenge (instructor must own the event, or admin) ─── */
+classesRouter.put('/instructor/challenge/:challengeId', requireInstructorOrAdmin, asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { challengeId } = req.params;
+  const { eventId } = req.body;
+  if (!eventId) return res.status(400).json({ error: 'eventId required' });
+
+  const uid = req.uid!;
+  const db = getDb();
+
+  const eventSnap = await db.collection('events').doc(eventId).get();
+  if (!eventSnap.exists) return res.status(404).json({ error: 'Event not found' });
+  const eventData = eventSnap.data()!;
+
+  const isOwner = eventData.ownerId === uid;
+  const isAdmin = req.userRole === 'admin' || req.userRole === 'superadmin';
+  let classOwner = false;
+  if (eventData.classId) {
+    const cSnap = await db.collection('classes').doc(eventData.classId).get();
+    if (cSnap.exists && cSnap.data()?.ownerInstructorId === uid) classOwner = true;
+  }
+  if (!isOwner && !isAdmin && !classOwner) {
+    return res.status(403).json({ error: 'Not authorized to edit this challenge' });
+  }
+
+  const ref = db.collection('events').doc(eventId).collection('challenges').doc(challengeId);
+  const chalSnap = await ref.get();
+  if (!chalSnap.exists) return res.status(404).json({ error: 'Challenge not found' });
+
+  const before = chalSnap.data();
+  const updates: Record<string, any> = { updatedAt: new Date().toISOString() };
+  const allowed = ['title', 'category', 'difficulty', 'pointsFixed', 'tags', 'descriptionMd', 'published', 'attachments', 'flagMode', 'decayConfig', 'classType', 'hints'];
+  for (const k of allowed) {
+    if (req.body[k] !== undefined) updates[k] = req.body[k];
+  }
+  await ref.update(updates);
+  await writeAuditLog(uid, 'UPDATE_CHALLENGE', `events/${eventId}/challenges/${challengeId}`, before, updates);
+  return res.json({ id: challengeId, ...updates });
+}));
+
+/* ─── Edit class (owner instructor or admin) ─── */
+classesRouter.put('/:classId', requireInstructorOrAdmin, asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { classId } = req.params;
+  const uid = req.uid!;
+  const db = getDb();
+
+  const classSnap = await db.collection('classes').doc(classId).get();
+  if (!classSnap.exists) return res.status(404).json({ error: 'Class not found' });
+  const classData = classSnap.data()!;
+
+  const isOwner = classData.ownerInstructorId === uid;
+  const isAdmin = req.userRole === 'admin' || req.userRole === 'superadmin';
+  if (!isOwner && !isAdmin) {
+    return res.status(403).json({ error: 'Not authorized to edit this class' });
+  }
+
+  const before = classSnap.data();
+  const updates: Record<string, any> = {};
+  const allowed = ['name', 'description', 'classType', 'themeId', 'icon', 'tags', 'published'];
+  for (const k of allowed) {
+    if (req.body[k] !== undefined) updates[k] = req.body[k];
+  }
+  if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'No fields to update' });
+  await db.collection('classes').doc(classId).update(updates);
+  await writeAuditLog(uid, 'UPDATE_CLASS', `classes/${classId}`, before, updates);
+  return res.json({ id: classId, ...updates });
 }));
