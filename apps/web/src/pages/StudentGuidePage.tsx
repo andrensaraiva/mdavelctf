@@ -333,31 +333,36 @@ export default function StudentGuidePage() {
           </ul>
         </Section>
 
-        <Section id="classtypes" icon="🏷️" title="Tipos de Turma / Class Types">
+        <Section id="classtypes" icon="🏷️" title="Tags e Tipos de Turma / Tags & Class Types">
           <p>
-            Turmas, eventos e desafios podem ter um <strong>Tipo de Turma (classType)</strong> que indica a área de conhecimento.
-            Isso ajuda na organização e na temática visual da plataforma.
+            Turmas, eventos e desafios possuem <strong>tags</strong> que indicam a área de conhecimento.
+            Isso organiza o conteúdo e define a temática visual da plataforma.
           </p>
-          <h4 className="font-bold text-accent mt-3">Tipos disponíveis:</h4>
+          <h4 className="font-bold text-accent mt-3">Tags padrão (built-in):</h4>
           <div className="space-y-2 mt-2">
             <div className="grid grid-cols-2 gap-2">
               {[
-                { name: 'TI', desc: 'Tecnologia da Informação' },
-                { name: 'Administração', desc: 'Gestão e administração' },
-                { name: 'Mecânica', desc: 'Engenharia mecânica' },
-                { name: 'Robótica', desc: 'Robótica e automação' },
-                { name: 'Redes', desc: 'Redes de computadores' },
-                { name: 'Segurança', desc: 'Segurança da informação' },
-                { name: 'Multimídia', desc: 'Design e multimídia' },
-                { name: 'Jogos', desc: 'Desenvolvimento de jogos' },
+                { icon: '💻', name: 'TI', desc: 'Tecnologia da Informação' },
+                { icon: '📊', name: 'Administração', desc: 'Gestão e administração' },
+                { icon: '⚙️', name: 'Mecânica', desc: 'Engenharia mecânica' },
+                { icon: '🤖', name: 'Robótica', desc: 'Robótica e automação' },
+                { icon: '🌐', name: 'Redes', desc: 'Redes de computadores' },
+                { icon: '🔒', name: 'Segurança', desc: 'Segurança da informação' },
+                { icon: '🎬', name: 'Multimídia', desc: 'Design e multimídia' },
+                { icon: '🎮', name: 'Jogos', desc: 'Desenvolvimento de jogos' },
               ].map((t) => (
                 <div key={t.name} className="p-2 border border-accent/15 text-xs">
+                  <span className="mr-1">{t.icon}</span>
                   <span className="font-bold text-accent">{t.name}</span>
                   <span className="text-hud-text/50 ml-1">— {t.desc}</span>
                 </div>
               ))}
             </div>
           </div>
+          <Tip>
+            Além das tags padrão, administradores podem criar <strong>tags personalizadas</strong> com ícones customizados.
+            Novas tags aparecem automaticamente nos filtros de turmas e desafios.
+          </Tip>
           <h4 className="font-bold text-accent mt-3">Temas visuais:</h4>
           <ul className="list-disc list-inside space-y-1">
             <li>Cada turma pode ter um <strong>tema visual</strong> associado que muda as cores da interface</li>

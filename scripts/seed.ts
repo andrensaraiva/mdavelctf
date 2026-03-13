@@ -142,8 +142,8 @@ async function main() {
     memberCount: 2,
     createdAt: new Date().toISOString(),
     avatarUrl: null,
-    description: 'Elite exploit developers and web security enthusiasts.',
-    tagline: 'Connecting the dots, one byte at a time.',
+    description: 'Especialistas em segurança web e criptografia. Focados em vulnerabilidades de aplicações e análise de código.',
+    tagline: 'Conectando os pontos, um byte por vez.',
     stats: { scoreEvent: 0, scoreLeague: 0, solvesTotal: 0 },
   });
   await db.collection('teams').doc(teamAId).collection('members').doc(user1Uid).set({
@@ -165,8 +165,8 @@ async function main() {
     memberCount: 2,
     createdAt: new Date().toISOString(),
     avatarUrl: null,
-    description: 'Reverse engineers and binary exploitation specialists.',
-    tagline: 'From zero to root in 60 seconds.',
+    description: 'Engenheiros reversos e especialistas em exploração binária. Dominam análise forense e pwn.',
+    tagline: 'De zero a root em 60 segundos.',
     stats: { scoreEvent: 0, scoreLeague: 0, solvesTotal: 0 },
   });
   await db.collection('teams').doc(teamBId).collection('members').doc(user3Uid).set({
@@ -220,21 +220,21 @@ async function main() {
 
   const e1Challenges = [
     {
-      id: 'e1c1', title: 'Hello Web', category: 'Segurança', difficulty: 1,
-      pointsFixed: 50, tags: ['http', 'beginner'],
-      descriptionMd: '## Hello Web\n\nCheck the page source for a hidden comment.\n\n```\nHint: View Source\n```',
+      id: 'e1c1', title: 'Código Escondido', category: 'Segurança', difficulty: 1,
+      pointsFixed: 50, tags: ['web', 'html', 'beginner'],
+      descriptionMd: '## Código Escondido\n\nUm desenvolvedor esqueceu de remover informações sensíveis do código-fonte de uma página web.\n\n**Missão:** Inspecione o HTML da página e encontre a flag escondida nos comentários.\n\n```\nhttp://challenge.local/welcome\n```\n\n> Nem tudo que é invisível está realmente oculto. Comentários HTML (`<!-- -->`) podem revelar segredos.',
       flag: 'CTF{mdavel_warmup_web_01}',
     },
     {
-      id: 'e1c2', title: 'Caesar Salad', category: 'Segurança', difficulty: 1,
-      pointsFixed: 75, tags: ['caesar', 'classical'],
-      descriptionMd: '## Caesar Salad\n\nDecrypt this: `PGS{zqniry_jnezhc_pelcgb_02}`\n\nThe shift is classic.',
+      id: 'e1c2', title: 'Cifra de César', category: 'Segurança', difficulty: 1,
+      pointsFixed: 75, tags: ['crypto', 'caesar', 'classical'],
+      descriptionMd: '## Cifra de César\n\nInterceptamos uma mensagem cifrada durante um exercício de reconhecimento:\n\n```\nPGS{zqniry_jnezhc_pelcgb_02}\n```\n\nA cifra usada é uma das mais antigas da história — atribuída a Júlio César. Cada letra é deslocada um número fixo de posições no alfabeto.\n\n**Missão:** Decifre a mensagem e submeta a flag original.',
       flag: 'CTF{mdavel_warmup_crypto_02}',
     },
     {
-      id: 'e1c3', title: 'File Header', category: 'Segurança', difficulty: 2,
-      pointsFixed: 100, tags: ['magic-bytes', 'file-analysis'],
-      descriptionMd: '## File Header\n\nIdentify the file type from its magic bytes:\n\n`89 50 4E 47 0D 0A 1A 0A`\n\nThe flag is the file extension wrapped in flag format.',
+      id: 'e1c3', title: 'Cabeçalho Mágico', category: 'Segurança', difficulty: 2,
+      pointsFixed: 100, tags: ['forensics', 'magic-bytes', 'file-analysis'],
+      descriptionMd: '## Cabeçalho Mágico\n\nTodo arquivo digital possui **magic bytes** (assinatura) nos primeiros bytes que identificam seu formato.\n\nIdentifique o tipo de arquivo:\n\n```\n89 50 4E 47 0D 0A 1A 0A\n```\n\n**Missão:** A flag é a extensão do arquivo no formato `CTF{extensao}`.\n\n> Consulte: https://en.wikipedia.org/wiki/List_of_file_signatures',
       flag: 'CTF{mdavel_warmup_forensics_03}',
     },
   ];
@@ -267,33 +267,33 @@ async function main() {
 
   const e2Challenges = [
     {
-      id: 'e2c1', title: 'SQL Injection 101', category: 'TI', difficulty: 2,
-      pointsFixed: 100, tags: ['sqli', 'auth-bypass'],
-      descriptionMd: '## SQL Injection 101\n\nThe login form is vulnerable to SQL injection.\n\nBypass authentication and find the flag in the admin panel.\n\n**Target:** `http://challenge.local:8080/login`',
+      id: 'e2c1', title: 'Login Bypass', category: 'TI', difficulty: 2,
+      pointsFixed: 100, tags: ['web', 'sqli', 'auth-bypass'],
+      descriptionMd: '## Login Bypass\n\nO formulário de login deste sistema é vulnerável a injeção SQL.\n\n**Cenário:** Você encontrou um painel administrativo com autenticação. Sem credenciais válidas, tente manipular a query SQL para obter acesso.\n\n```\nhttp://challenge.local:8080/login\n```\n\n> SQL Injection ocorre quando dados do usuário são inseridos diretamente em queries SQL sem sanitização.',
       flag: 'CTF{mdavel_weekly1_web_01}',
     },
     {
-      id: 'e2c2', title: 'RSA Basics', category: 'TI', difficulty: 3,
-      pointsFixed: 150, tags: ['rsa', 'factoring'],
-      descriptionMd: '## RSA Basics\n\nGiven:\n- n = 3233\n- e = 17\n- ciphertext = 2790\n\nFactor n and decrypt the message.',
+      id: 'e2c2', title: 'Fator Primo', category: 'TI', difficulty: 3,
+      pointsFixed: 150, tags: ['crypto', 'rsa', 'factoring'],
+      descriptionMd: '## Fator Primo\n\nVocê interceptou uma mensagem cifrada com RSA usando parâmetros fracos:\n\n```\nn = 3233\ne = 17\nciphertext = 2790\n```\n\n**Missão:** Fatore `n` em dois primos, calcule a chave privada `d` e decifre a mensagem.\n\n> RSA é seguro quando n é grande (2048+ bits). Com n pequeno, podemos fatorar facilmente.',
       flag: 'CTF{mdavel_weekly1_crypto_02}',
     },
     {
-      id: 'e2c3', title: 'Hidden Layers', category: 'Multimídia', difficulty: 2,
-      pointsFixed: 100, tags: ['steganography', 'image'],
-      descriptionMd: '## Hidden Layers\n\nExtract the hidden message from the provided PNG file.\n\nTools: `zsteg`, `binwalk`, or `strings`',
-      flag: 'CTF{mdavel_weekly1_forensics_03}',
+      id: 'e2c3', title: 'Pixel Secreto', category: 'Multimídia', difficulty: 2,
+      pointsFixed: 100, tags: ['stego', 'image', 'lsb'],
+      descriptionMd: '## Pixel Secreto\n\nUma imagem PNG aparentemente normal contém uma mensagem oculta nos bits menos significativos (LSB) dos pixels.\n\n**Missão:** Extraia a mensagem escondida.\n\n> Esteganografia é a arte de esconder informações dentro de outros dados. Ferramentas: `zsteg`, `stegsolve`, `binwalk`.',
+      flag: 'CTF{mdavel_weekly1_stego_03}',
     },
     {
-      id: 'e2c4', title: 'GeoGuesser', category: 'Administração', difficulty: 2,
-      pointsFixed: 100, tags: ['geolocation', 'image-analysis'],
-      descriptionMd: '## GeoGuesser\n\nIdentify the location shown in this satellite image.\n\nThe flag is the city name in flag format.',
+      id: 'e2c4', title: 'Rastreio Digital', category: 'Administração', difficulty: 2,
+      pointsFixed: 100, tags: ['osint', 'geolocation', 'metadata'],
+      descriptionMd: '## Rastreio Digital\n\nUma foto foi publicada anonimamente em um fórum. Precisamos identificar a localização onde foi tirada.\n\n**Missão:** Analise os metadados EXIF da imagem e identifique a cidade.\n\n> Fotos de câmeras e celulares frequentemente contêm metadados com GPS, modelo do dispositivo e data. Use `exiftool` para extrair.',
       flag: 'CTF{mdavel_weekly1_osint_04}',
     },
     {
-      id: 'e2c5', title: 'Buffer Overflow 101', category: 'Segurança', difficulty: 4,
-      pointsFixed: 200, tags: ['bof', 'stack', 'x86'],
-      descriptionMd: '## Buffer Overflow 101\n\nA classic stack-based buffer overflow.\n\n```c\nvoid vulnerable() {\n  char buf[64];\n  gets(buf); // uh oh\n}\n```\n\nOverflow the buffer and call `win()`.',
+      id: 'e2c5', title: 'Stack Smash', category: 'Segurança', difficulty: 4,
+      pointsFixed: 200, tags: ['pwn', 'bof', 'stack', 'x86'],
+      descriptionMd: '## Stack Smash\n\nUm binário vulnerável usa `gets()` para ler entrada do usuário:\n\n```c\nvoid vulnerable() {\n  char buf[64];\n  gets(buf); // sem limite de tamanho!\n}\n\nvoid win() {\n  system("/bin/sh");\n}\n```\n\n**Missão:** Faça buffer overflow para sobrescrever o endereço de retorno e chamar `win()`.\n\n> Buffer overflow ocorre quando dados excedem o tamanho do buffer, sobrescrevendo dados adjacentes na stack.',
       flag: 'CTF{mdavel_weekly1_pwn_05}',
     },
   ];
@@ -326,27 +326,27 @@ async function main() {
 
   const e3Challenges = [
     {
-      id: 'e3c1', title: 'XSS Playground', category: 'Redes', difficulty: 3,
-      pointsFixed: 150, tags: ['xss', 'dom'],
-      descriptionMd: '## XSS Playground\n\nFind a reflected XSS vulnerability and steal the admin cookie.\n\nThe flag is in the cookie.',
+      id: 'e3c1', title: 'Cookie Thief', category: 'Redes', difficulty: 3,
+      pointsFixed: 150, tags: ['web', 'xss', 'dom', 'cookies'],
+      descriptionMd: '## Cookie Thief\n\nUma aplicação web não sanitiza a entrada do usuário em um campo de busca, permitindo XSS refletido.\n\n**Cenário:** O admin acessa periodicamente a página de resultados. Injete JavaScript para roubar o cookie dele.\n\n```\nhttp://challenge.local:9090/search?q=\n```\n\n> Cross-Site Scripting (XSS) permite executar JavaScript no navegador da vítima. Tipos: Reflected, Stored, DOM-based.',
       flag: 'CTF{mdavel_weekly2_web_01}',
     },
     {
-      id: 'e3c2', title: 'Vigenère Vault', category: 'Redes', difficulty: 3,
-      pointsFixed: 150, tags: ['vigenere', 'frequency-analysis'],
-      descriptionMd: '## Vigenère Vault\n\nBreak the Vigenère cipher with the given ciphertext.\n\nKey length is 5 characters.',
+      id: 'e3c2', title: 'Cofre Polialfabético', category: 'Redes', difficulty: 3,
+      pointsFixed: 150, tags: ['crypto', 'vigenere', 'frequency-analysis'],
+      descriptionMd: '## Cofre Polialfabético\n\nUma mensagem foi cifrada com a cifra de Vigenère, uma cifra polialfabética que usa uma palavra-chave para variar o deslocamento.\n\n**Dados:**\n- Texto cifrado fornecido no arquivo anexo\n- Comprimento da chave: 5 caracteres\n\n**Missão:** Quebre a cifra e encontre a flag no texto decifrado.\n\n> Use análise de frequência e o método Kasiski para determinar a chave.',
       flag: 'CTF{mdavel_weekly2_crypto_02}',
     },
     {
-      id: 'e3c3', title: 'Reverse Me', category: 'Mecânica', difficulty: 4,
-      pointsFixed: 200, tags: ['binary', 'x86', 'disassembly'],
-      descriptionMd: '## Reverse Me\n\nReverse engineer the binary to find the correct input.\n\nTools: Ghidra, IDA, radare2',
+      id: 'e3c3', title: 'CrackMe', category: 'Mecânica', difficulty: 4,
+      pointsFixed: 200, tags: ['rev', 'binary', 'x86', 'disassembly'],
+      descriptionMd: '## CrackMe\n\nUm binário ELF pede uma senha. Se a senha estiver correta, ele revela a flag.\n\n**Missão:** Faça engenharia reversa para descobrir a lógica de validação e a senha correta.\n\n```bash\n$ ./crackme\nDigite a senha: ???\n```\n\n> Ferramentas: Ghidra, IDA Free, radare2, ou até `strings` e `ltrace` para início rápido.',
       flag: 'CTF{mdavel_weekly2_rev_03}',
     },
     {
-      id: 'e3c4', title: 'Memory Dump', category: 'Redes', difficulty: 3,
-      pointsFixed: 150, tags: ['volatility', 'memory'],
-      descriptionMd: '## Memory Dump\n\nAnalyze the memory dump and find the password used for login.\n\nTool: Volatility 3',
+      id: 'e3c4', title: 'Tráfego Capturado', category: 'Redes', difficulty: 3,
+      pointsFixed: 150, tags: ['forensics', 'network', 'pcap', 'wireshark'],
+      descriptionMd: '## Tráfego Capturado\n\nUm arquivo .pcap contém tráfego de rede capturado durante um ataque. A flag foi transmitida em texto plano.\n\n**Missão:** Analise o tráfego e encontre a flag entre os pacotes.\n\n> Use Wireshark ou tshark. Filtre por protocolos específicos (HTTP, FTP, SMTP) e siga os streams TCP.',
       flag: 'CTF{mdavel_weekly2_forensics_04}',
     },
   ];
@@ -498,10 +498,10 @@ async function main() {
   console.log('\n📦 Step 6: Extending user profiles...');
 
   await db.collection('users').doc(user1Uid).update({
-    bio: 'CTF beginner turned web security enthusiast. Started hacking in 2024.',
+    bio: 'Entusiasta de segurança web e CTFs. Comecei em 2024 e não parei mais! Foco em SQLi e XSS.',
     course: 'Cybersecurity B.Sc.',
     classGroup: 'CS-2026-A',
-    unit: 'Engineering',
+    unit: 'Engenharia',
     xp: 700,
     level: 2,
     badges: ['first_solve', 'team_player'],
@@ -509,15 +509,15 @@ async function main() {
       solvesTotal: 2,
       correctSubmissions: 2,
       wrongSubmissions: 1,
-      solvesByCategory: { Segurança: 1, TI: 1 },
+      solvesByCategory: { TI: 2 },
     },
   });
 
   await db.collection('users').doc(user2Uid).update({
-    bio: 'Forensics nerd. I see hex everywhere.',
-    course: 'Computer Science B.Sc.',
+    bio: 'Forense digital é minha paixão. Vejo hex em todo lugar. Especialista em análise de imagens e metadados.',
+    course: 'Ciência da Computação B.Sc.',
     classGroup: 'CS-2026-B',
-    unit: 'Engineering',
+    unit: 'Engenharia',
     xp: 250,
     level: 2,
     badges: ['first_solve'],
@@ -530,10 +530,10 @@ async function main() {
   });
 
   await db.collection('users').doc(user3Uid).update({
-    bio: 'Binary exploitation is my zen. Reverse engineering is my therapy.',
-    course: 'Information Security M.Sc.',
+    bio: 'Exploração binária é meu zen. Engenharia reversa é minha terapia. Mestre em pwn e rev.',
+    course: 'Segurança da Informação M.Sc.',
     classGroup: 'IS-2025-A',
-    unit: 'Engineering',
+    unit: 'Engenharia',
     xp: 1400,
     level: 3,
     badges: ['first_solve', 'five_solves', 'three_categories', 'team_player', 'speed_demon'],
@@ -541,15 +541,15 @@ async function main() {
       solvesTotal: 3,
       correctSubmissions: 3,
       wrongSubmissions: 1,
-      solvesByCategory: { TI: 1, Segurança: 1, Redes: 1 },
+      solvesByCategory: { TI: 2, Segurança: 1 },
     },
   });
 
   await db.collection('users').doc(user4Uid).update({
-    bio: 'OSINT geek. Loves finding needles in digital haystacks.',
-    course: 'Digital Forensics B.Sc.',
+    bio: 'OSINT geek. Adoro encontrar agulhas em palheiros digitais. Pesquisa e análise de fontes abertas.',
+    course: 'Forense Digital B.Sc.',
     classGroup: 'DF-2026-A',
-    unit: 'Engineering',
+    unit: 'Engenharia',
     xp: 250,
     level: 2,
     badges: ['first_solve'],
@@ -562,9 +562,9 @@ async function main() {
   });
 
   await db.collection('users').doc(adminUid).update({
-    bio: 'Platform admin. Building the playground.',
+    bio: 'Administrador da plataforma MdavelCTF.',
     course: 'Staff',
-    unit: 'IT Department',
+    unit: 'Departamento de TI',
   });
 
   console.log('  ✓ User profiles extended');
@@ -591,9 +591,9 @@ async function main() {
     three_categories:  { name: 'Versatile', description: 'Solve challenges in 3 different tags', icon: '🔀', rarity: 'rare', criteriaKey: 'three_categories', xpReward: 150 },
     five_categories:   { name: 'Full-Spectrum', description: 'Solve challenges in 5 different tags', icon: '🌈', rarity: 'epic', criteriaKey: 'five_categories', xpReward: 300 },
     team_player:       { name: 'Team Player', description: 'Solve 2+ challenges while in a team', icon: '🤝', rarity: 'common', criteriaKey: 'team_player', xpReward: 75 },
-    web_master:        { name: 'Web Master', description: 'Solve 5 Segurança challenges', icon: '🌐', rarity: 'rare', criteriaKey: 'web_master', xpReward: 200 },
-    crypto_breaker:    { name: 'Crypto Breaker', description: 'Solve 5 TI challenges', icon: '🔐', rarity: 'rare', criteriaKey: 'crypto_breaker', xpReward: 200 },
-    forensics_expert:  { name: 'Forensics Expert', description: 'Solve 5 Redes challenges', icon: '🔍', rarity: 'rare', criteriaKey: 'forensics_expert', xpReward: 200 },
+    web_master:        { name: 'Web Master', description: 'Resolva 5 desafios de WEB', icon: '🌐', rarity: 'rare', criteriaKey: 'web_master', xpReward: 200 },
+    crypto_breaker:    { name: 'Crypto Breaker', description: 'Resolva 5 desafios de CRYPTO', icon: '🔐', rarity: 'rare', criteriaKey: 'crypto_breaker', xpReward: 200 },
+    forensics_expert:  { name: 'Forensics Expert', description: 'Resolva 5 desafios de FORENSICS', icon: '🔍', rarity: 'rare', criteriaKey: 'forensics_expert', xpReward: 200 },
     speed_demon:       { name: 'Speed Demon', description: 'Solve a challenge on first attempt', icon: '⚡', rarity: 'common', criteriaKey: 'speed_demon', xpReward: 50 },
     night_owl:         { name: 'Night Owl', description: 'Submit a flag after midnight', icon: '🦉', rarity: 'common', criteriaKey: 'night_owl', xpReward: 50 },
   };
@@ -612,8 +612,8 @@ async function main() {
   const quests = [
     {
       id: 'quest-weekly-warrior',
-      title: 'Weekly Warrior',
-      description: 'Solve 3 challenges this week',
+      title: 'Guerreiro Semanal',
+      description: 'Resolva 3 desafios esta semana para provar sua consistência',
       activeFrom: new Date(now - 1 * DAY).toISOString(),
       activeTo: weekEnd.toISOString(),
       xpReward: 150,
@@ -621,8 +621,8 @@ async function main() {
     },
     {
       id: 'quest-web-hunter',
-      title: 'Web Hunter',
-      description: 'Solve 2 Segurança challenges this week',
+      title: 'Caçador Web',
+      description: 'Resolva 2 desafios com tag WEB esta semana',
       activeFrom: new Date(now - 1 * DAY).toISOString(),
       activeTo: weekEnd.toISOString(),
       xpReward: 100,
@@ -630,8 +630,8 @@ async function main() {
     },
     {
       id: 'quest-crypto-starter',
-      title: 'Crypto Starter',
-      description: 'Solve 1 TI challenge this week',
+      title: 'Iniciante em Crypto',
+      description: 'Resolva pelo menos 1 desafio de criptografia esta semana',
       activeFrom: new Date(now - 1 * DAY).toISOString(),
       activeTo: weekEnd.toISOString(),
       xpReward: 75,
@@ -670,19 +670,19 @@ async function main() {
 
   const chatMessages = [
     // Team SYNAPSE
-    { teamId: teamAId, uid: user1Uid, displayName: 'NeoByte', text: 'Hey team! Let\'s crush this CTF 💪', offset: -15 },
-    { teamId: teamAId, uid: user2Uid, displayName: 'CipherCat', text: 'I\'m working on the forensics challenge', offset: -12 },
-    { teamId: teamAId, uid: user1Uid, displayName: 'NeoByte', text: 'Got the web one! It was basic SQLi', offset: -10 },
-    { teamId: teamAId, uid: user2Uid, displayName: 'CipherCat', text: 'Nice! I found the hidden layers flag too 🎉', offset: -6 },
-    { teamId: teamAId, uid: user1Uid, displayName: 'NeoByte', text: 'RSA challenge was fun. Classic small n factoring', offset: -4 },
-    { teamId: teamAId, uid: user2Uid, displayName: 'CipherCat', text: 'Can you look at the OSINT one? I\'m stuck', offset: -2 },
+    { teamId: teamAId, uid: user1Uid, displayName: 'NeoByte', text: 'Bora time! Vamos dominar esse CTF 💪', offset: -15 },
+    { teamId: teamAId, uid: user2Uid, displayName: 'CipherCat', text: 'Tô focando no desafio de esteganografia, parece ter algo nos LSB', offset: -12 },
+    { teamId: teamAId, uid: user1Uid, displayName: 'NeoByte', text: 'Login Bypass resolvido! Era SQLi clássico com OR 1=1', offset: -10 },
+    { teamId: teamAId, uid: user2Uid, displayName: 'CipherCat', text: 'Achei a flag do Pixel Secreto! zsteg salvou 🎉', offset: -6 },
+    { teamId: teamAId, uid: user1Uid, displayName: 'NeoByte', text: 'Fator Primo foi massa. Fatoração clássica de n pequeno', offset: -4 },
+    { teamId: teamAId, uid: user2Uid, displayName: 'CipherCat', text: 'Consegue olhar o OSINT? Tô travada no de metadados', offset: -2 },
     // Team NULLPULSE
-    { teamId: teamBId, uid: user3Uid, displayName: 'RootRaven', text: 'Let\'s own this leaderboard 🔥', offset: -18 },
-    { teamId: teamBId, uid: user4Uid, displayName: 'PacketPixie', text: 'I\'ll take the OSINT challenge', offset: -16 },
-    { teamId: teamBId, uid: user3Uid, displayName: 'RootRaven', text: 'Web and crypto done. Moving to pwn', offset: -8 },
-    { teamId: teamBId, uid: user4Uid, displayName: 'PacketPixie', text: 'OSINT solved! GeoGuesser was tricky', offset: -5 },
-    { teamId: teamBId, uid: user3Uid, displayName: 'RootRaven', text: 'Buffer overflow got! We\'re leading! 🏆', offset: -3 },
-    { teamId: teamBId, uid: user4Uid, displayName: 'PacketPixie', text: 'Amazing work! 550 total points', offset: -1 },
+    { teamId: teamBId, uid: user3Uid, displayName: 'RootRaven', text: 'Vamos liderar esse placar 🔥 já comecei pelo web', offset: -18 },
+    { teamId: teamBId, uid: user4Uid, displayName: 'PacketPixie', text: 'Fico com o OSINT, adoro análise de metadados', offset: -16 },
+    { teamId: teamBId, uid: user3Uid, displayName: 'RootRaven', text: 'Web e crypto feitos. Partindo pro buffer overflow agora', offset: -8 },
+    { teamId: teamBId, uid: user4Uid, displayName: 'PacketPixie', text: 'OSINT resolvido! exiftool mostrou as coordenadas GPS', offset: -5 },
+    { teamId: teamBId, uid: user3Uid, displayName: 'RootRaven', text: 'Buffer overflow resolvido! Estamos liderando! 🏆', offset: -3 },
+    { teamId: teamBId, uid: user4Uid, displayName: 'PacketPixie', text: 'Excelente trabalho! 550 pontos no total', offset: -1 },
   ];
 
   for (const msg of chatMessages) {
@@ -711,7 +711,7 @@ async function main() {
   const classCode = generateJoinCode();
   await db.collection('classes').doc(classId).set({
     name: 'Cybersecurity 101',
-    description: 'Introduction to cybersecurity techniques and CTF competitions.',
+    description: 'Introdução a técnicas de segurança cibernética e competições CTF. Cobre vulnerabilidades web, criptografia básica, análise forense e OSINT.',
     createdAt: new Date().toISOString(),
     ownerInstructorId: instructorUid,
     inviteCode: classCode,
@@ -774,8 +774,8 @@ async function main() {
     category: 'OSINT',
     difficulty: 1,
     pointsFixed: 50,
-    tags: ['recon', 'beginner'],
-    descriptionMd: '## Recon 101\n\nFind the hidden info on the target website.\n\nHint: Check robots.txt',
+    tags: ['osint', 'recon', 'beginner'],
+    descriptionMd: '## Recon 101\n\nO primeiro passo de qualquer pentest é o **reconhecimento**. Neste desafio, você vai explorar um servidor web em busca de informações que deveriam estar ocultas.\n\n**Missão:** Encontre a flag verificando os arquivos de configuração públicos do servidor.\n\n> Dica: Desenvolvedores frequentemente esquecem de proteger arquivos como robots.txt, .env, sitemap.xml.',
     attachments: [],
     published: true,
     createdAt: new Date().toISOString(),

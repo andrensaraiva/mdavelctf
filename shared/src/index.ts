@@ -424,9 +424,9 @@ export const DEFAULT_BADGES: Record<string, Omit<BadgeDoc, 'criteriaKey'> & { cr
   three_categories:  { name: 'Versatile', description: 'Solve challenges in 3 different categories', icon: '🔀', rarity: 'rare', criteriaKey: 'three_categories', xpReward: 150 },
   five_categories:   { name: 'Full-Spectrum', description: 'Solve challenges in 5 different categories', icon: '🌈', rarity: 'epic', criteriaKey: 'five_categories', xpReward: 300 },
   team_player:       { name: 'Team Player', description: 'Solve 2+ challenges while in a team', icon: '🤝', rarity: 'common', criteriaKey: 'team_player', xpReward: 75 },
-  web_master:        { name: 'Web Master', description: 'Solve 5 WEB challenges', icon: '🌐', rarity: 'rare', criteriaKey: 'web_master', xpReward: 200 },
-  crypto_breaker:    { name: 'Crypto Breaker', description: 'Solve 5 CRYPTO challenges', icon: '🔐', rarity: 'rare', criteriaKey: 'crypto_breaker', xpReward: 200 },
-  forensics_expert:  { name: 'Forensics Expert', description: 'Solve 5 FORENSICS challenges', icon: '🔍', rarity: 'rare', criteriaKey: 'forensics_expert', xpReward: 200 },
+  web_master:        { name: 'Web Master', description: 'Resolva 5 desafios de WEB', icon: '🌐', rarity: 'rare', criteriaKey: 'web_master', xpReward: 200 },
+  crypto_breaker:    { name: 'Crypto Breaker', description: 'Resolva 5 desafios de CRYPTO', icon: '🔐', rarity: 'rare', criteriaKey: 'crypto_breaker', xpReward: 200 },
+  forensics_expert:  { name: 'Forensics Expert', description: 'Resolva 5 desafios de FORENSICS', icon: '🔍', rarity: 'rare', criteriaKey: 'forensics_expert', xpReward: 200 },
   speed_demon:       { name: 'Speed Demon', description: 'Solve a challenge on first attempt', icon: '⚡', rarity: 'common', criteriaKey: 'speed_demon', xpReward: 50 },
   night_owl:         { name: 'Night Owl', description: 'Submit a flag after midnight', icon: '🦉', rarity: 'common', criteriaKey: 'night_owl', xpReward: 50 },
 };

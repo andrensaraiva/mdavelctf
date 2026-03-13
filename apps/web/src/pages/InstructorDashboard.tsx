@@ -684,12 +684,13 @@ function InstructorGuide() {
       title: 'Introdução / Getting Started',
       content: (
         <>
-          <p>Como <Code>instrutor</Code>, você pode gerenciar <strong>turmas</strong>, criar <strong>eventos</strong> e <strong>desafios</strong> de CTF.</p>
-          <p>As <Code>instructor</Code>, you manage <strong>classes</strong>, create <strong>events</strong> and <strong>challenges</strong> linked to them.</p>
+          <p>Como <Code>instrutor</Code>, você pode gerenciar <strong>turmas</strong>, criar <strong>eventos</strong>, <strong>desafios</strong> de CTF e <strong>editar</strong> conteúdo existente.</p>
+          <p>As <Code>instructor</Code>, you manage <strong>classes</strong>, create and edit <strong>events</strong> and <strong>challenges</strong> linked to them.</p>
           <ul className="list-disc list-inside space-y-1">
             <li>Acesse <strong>📚 Turmas</strong> para ver e gerenciar suas turmas</li>
             <li>Use <strong>🏁 Criar Evento</strong> para criar competições para seus alunos</li>
-            <li>Use <strong>🧩 Challenges</strong> para criar desafios nos seus eventos</li>
+            <li>Use <strong>🧩 Challenges</strong> para criar e editar desafios nos seus eventos</li>
+            <li>Clique no ícone ✏️ em eventos e desafios existentes para editá-los</li>
             <li>Consulte <strong>📖 Guia</strong> (esta aba) para instruções detalhadas</li>
           </ul>
         </>
@@ -735,13 +736,14 @@ function InstructorGuide() {
       title: 'Desafios / Challenges',
       content: (
         <>
-          <p>Crie <strong>desafios</strong> diretamente nos seus eventos sem precisar de um admin!</p>
+          <p>Crie <strong>desafios</strong> e <strong>edite-os</strong> diretamente nos seus eventos sem precisar de um admin!</p>
           <ul className="list-disc list-inside space-y-1">
             <li>Acesse a aba <strong>🧩 Challenges</strong> neste painel</li>
             <li>Selecione um <strong>evento que você criou</strong> no dropdown</li>
-            <li>Preencha: <strong>título</strong>, <strong>tag</strong> (mesmas tags das turmas ou custom), <strong>dificuldade</strong> (1-5), <strong>pontos</strong></li>
+            <li>Preencha: <strong>título</strong>, <strong>tag</strong> (tags padrão ou customizadas pelo admin), <strong>dificuldade</strong> (1-5), <strong>pontos</strong></li>
             <li>Escreva a <strong>descrição</strong> em Markdown (suporta código, links, imagens)</li>
             <li>Defina a <strong>flag</strong> (ex: <Code>CTF&#123;minha_flag&#125;</Code>)</li>
+            <li>Para <strong>editar</strong>, clique no ícone ✏️ ao lado do desafio na lista</li>
           </ul>
           <p className="font-bold text-accent mt-3">🏳️ Modos de Flag:</p>
           <ul className="list-disc list-inside space-y-1">
@@ -752,10 +754,11 @@ function InstructorGuide() {
           <p className="text-accent/60 text-xs mt-2">
             Exemplo Decay: 100pts com 10% decay → 100, 90, 81, 73... até o piso.
           </p>
-          <p className="font-bold text-accent mt-3">Alterar flag existente:</p>
+          <p className="font-bold text-accent mt-3">Alterar flag ou editar desafio:</p>
           <ul className="list-disc list-inside space-y-1">
-            <li>Clique no botão <strong>🔑 Set Flag</strong> ao lado do desafio na lista</li>
-            <li>Digite a nova flag e confirme (é hasheada com HMAC-SHA256 + PEPPER)</li>
+            <li>Clique no botão <strong>🔑 Set Flag</strong> ao lado do desafio para alterar a flag</li>
+            <li>Clique no ícone <strong>✏️ Edit</strong> para editar título, descrição, pontos, tags e modo de flag</li>
+            <li>A flag é hasheada com HMAC-SHA256 + PEPPER — ninguém pode ver a flag original</li>
           </ul>
         </>
       ),
@@ -773,9 +776,10 @@ function InstructorGuide() {
             <li>Crie um <strong>evento privado</strong> vinculado à turma</li>
             <li>Vá para a aba <strong>🧩 Challenges</strong> e crie desafios no evento</li>
             <li>Defina as <strong>flags</strong> e escolha o <strong>modo</strong> (Standard, Unique, Decay)</li>
+            <li>Use ✏️ para <strong>editar</strong> eventos ou desafios a qualquer momento</li>
             <li>Acompanhe o progresso pelo <strong>placar</strong> (<Code>/scoreboard</Code>)</li>
           </ol>
-          <p className="text-accent/60 text-xs mt-2">1. Create class → 2. Share code → 3. Create event → 4. Create challenges → 5. Set flags & modes → 6. Monitor scores</p>
+          <p className="text-accent/60 text-xs mt-2">1. Turma → 2. Código → 3. Evento → 4. Desafios → 5. Flags/modos → 6. Editar se necessário → 7. Acompanhar</p>
         </>
       ),
     },
@@ -793,8 +797,10 @@ function InstructorGuide() {
             <li>Use <strong>🏆 Unique</strong> para competições de velocidade (primeiro a resolver ganha)</li>
             <li>Use <strong>📉 Decay</strong> para equilibrar pontos quando muitos resolvem</li>
             <li>Configure <strong>Min Points</strong> alto (ex: 50%) no Decay para evitar pontuações muito baixas</li>
+            <li>Use ✏️ para <strong>editar</strong> eventos e desafios após criação — corrija erros, ajuste pontos ou atualize descrições</li>
             <li>Combine tags variadas para treinar habilidades diversas</li>
             <li>Dificuldade 1-2 para iniciantes, 3-5 para avançados — ajuste os <strong>pontos</strong> proporcionalmente</li>
+            <li>Escreva descrições em <strong>Markdown</strong> com cenários, código e referências educativas</li>
           </ul>
         </>
       ),

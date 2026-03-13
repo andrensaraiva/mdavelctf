@@ -2288,7 +2288,7 @@ function AdminDocs() {
             <Step n={1}><span>Vá para a aba <strong>"Events"</strong> neste painel admin</span></Step>
             <Step n={2}><span>Preencha nome, data de início e fim</span></Step>
             <Step n={3}><span>Clique em <strong>"Create Event"</strong></span></Step>
-            <Step n={4}><span>Anote o <strong>Event ID</strong> para uso na criação de desafios</span></Step>
+            <Step n={4}><span>Para editar, clique no ícone <strong>✏️</strong> ao lado do evento</span></Step>
           </div>
           <h4 className="font-bold text-accent mt-3">Como criar via Instrutor:</h4>
           <div className="space-y-2">
@@ -2318,7 +2318,7 @@ function AdminDocs() {
             {DEFAULT_CLASS_TYPES.map((ct) => (
               <HudTag key={ct.value} color={getTagColor(ct.value)}>{ct.icon} {ct.label}</HudTag>
             ))}
-            <HudTag>+ Custom</HudTag>
+            <HudTag>+ Custom (admin cria)</HudTag>
           </div>
 
           <h4 className="font-bold text-accent mt-3">🏳️ Modos de Flag / Flag Modes:</h4>
@@ -2351,6 +2351,7 @@ function AdminDocs() {
             <Step n={4}><span>Escolha o <strong>Flag Mode</strong> (Standard, Unique ou Decay)</span></Step>
             <Step n={5}><span>Defina a <strong>flag</strong> (ex: <Code>CTF&#123;minha_flag&#125;</Code>)</span></Step>
             <Step n={6}><span>Clique em <strong>"Create Challenge"</strong></span></Step>
+            <Step n={7}><span>Para editar, clique no ícone <strong>✏️</strong> ao lado do desafio criado</span></Step>
           </div>
 
           <h4 className="font-bold text-accent mt-3">Como criar (Instrutor):</h4>
@@ -2359,6 +2360,7 @@ function AdminDocs() {
             <Step n={2}><span>Selecione o evento no dropdown (apenas eventos que você criou)</span></Step>
             <Step n={3}><span>Preencha os dados: título, categoria, dificuldade, pontos, flag</span></Step>
             <Step n={4}><span>Escolha o <strong>Flag Mode</strong> e clique <strong>"Create Challenge"</strong></span></Step>
+            <Step n={5}><span>Use ✏️ para editar desafios existentes ou 🔑 para alterar flags</span></Step>
           </div>
 
           <Tip>
@@ -2517,14 +2519,14 @@ function AdminDocs() {
           <div className="space-y-2">
             <Step n={1}><span>Acesse <Code>/instructor</Code> → aba <strong>🧩 Challenges</strong></span></Step>
             <Step n={2}><span>Selecione o evento que você criou no dropdown</span></Step>
-            <Step n={3}><span>Preencha: título, categoria, dificuldade, pontos, descrição (Markdown)</span></Step>
+            <Step n={3}><span>Preencha: título, categoria, dificuldade, pontos, descrição (Markdown com cenários educativos)</span></Step>
             <Step n={4}><span>Escolha o <strong>Flag Mode</strong>: Standard, Unique (1ª pessoa) ou Decay (pontos decrescem)</span></Step>
             <Step n={5}><span>Defina a <strong>flag</strong> (ex: <Code>CTF&#123;minha_flag&#125;</Code>)</span></Step>
             <Step n={6}><span>Clique <strong>"Create Challenge"</strong></span></Step>
           </div>
           <Tip>
-            Instrutores agora podem criar desafios diretamente nos seus próprios eventos, sem precisar de um admin.
-            Use o botão <strong>"Set Flag"</strong> para alterar a flag de um desafio já criado.
+            Instrutores podem criar e <strong>editar</strong> desafios diretamente nos seus próprios eventos.
+            Use o botão <strong>"Set Flag"</strong> para alterar a flag e <strong>✏️</strong> para editar outros campos.
           </Tip>
 
           <h4 className="font-bold text-accent mt-3">4. Acompanhamento</h4>
@@ -2537,11 +2539,12 @@ function AdminDocs() {
           <h4 className="font-bold text-accent mt-3">5. Boas Práticas</h4>
           <ul className="list-disc list-inside text-xs space-y-0.5 text-hud-text/60">
             <li>Comece com desafios de dificuldade 1-2 para novatos</li>
-            <li>Misture tags variadas para diversificar os desafios</li>
+            <li>Misture tags variadas (web, crypto, forensics) para diversificar</li>
             <li>Use o modo <Code>eventTeams</Code> para promover colaboração</li>
             <li>Ative as quests semanais para manter o engajamento</li>
             <li>Rotacione o código de convite periodicamente</li>
-            <li>Use descrições em Markdown com dicas e links de referência</li>
+            <li>Use descrições em Markdown com cenários educativos, código e links de referência</li>
+            <li>Edite desafios com ✏️ para corrigir erros ou ajustar dificuldade após feedback</li>
           </ul>
         </Section>
 
@@ -2628,17 +2631,17 @@ function AdminDocs() {
 
           <h4 className="font-bold text-accent mt-4">Dados populados pelo seed:</h4>
           <ul className="list-disc list-inside text-xs space-y-0.5 text-hud-text/60 mt-2">
-            <li>5 usuários (1 admin, 1 instrutor, 4 participantes)</li>
-            <li>2 equipes públicas (SYNAPSE, NULLPULSE)</li>
-            <li>1 liga (Season 01) com 3 eventos</li>
-            <li>3 eventos públicos: Warmup CTF (ended), Weekly #1 (live), Weekly #2 (upcoming)</li>
+            <li>5 usuários (1 admin, 1 instrutor, 4 participantes com bios detalhadas)</li>
+            <li>2 equipes públicas (SYNAPSE, NULLPULSE) com descrições em português</li>
+            <li>1 liga (Season 01) com 3 eventos públicos</li>
+            <li>3 eventos: Warmup CTF (ended), Weekly #1 (live), Weekly #2 (upcoming)</li>
             <li>1 evento privado: Class Lab #1 (live, vinculado à turma)</li>
-            <li>12 desafios com flags definidas</li>
-            <li>1 turma: Cybersecurity 101 (3 alunos + instrutor)</li>
+            <li>13 desafios com descrições educativas (WEB, CRYPTO, FORENSICS, OSINT, PWN, REV, STEGO)</li>
+            <li>2 turmas: Cybersecurity 101 + Redes e Infraestrutura</li>
             <li>2 equipes de evento (Team Alpha, Team Bravo)</li>
             <li>Submissões e solves simulados no evento ao vivo</li>
-            <li>Leaderboards e analytics pré-computados</li>
-            <li>Mensagens de chat de equipe</li>
+            <li>Leaderboards, analytics e mensagens de chat em português</li>
+            <li>12 badges e 3 quests com progresso</li>
           </ul>
 
           <h4 className="font-bold text-accent mt-4">URLs úteis:</h4>
