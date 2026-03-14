@@ -161,6 +161,10 @@ export async function clearSeedData(): Promise<{ deleted: string[] }> {
   await deleteCollection('hintUnlocks');
   deleted.push('hintUnlocks:all');
 
+  // 10. Delete tags
+  await deleteCollection('tags');
+  deleted.push('tags:all');
+
   return { deleted };
 }
 
@@ -177,6 +181,34 @@ export async function runSeed(mode: 'minimal' | 'full' = 'full'): Promise<{ summ
   const DAY = 86400000;
   const HOUR = 3600000;
   const MIN = 60000;
+
+  // ── Default Tags (admin-created tags) ──
+  const defaultTags = [
+    { name: 'WEB', icon: '🌐' },
+    { name: 'CRYPTO', icon: '🔐' },
+    { name: 'FORENSICS', icon: '🔍' },
+    { name: 'REVERSE', icon: '⚙️' },
+    { name: 'PWN', icon: '💀' },
+    { name: 'OSINT', icon: '🔎' },
+    { name: 'MISC', icon: '🧩' },
+    { name: 'STEGO', icon: '🎨' },
+    { name: 'NETWORK', icon: '📡' },
+    { name: 'MOBILE', icon: '📱' },
+    { name: 'HARDWARE', icon: '🔧' },
+    { name: 'CLOUD', icon: '☁️' },
+  ];
+  const tagIdMap: Record<string, string> = {};
+  for (const tag of defaultTags) {
+    const existing = await db.collection('tags').where('name', '==', tag.name).limit(1).get();
+    if (existing.empty) {
+      const ref = db.collection('tags').doc();
+      await ref.set({ ...tag, createdAt: new Date().toISOString() });
+      tagIdMap[tag.name] = ref.id;
+    } else {
+      tagIdMap[tag.name] = existing.docs[0].id;
+    }
+  }
+  summary.push(`${defaultTags.length} default tags seeded`);
 
   // ── Users ──
   const superAdminUid = await ensureUser(SUPERADMIN_EMAIL, 'SuperAdmin#12345', 'Super Admin', 'superadmin', { accent: '#ff0055', accent2: '#cc0044' });
@@ -229,6 +261,7 @@ export async function runSeed(mode: 'minimal' | 'full' = 'full'): Promise<{ summ
     startsAt: new Date(now - 7 * DAY).toISOString(),
     endsAt: new Date(now + 60 * DAY).toISOString(),
     published: true, eventIds: [event1Id, event2Id, event3Id],
+    tags: [tagIdMap['WEB'], tagIdMap['CRYPTO'], tagIdMap['FORENSICS']].filter(Boolean),
     createdAt: new Date().toISOString(),
   });
   summary.push('1 league created');
@@ -237,17 +270,19 @@ export async function runSeed(mode: 'minimal' | 'full' = 'full'): Promise<{ summ
   await db.collection('events').doc(event1Id).set({
     name: 'Warmup CTF', startsAt: new Date(now - 2 * DAY).toISOString(),
     endsAt: new Date(now - 1 * DAY).toISOString(), timezone: 'UTC',
-    published: true, leagueId, classType: 'Segurança', createdAt: new Date().toISOString(),
+    published: true, leagueId, classType: 'WEB',
+    tags: [tagIdMap['WEB'], tagIdMap['CRYPTO']].filter(Boolean),
+    createdAt: new Date().toISOString(),
   });
 
   const e1Challenges = [
-    { id: 'e1c1', title: 'Código Escondido', category: 'Segurança', difficulty: 1, pointsFixed: 50, tags: ['web', 'html', 'beginner'], classType: 'Segurança',
+    { id: 'e1c1', title: 'Código Escondido', category: 'WEB', difficulty: 1, pointsFixed: 50, tags: ['web', 'html', 'beginner'], classType: 'WEB',
       descriptionMd: '## Código Escondido\n\nUm desenvolvedor esqueceu de remover informações sensíveis do código-fonte de uma página web.\n\n**Missão:** Inspecione o HTML da página e encontre a flag escondida nos comentários.\n\n```\nhttp://challenge.local/welcome\n```\n\n> Nem tudo que é invisível está realmente oculto. Comentários HTML (`<!-- -->`) podem revelar segredos.',
       flag: 'CTF{mdavel_warmup_web_01}', hints: [{ title: 'Inspecionar Código', content: 'Use Ctrl+U ou clique direito → "Ver código-fonte". Procure por <!-- comentários HTML -->.', cost: 5 }] },
-    { id: 'e1c2', title: 'Cifra de César', category: 'Segurança', difficulty: 1, pointsFixed: 75, tags: ['crypto', 'caesar', 'classical'], classType: 'Segurança',
+    { id: 'e1c2', title: 'Cifra de César', category: 'CRYPTO', difficulty: 1, pointsFixed: 75, tags: ['crypto', 'caesar', 'classical'], classType: 'CRYPTO',
       descriptionMd: '## Cifra de César\n\nInterceptamos uma mensagem cifrada durante um exercício de reconhecimento:\n\n```\nPGS{zqniry_jnezhc_pelcgb_02}\n```\n\nA cifra usada é uma das mais antigas da história — atribuída a Júlio César. Cada letra é deslocada um número fixo de posições no alfabeto.\n\n**Missão:** Decifre a mensagem e submeta a flag original.',
       flag: 'CTF{mdavel_warmup_crypto_02}', hints: [{ title: 'ROT13', content: 'Rotacione o alfabeto 13 posições. Observe: PGS → CTF (P+13=C, G+13=T, S+13=F).', cost: 15 }] },
-    { id: 'e1c3', title: 'Cabeçalho Mágico', category: 'Segurança', difficulty: 2, pointsFixed: 100, tags: ['forensics', 'magic-bytes', 'file-analysis'], classType: 'Segurança',
+    { id: 'e1c3', title: 'Cabeçalho Mágico', category: 'FORENSICS', difficulty: 2, pointsFixed: 100, tags: ['forensics', 'magic-bytes', 'file-analysis'], classType: 'FORENSICS',
       descriptionMd: '## Cabeçalho Mágico\n\nTodo arquivo digital possui **magic bytes** (assinatura) nos primeiros bytes que identificam seu formato.\n\nIdentifique o tipo de arquivo:\n\n```\n89 50 4E 47 0D 0A 1A 0A\n```\n\n**Missão:** A flag é a extensão do arquivo no formato `CTF{extensao}`.\n\n> Consulte: https://en.wikipedia.org/wiki/List_of_file_signatures',
       flag: 'CTF{mdavel_warmup_forensics_03}', hints: [{ title: 'Formato Known', content: 'Os bytes 89 50 4E 47 correspondem à string .PNG — assinatura de imagens PNG.', cost: 20 }] },
   ];
@@ -266,33 +301,35 @@ export async function runSeed(mode: 'minimal' | 'full' = 'full'): Promise<{ summ
   await db.collection('events').doc(event2Id).set({
     name: 'Weekly CTF #1', startsAt: new Date(now - 30 * MIN).toISOString(),
     endsAt: new Date(now + 2 * HOUR).toISOString(), timezone: 'UTC',
-    published: true, leagueId, classType: 'TI', createdAt: new Date().toISOString(),
+    published: true, leagueId, classType: 'WEB',
+    tags: [tagIdMap['WEB'], tagIdMap['CRYPTO'], tagIdMap['PWN'], tagIdMap['OSINT'], tagIdMap['STEGO']].filter(Boolean),
+    createdAt: new Date().toISOString(),
   });
 
   const e2Challenges = [
-    { id: 'e2c1', title: 'Login Bypass', category: 'TI', difficulty: 2, pointsFixed: 100, tags: ['web', 'sqli', 'auth-bypass'], classType: 'TI',
+    { id: 'e2c1', title: 'Login Bypass', category: 'WEB', difficulty: 2, pointsFixed: 100, tags: ['web', 'sqli', 'auth-bypass'], classType: 'WEB',
       descriptionMd: '## Login Bypass\n\nO formulário de login deste sistema é vulnerável a injeção SQL.\n\n**Cenário:** Você encontrou um painel administrativo com autenticação. Sem credenciais válidas, tente manipular a query SQL para obter acesso.\n\n```\nhttp://challenge.local:8080/login\n```\n\n> SQL Injection ocorre quando dados do usuário são inseridos diretamente em queries SQL sem sanitização.',
       flag: 'CTF{mdavel_weekly1_web_01}', hints: [
       { title: 'Aspas Simples', content: 'Digite uma aspa simples (\') no campo de login. Se der erro SQL, é vulnerável!', cost: 10 },
       { title: 'Payload Clássico', content: 'Tente: admin\' OR 1=1 -- no campo de usuário. O -- comenta o resto da query.', cost: 25 },
     ]},
-    { id: 'e2c2', title: 'Fator Primo', category: 'TI', difficulty: 3, pointsFixed: 150, tags: ['crypto', 'rsa', 'factoring'], classType: 'TI',
+    { id: 'e2c2', title: 'Fator Primo', category: 'CRYPTO', difficulty: 3, pointsFixed: 150, tags: ['crypto', 'rsa', 'factoring'], classType: 'CRYPTO',
       descriptionMd: '## Fator Primo\n\nVocê interceptou uma mensagem cifrada com RSA usando parâmetros fracos:\n\n```\nn = 3233\ne = 17\nciphertext = 2790\n```\n\n**Missão:** Fatore `n` em dois primos, calcule a chave privada `d` e decifre a mensagem.\n\n> RSA é seguro quando n é grande (2048+ bits). Com n pequeno, podemos fatorar facilmente.',
       flag: 'CTF{mdavel_weekly1_crypto_02}', hints: [
       { title: 'Primos Pequenos', content: 'n=3233 é produto de dois primos pequenos. Tente dividir por primos: 2, 3, 5, 7, 11...53.', cost: 20 },
       { title: 'Calcular d', content: 'p=53, q=61. Calcule φ(n)=(p-1)(q-1)=3120. Encontre d tal que d·e ≡ 1 (mod 3120).', cost: 45 },
     ]},
-    { id: 'e2c3', title: 'Pixel Secreto', category: 'Multimídia', difficulty: 2, pointsFixed: 100, tags: ['stego', 'image', 'lsb'], classType: 'TI',
+    { id: 'e2c3', title: 'Pixel Secreto', category: 'STEGO', difficulty: 2, pointsFixed: 100, tags: ['stego', 'image', 'lsb'], classType: 'STEGO',
       descriptionMd: '## Pixel Secreto\n\nUma imagem PNG aparentemente normal contém uma mensagem oculta nos bits menos significativos (LSB) dos pixels.\n\n**Missão:** Extraia a mensagem escondida.\n\n> Esteganografia é a arte de esconder informações dentro de outros dados. Ferramentas: `zsteg`, `stegsolve`, `binwalk`.',
       flag: 'CTF{mdavel_weekly1_stego_03}', hints: [
       { title: 'Ferramenta', content: 'Execute: zsteg imagem.png — ele analisa automaticamente vários canais de bits.', cost: 20 },
     ]},
-    { id: 'e2c4', title: 'Rastreio Digital', category: 'Administração', difficulty: 2, pointsFixed: 100, tags: ['osint', 'geolocation', 'metadata'], classType: 'TI',
+    { id: 'e2c4', title: 'Rastreio Digital', category: 'OSINT', difficulty: 2, pointsFixed: 100, tags: ['osint', 'geolocation', 'metadata'], classType: 'OSINT',
       descriptionMd: '## Rastreio Digital\n\nUma foto foi publicada anonimamente em um fórum. Precisamos identificar a localização onde foi tirada.\n\n**Missão:** Analise os metadados EXIF da imagem e identifique a cidade.\n\n> Fotos de câmeras e celulares frequentemente contêm metadados com GPS, modelo do dispositivo e data. Use `exiftool` para extrair.',
       flag: 'CTF{mdavel_weekly1_osint_04}', hints: [
       { title: 'EXIF Data', content: 'Execute: exiftool foto.jpg — procure por GPS Position nos metadados.', cost: 15 },
     ]},
-    { id: 'e2c5', title: 'Stack Smash', category: 'Segurança', difficulty: 4, pointsFixed: 200, tags: ['pwn', 'bof', 'stack', 'x86'], classType: 'TI',
+    { id: 'e2c5', title: 'Stack Smash', category: 'PWN', difficulty: 4, pointsFixed: 200, tags: ['pwn', 'bof', 'stack', 'x86'], classType: 'PWN',
       descriptionMd: '## Stack Smash\n\nUm binário vulnerável usa `gets()` para ler entrada do usuário:\n\n```c\nvoid vulnerable() {\n  char buf[64];\n  gets(buf); // sem limite de tamanho!\n}\n\nvoid win() {\n  system("/bin/sh");\n}\n```\n\n**Missão:** Faça buffer overflow para sobrescrever o endereço de retorno e chamar `win()`.\n\n> Buffer overflow ocorre quando dados excedem o tamanho do buffer, sobrescrevendo dados adjacentes na stack.',
       flag: 'CTF{mdavel_weekly1_pwn_05}', hints: [
       { title: 'Tamanho do Buffer', content: 'O buffer tem 64 bytes. Após ele na stack está o saved RBP (8 bytes) e o return address.', cost: 20 },
@@ -315,23 +352,25 @@ export async function runSeed(mode: 'minimal' | 'full' = 'full'): Promise<{ summ
   await db.collection('events').doc(event3Id).set({
     name: 'Weekly CTF #2', startsAt: new Date(now + 3 * DAY).toISOString(),
     endsAt: new Date(now + 3 * DAY + 3 * HOUR).toISOString(), timezone: 'UTC',
-    published: true, leagueId, classType: 'Redes', createdAt: new Date().toISOString(),
+    published: true, leagueId, classType: 'NETWORK',
+    tags: [tagIdMap['NETWORK'], tagIdMap['WEB'], tagIdMap['CRYPTO'], tagIdMap['REVERSE'], tagIdMap['FORENSICS']].filter(Boolean),
+    createdAt: new Date().toISOString(),
   });
 
   const e3Challenges = [
-    { id: 'e3c1', title: 'Cookie Thief', category: 'Redes', difficulty: 3, pointsFixed: 150, tags: ['web', 'xss', 'dom', 'cookies'], classType: 'Redes',
+    { id: 'e3c1', title: 'Cookie Thief', category: 'WEB', difficulty: 3, pointsFixed: 150, tags: ['web', 'xss', 'dom', 'cookies'], classType: 'WEB',
       descriptionMd: '## Cookie Thief\n\nUma aplicação web não sanitiza a entrada do usuário em um campo de busca, permitindo XSS refletido.\n\n**Cenário:** O admin acessa periodicamente a página de resultados. Injete JavaScript para roubar o cookie dele.\n\n```\nhttp://challenge.local:9090/search?q=\n```\n\n> Cross-Site Scripting (XSS) permite executar JavaScript no navegador da vítima. Tipos: Reflected, Stored, DOM-based.',
       flag: 'CTF{mdavel_weekly2_web_01}', hints: [{ title: 'Tag Script', content: 'Tente inserir <script>alert(1)</script> no parâmetro q. Se executar, é vulnerável!', cost: 20 }] },
-    { id: 'e3c2', title: 'Cofre Polialfabético', category: 'Redes', difficulty: 3, pointsFixed: 150, tags: ['crypto', 'vigenere', 'frequency-analysis'], classType: 'Redes',
+    { id: 'e3c2', title: 'Cofre Polialfabético', category: 'CRYPTO', difficulty: 3, pointsFixed: 150, tags: ['crypto', 'vigenere', 'frequency-analysis'], classType: 'CRYPTO',
       descriptionMd: '## Cofre Polialfabético\n\nUma mensagem foi cifrada com a cifra de Vigenère, uma cifra polialfabética que usa uma palavra-chave para variar o deslocamento.\n\n**Dados:**\n- Texto cifrado fornecido no arquivo anexo\n- Comprimento da chave: 5 caracteres\n\n**Missão:** Quebre a cifra e encontre a flag no texto decifrado.\n\n> Use análise de frequência e o método Kasiski para determinar a chave.',
       flag: 'CTF{mdavel_weekly2_crypto_02}', hints: [{ title: 'Ferramentas Online', content: 'Use dcode.fr/vigenere-cipher — ele pode tentar quebrar automaticamente com análise de frequência.', cost: 25 }] },
-    { id: 'e3c3', title: 'CrackMe', category: 'Mecânica', difficulty: 4, pointsFixed: 200, tags: ['rev', 'binary', 'x86', 'disassembly'], classType: 'Redes',
+    { id: 'e3c3', title: 'CrackMe', category: 'REVERSE', difficulty: 4, pointsFixed: 200, tags: ['rev', 'binary', 'x86', 'disassembly'], classType: 'REVERSE',
       descriptionMd: '## CrackMe\n\nUm binário ELF pede uma senha. Se a senha estiver correta, ele revela a flag.\n\n**Missão:** Faça engenharia reversa para descobrir a lógica de validação e a senha correta.\n\n```bash\n$ ./crackme\nDigite a senha: ???\n```\n\n> Ferramentas: Ghidra, IDA Free, radare2, ou até `strings` e `ltrace` para início rápido.',
       flag: 'CTF{mdavel_weekly2_rev_03}', hints: [
       { title: 'Strings', content: 'Execute: strings crackme | grep CTF — às vezes a flag está em texto plano no binário.', cost: 20 },
       { title: 'Desmontar', content: 'Use Ghidra para descompilar. Procure a função main e a lógica de comparação de strings.', cost: 50 },
     ]},
-    { id: 'e3c4', title: 'Tráfego Capturado', category: 'Redes', difficulty: 3, pointsFixed: 150, tags: ['forensics', 'network', 'pcap', 'wireshark'], classType: 'Redes',
+    { id: 'e3c4', title: 'Tráfego Capturado', category: 'NETWORK', difficulty: 3, pointsFixed: 150, tags: ['forensics', 'network', 'pcap', 'wireshark'], classType: 'NETWORK',
       descriptionMd: '## Tráfego Capturado\n\nUm arquivo .pcap contém tráfego de rede capturado durante um ataque. A flag foi transmitida em texto plano.\n\n**Missão:** Analise o tráfego e encontre a flag entre os pacotes.\n\n> Use Wireshark ou tshark. Filtre por protocolos específicos (HTTP, FTP, SMTP) e siga os streams TCP.',
       flag: 'CTF{mdavel_weekly2_forensics_04}', hints: [
       { title: 'Follow TCP Stream', content: 'No Wireshark: clique direito em um pacote → Follow → TCP Stream. Procure por texto legível.', cost: 20 },
@@ -423,20 +462,20 @@ export async function runSeed(mode: 'minimal' | 'full' = 'full'): Promise<{ summ
   // ── User profiles ──
   await db.collection('users').doc(user1Uid).update({
     bio: 'Entusiasta de segurança web e CTFs. Comecei em 2024 e não parei mais! Foco em SQLi e XSS.', course: 'Cybersecurity B.Sc.', classGroup: 'CS-2026-A', unit: 'Engenharia',
-    xp: 700, level: 2, badges: ['first_solve', 'team_player'], stats: { solvesTotal: 2, correctSubmissions: 2, wrongSubmissions: 1, solvesByCategory: { TI: 2 } },
+    xp: 700, level: 2, badges: ['first_solve', 'team_player'], stats: { solvesTotal: 2, correctSubmissions: 2, wrongSubmissions: 1, solvesByCategory: { WEB: 2 } },
   });
   await db.collection('users').doc(user2Uid).update({
     bio: 'Forense digital é minha paixão. Vejo hex em todo lugar. Especialista em análise de imagens e metadados.', course: 'Ciência da Computação B.Sc.', classGroup: 'CS-2026-B', unit: 'Engenharia',
-    xp: 250, level: 2, badges: ['first_solve'], stats: { solvesTotal: 1, correctSubmissions: 1, wrongSubmissions: 1, solvesByCategory: { Multimídia: 1 } },
+    xp: 250, level: 2, badges: ['first_solve'], stats: { solvesTotal: 1, correctSubmissions: 1, wrongSubmissions: 1, solvesByCategory: { STEGO: 1 } },
   });
   await db.collection('users').doc(user3Uid).update({
     bio: 'Exploração binária é meu zen. Engenharia reversa é minha terapia. Mestre em pwn e rev.', course: 'Segurança da Informação M.Sc.', classGroup: 'IS-2025-A', unit: 'Engenharia',
     xp: 1400, level: 3, badges: ['first_solve', 'five_solves', 'three_categories', 'team_player', 'speed_demon'],
-    stats: { solvesTotal: 3, correctSubmissions: 3, wrongSubmissions: 1, solvesByCategory: { TI: 2, Segurança: 1 } },
+    stats: { solvesTotal: 3, correctSubmissions: 3, wrongSubmissions: 1, solvesByCategory: { WEB: 1, CRYPTO: 1, PWN: 1 } },
   });
   await db.collection('users').doc(user4Uid).update({
     bio: 'OSINT geek. Adoro encontrar agulhas em palheiros digitais. Pesquisa e análise de fontes abertas.', course: 'Forense Digital B.Sc.', classGroup: 'DF-2026-A', unit: 'Engenharia',
-    xp: 250, level: 2, badges: ['first_solve'], stats: { solvesTotal: 1, correctSubmissions: 1, wrongSubmissions: 0, solvesByCategory: { Administração: 1 } },
+    xp: 250, level: 2, badges: ['first_solve'], stats: { solvesTotal: 1, correctSubmissions: 1, wrongSubmissions: 0, solvesByCategory: { OSINT: 1 } },
   });
   await db.collection('users').doc(adminUid).update({ bio: 'Administrador da plataforma MdavelCTF.', course: 'Staff', unit: 'Departamento de TI' });
   summary.push('User profiles extended');
@@ -469,8 +508,8 @@ export async function runSeed(mode: 'minimal' | 'full' = 'full'): Promise<{ summ
   const weekEnd = new Date(now + 7 * DAY);
   const quests = [
     { id: 'quest-weekly-warrior', title: 'Guerreiro Semanal', description: 'Resolva 3 desafios esta semana para provar sua consistência', activeFrom: new Date(now - 1 * DAY).toISOString(), activeTo: weekEnd.toISOString(), xpReward: 150, rules: { type: 'solve_total', target: 3 } },
-    { id: 'quest-web-hunter', title: 'Caçador Web', description: 'Resolva 2 desafios com tag WEB esta semana', activeFrom: new Date(now - 1 * DAY).toISOString(), activeTo: weekEnd.toISOString(), xpReward: 100, rules: { type: 'solve_category', target: 2, category: 'Segurança' } },
-    { id: 'quest-crypto-starter', title: 'Iniciante em Crypto', description: 'Resolva pelo menos 1 desafio de criptografia esta semana', activeFrom: new Date(now - 1 * DAY).toISOString(), activeTo: weekEnd.toISOString(), xpReward: 75, rules: { type: 'solve_category', target: 1, category: 'TI' } },
+    { id: 'quest-web-hunter', title: 'Caçador Web', description: 'Resolva 2 desafios WEB esta semana', activeFrom: new Date(now - 1 * DAY).toISOString(), activeTo: weekEnd.toISOString(), xpReward: 100, rules: { type: 'solve_category', target: 2, category: 'WEB' } },
+    { id: 'quest-crypto-starter', title: 'Iniciante em Crypto', description: 'Resolva pelo menos 1 desafio CRYPTO esta semana', activeFrom: new Date(now - 1 * DAY).toISOString(), activeTo: weekEnd.toISOString(), xpReward: 75, rules: { type: 'solve_category', target: 1, category: 'CRYPTO' } },
   ];
   for (const q of quests) {
     const { id, ...data } = q;
@@ -509,7 +548,8 @@ export async function runSeed(mode: 'minimal' | 'full' = 'full'): Promise<{ summ
   await db.collection('classes').doc(classId).set({
     name: 'Cybersecurity 101', description: 'Introdução a técnicas de segurança cibernética e competições CTF. Cobre vulnerabilidades web, criptografia básica, análise forense e OSINT.',
     createdAt: new Date().toISOString(), ownerInstructorId: instructorUid, inviteCode: classCode, published: true,
-    classType: 'Segurança', themeId: 'neon-cyber', icon: '🛡️', tags: ['security', 'beginner', 'web'],
+    classType: 'WEB', themeId: 'neon-cyber', icon: '🛡️',
+    tags: [tagIdMap['WEB'], tagIdMap['CRYPTO'], tagIdMap['FORENSICS']].filter(Boolean),
     settings: { defaultEventVisibility: 'private', allowStudentPublicTeams: true },
   });
   await db.collection('classes').doc(classId).collection('members').doc(instructorUid).set({ uid: instructorUid, roleInClass: 'instructor', joinedAt: new Date().toISOString(), displayNameSnapshot: 'Prof. Mdavel' });
@@ -526,13 +566,14 @@ export async function runSeed(mode: 'minimal' | 'full' = 'full'): Promise<{ summ
     name: 'Class Lab #1 — Intro Challenges', startsAt: new Date(now - 1 * HOUR).toISOString(),
     endsAt: new Date(now + 4 * HOUR).toISOString(), timezone: 'UTC', published: true,
     leagueId: null, visibility: 'private', classId, ownerId: instructorUid,
-    teamMode: 'eventTeams', requireClassMembership: true, classType: 'Segurança',
+    teamMode: 'eventTeams', requireClassMembership: true, classType: 'OSINT',
+    tags: [tagIdMap['OSINT']].filter(Boolean),
     createdAt: new Date().toISOString(),
   });
   const e4c1flag = normalizeFlag('CTF{mdavel_classlab_osint_01}', false);
   await db.collection('events').doc(event4Id).collection('challenges').doc('e4c1').set({
     title: 'Recon 101', category: 'OSINT', difficulty: 1, pointsFixed: 50,
-    tags: ['osint', 'recon', 'beginner'], classType: 'Segurança', descriptionMd: '## Recon 101\n\nO primeiro passo de qualquer pentest é o **reconhecimento**. Neste desafio, você vai explorar um servidor web em busca de informações que deveriam estar ocultas.\n\n**Missão:** Encontre a flag verificando os arquivos de configuração públicos do servidor.\n\n> Dica: Desenvolvedores frequentemente esquecem de proteger arquivos como robots.txt, .env, sitemap.xml.',
+    tags: ['osint', 'recon', 'beginner'], classType: 'OSINT', descriptionMd: '## Recon 101\n\nO primeiro passo de qualquer pentest é o **reconhecimento**. Neste desafio, você vai explorar um servidor web em busca de informações que deveriam estar ocultas.\n\n**Missão:** Encontre a flag verificando os arquivos de configuração públicos do servidor.\n\n> Dica: Desenvolvedores frequentemente esquecem de proteger arquivos como robots.txt, .env, sitemap.xml.',
     attachments: [], published: true, hints: [{ title: 'Robots', content: 'Navigate to /robots.txt on the target.', cost: 10 }],
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
   });
@@ -571,11 +612,44 @@ export async function runSeed(mode: 'minimal' | 'full' = 'full'): Promise<{ summ
   await db.collection('classes').doc(class2Id).set({
     name: 'Redes e Infraestrutura', description: 'Análise de tráfego de rede, captura de pacotes com Wireshark, protocolos TCP/IP e segurança de infraestrutura.',
     createdAt: new Date().toISOString(), ownerInstructorId: instructorUid, inviteCode: class2Code, published: true,
-    classType: 'Redes', themeId: 'deep-ocean', icon: '🌊', tags: ['networking', 'infrastructure'],
+    classType: 'NETWORK', themeId: 'deep-ocean', icon: '🌊',
+    tags: [tagIdMap['NETWORK'], tagIdMap['FORENSICS']].filter(Boolean),
     settings: { defaultEventVisibility: 'private', allowStudentPublicTeams: true },
   });
   await db.collection('classes').doc(class2Id).collection('members').doc(instructorUid).set({ uid: instructorUid, roleInClass: 'instructor', joinedAt: new Date().toISOString(), displayNameSnapshot: 'Prof. Mdavel' });
-  summary.push('2 classes created');
+  await db.collection('classes').doc(class2Id).collection('members').doc(user4Uid).set({ uid: user4Uid, roleInClass: 'student', joinedAt: new Date().toISOString(), displayNameSnapshot: 'PacketPixie' });
+  for (const uid of [instructorUid, user4Uid]) {
+    await db.collection('users').doc(uid).update({ classIds: admin.firestore.FieldValue.arrayUnion(class2Id) });
+  }
+  summary.push('2 classes total created');
+
+  // ── Third class (Admin-owned) for variety ──
+  const class3Id = 'class-admin-demo';
+  const class3Code = generateJoinCode();
+  await db.collection('classes').doc(class3Id).set({
+    name: 'CTF Training — Demo', description: 'Turma de demonstração criada pelo admin para validar funcionalidades da plataforma.',
+    createdAt: new Date().toISOString(), ownerInstructorId: adminUid, inviteCode: class3Code, published: true,
+    classType: 'MISC', themeId: 'amber-terminal', icon: '🎮',
+    tags: [tagIdMap['MISC'], tagIdMap['WEB']].filter(Boolean),
+    settings: { defaultEventVisibility: 'public', allowStudentPublicTeams: true },
+  });
+  await db.collection('classes').doc(class3Id).collection('members').doc(adminUid).set({ uid: adminUid, roleInClass: 'instructor', joinedAt: new Date().toISOString(), displayNameSnapshot: 'Admin Mdavel' });
+  await db.collection('users').doc(adminUid).update({ classIds: admin.firestore.FieldValue.arrayUnion(class3Id) });
+  summary.push('3 classes total created');
+
+  // ── Clear old tags collection ──
+  // (tags already seeded at top)
+
+  // ── Hint Unlocks (simulate some hint purchases) ──
+  await db.collection('hintUnlocks').add({
+    uid: user1Uid, challengeId: 'e2c1', hintIndex: 0, eventId: event2Id,
+    unlockedAt: new Date(now - 10 * MIN).toISOString(), costDeducted: 10,
+  });
+  await db.collection('hintUnlocks').add({
+    uid: user3Uid, challengeId: 'e2c5', hintIndex: 0, eventId: event2Id,
+    unlockedAt: new Date(now - 8 * MIN).toISOString(), costDeducted: 20,
+  });
+  summary.push('2 hint unlocks simulated');
 
   return { summary };
 }

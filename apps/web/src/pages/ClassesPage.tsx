@@ -8,7 +8,6 @@ import { EmptyState } from '../components/EmptyState';
 import { PageHeader } from '../components/PageHeader';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { DEFAULT_CLASS_TYPES } from '@mdavelctf/shared';
 
 interface ClassSummary {
   id: string;
@@ -30,6 +29,7 @@ export default function ClassesPage() {
   const [customClassTag, setCustomClassTag] = useState('');
   const [msg, setMsg] = useState('');
   const [loading, setLoading] = useState(true);
+  const [availableTags, setAvailableTags] = useState<any[]>([]);
 
   const load = async () => {
     try {
@@ -40,6 +40,9 @@ export default function ClassesPage() {
   };
 
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    apiGet('/gamification/tags').then((res) => setAvailableTags(res.tags || [])).catch(() => {});
+  }, []);
 
   const handleJoin = async () => {
     try {
@@ -113,7 +116,7 @@ export default function ClassesPage() {
               <div className="flex gap-2 items-center">
                 <select value={classTag} onChange={(e) => setClassTag(e.target.value)} className="terminal-input px-3 py-2 text-sm w-full">
                   <option value="">Select tag...</option>
-                  {DEFAULT_CLASS_TYPES.map((ct) => <option key={ct.value} value={ct.value}>{ct.icon} {ct.label}</option>)}
+                  {availableTags.map((tag: any) => <option key={tag.id} value={tag.name}>{tag.icon} {tag.name}</option>)}
                   <option value="__custom__">+ Custom tag...</option>
                 </select>
                 {classTag === '__custom__' && <input value={customClassTag} onChange={(e) => setCustomClassTag(e.target.value)} placeholder="Tag name" className="terminal-input px-3 py-2 text-sm" />}

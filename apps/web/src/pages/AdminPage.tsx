@@ -8,7 +8,7 @@ import { TabBar, TabPanel } from '../components/TabBar';
 import { PageHeader } from '../components/PageHeader';
 import { apiPost, apiGet, apiPut, apiDelete } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
-import { EventDoc, LeagueDoc, EventAnalyticsSummary, LeagueAnalyticsSummary, BadgeDoc, DEFAULT_BADGES, DEFAULT_CLASS_TYPES, getTagColor, TAG_ICON_OPTIONS } from '@mdavelctf/shared';
+import { EventDoc, LeagueDoc, EventAnalyticsSummary, LeagueAnalyticsSummary, BadgeDoc, DEFAULT_BADGES, getTagColor, TAG_ICON_OPTIONS } from '@mdavelctf/shared';
 import { useTranslation } from 'react-i18next';
 
 function getEventStatus(e: EventDoc) {
@@ -45,6 +45,7 @@ export default function AdminPage() {
           { key: 'badges', label: t('admin.badges'), icon: '🎖️' },
           { key: 'quests', label: t('admin.quests'), icon: '📜' },
           { key: 'tags', label: t('admin.tags'), icon: '🏷️' },
+          { key: 'classes', label: t('admin.classes') || 'Classes', icon: '🏫' },
           { key: 'logs', label: t('admin.logs'), icon: '📋' },
           { key: 'seed', label: 'Seed', icon: '🌱' },
           { key: 'docs', label: t('admin.guide'), icon: '📖' },
@@ -62,6 +63,7 @@ export default function AdminPage() {
       <TabPanel active={tab} tab="badges"><AdminBadges /></TabPanel>
       <TabPanel active={tab} tab="quests"><AdminQuests /></TabPanel>
       <TabPanel active={tab} tab="tags"><AdminTags /></TabPanel>
+      <TabPanel active={tab} tab="classes"><AdminClasses /></TabPanel>
       <TabPanel active={tab} tab="logs"><AdminLogs /></TabPanel>
       <TabPanel active={tab} tab="seed"><AdminSeedManager /></TabPanel>
       <TabPanel active={tab} tab="docs"><AdminDocs /></TabPanel>
@@ -547,7 +549,7 @@ function AdminEvents() {
             <div className="flex gap-2 items-center">
               <select value={form.classType} onChange={(e) => setForm({ ...form, classType: e.target.value })} className="terminal-input px-3 py-2 text-sm w-full md:w-auto">
                 <option value="">Select class type...</option>
-                {DEFAULT_CLASS_TYPES.map((ct) => <option key={ct.value} value={ct.value}>{ct.icon} {ct.label}</option>)}
+                {availableTags.map((tag) => <option key={tag.id} value={tag.name}>{tag.icon} {tag.name}</option>)}
                 <option value="__custom__">+ Custom type...</option>
               </select>
               {form.classType === '__custom__' && (
@@ -911,7 +913,6 @@ function AdminChallenges() {
               <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="terminal-input px-3 py-2 text-sm w-full">
                 <option value="">Select tag...</option>
                 {availableTags.map((tag) => <option key={tag.id} value={tag.name}>{tag.icon} {tag.name}</option>)}
-                {DEFAULT_CLASS_TYPES.map((ct) => <option key={ct.value} value={ct.value}>{ct.icon} {ct.label}</option>)}
                 <option value="__custom__">+ Custom tag...</option>
               </select>
               {form.category === '__custom__' && <input value={form.customCategory} onChange={(e) => setForm({ ...form, customCategory: e.target.value })} placeholder="Tag name" className="terminal-input px-2 py-1 text-sm mt-1 w-full" />}
@@ -926,7 +927,7 @@ function AdminChallenges() {
             <div className="flex gap-2 items-center">
               <select value={form.classType} onChange={(e) => setForm({ ...form, classType: e.target.value })} className="terminal-input px-3 py-2 text-sm">
                 <option value="">Select...</option>
-                {DEFAULT_CLASS_TYPES.map((ct) => <option key={ct.value} value={ct.value}>{ct.icon} {ct.label}</option>)}
+                {availableTags.map((tag) => <option key={tag.id} value={tag.name}>{tag.icon} {tag.name}</option>)}
                 <option value="__custom__">+ Custom...</option>
               </select>
               {form.classType === '__custom__' && <input value={form.customClassType} onChange={(e) => setForm({ ...form, customClassType: e.target.value })} placeholder="Type name" className="terminal-input px-3 py-2 text-sm" />}
@@ -1543,6 +1544,145 @@ function AdminQuests() {
 }
 
 /* ─── Tags Tab ─── */
+/* ─── Classes Tab ─── */
+function AdminClasses() {
+  const { t } = useTranslation();
+  const [classes, setClasses] = useState<any[]>([]);
+  const [msg, setMsg] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ name: '', description: '', classType: '', published: true });
+
+  const loadClasses = async () => {
+    try {
+      const res = await apiGet('/admin/classes');
+      setClasses(res.classes || []);
+    } catch {}
+    setInitialLoading(false);
+  };
+
+  useEffect(() => { loadClasses(); }, []);
+
+  const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 3000); };
+
+  const openEdit = (cls: any) => {
+    setEditForm({ name: cls.name, description: cls.description || '', classType: cls.classType || '', published: cls.published ?? true });
+    setEditId(cls.id);
+  };
+
+  const handleSave = async () => {
+    if (!editId || !editForm.name.trim()) return;
+    setLoading(true);
+    try {
+      await apiPut(`/admin/class/${editId}`, editForm);
+      flash(t('admin.classSaved') || 'Class updated');
+      setEditId(null);
+      await loadClasses();
+    } catch (e: any) { flash(e.message); }
+    setLoading(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm(t('admin.confirmDeleteClass') || 'Delete this class and remove all members?')) return;
+    try {
+      await apiDelete(`/admin/class/${id}`);
+      flash(t('admin.classDeleted') || 'Class deleted');
+      await loadClasses();
+    } catch (e: any) { flash(e.message); }
+  };
+
+  if (initialLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="inline-block w-6 h-6 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <HudPanel title={t('admin.classes') || 'Classes'}>
+      {msg && <p className="text-accent text-xs mb-3">{msg}</p>}
+
+      {editId && (
+        <div className="p-4 border border-accent/20 mb-4 space-y-3">
+          <h3 className="text-sm font-bold text-accent">{t('admin.editClass') || 'Edit Class'}</h3>
+          <div>
+            <label className="text-xs text-hud-text/50 block mb-1">{t('common.name') || 'Name'}</label>
+            <input className="w-full bg-transparent border border-accent/20 px-3 py-2 text-sm" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
+          </div>
+          <div>
+            <label className="text-xs text-hud-text/50 block mb-1">{t('common.description') || 'Description'}</label>
+            <textarea className="w-full bg-transparent border border-accent/20 px-3 py-2 text-sm" rows={2} value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} />
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-hud-text/50">{t('admin.published') || 'Published'}</label>
+            <input type="checkbox" checked={editForm.published} onChange={(e) => setEditForm({ ...editForm, published: e.target.checked })} />
+          </div>
+          <div className="flex gap-2">
+            <NeonButton size="sm" variant="solid" onClick={handleSave} disabled={loading || !editForm.name.trim()}>
+              {loading ? '...' : t('common.save') || 'Save'}
+            </NeonButton>
+            <NeonButton size="sm" variant="ghost" onClick={() => setEditId(null)}>{t('common.cancel') || 'Cancel'}</NeonButton>
+          </div>
+        </div>
+      )}
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-hud-text/50 border-b border-accent/10">
+              <th className="py-2 px-2">{t('common.name') || 'Name'}</th>
+              <th className="py-2 px-2">{t('admin.owner') || 'Owner'}</th>
+              <th className="py-2 px-2">{t('admin.members') || 'Members'}</th>
+              <th className="py-2 px-2">{t('admin.published') || 'Published'}</th>
+              <th className="py-2 px-2">{t('admin.createdAt') || 'Created'}</th>
+              <th className="py-2 px-2"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {classes.map((cls: any) => (
+              <tr key={cls.id} className="border-b border-accent/5 hover:bg-accent/5 transition-colors">
+                <td className="py-2 px-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">{cls.icon || '📚'}</span>
+                    <div>
+                      <div className="font-bold">{cls.name}</div>
+                      <div className="text-[10px] text-hud-text/30 font-mono">{cls.id.slice(0, 12)}</div>
+                    </div>
+                  </div>
+                </td>
+                <td className="py-2 px-2 text-xs text-hud-text/60">{cls.ownerName || cls.ownerInstructorId?.slice(0, 10) || '—'}</td>
+                <td className="py-2 px-2">
+                  <span className="text-xs px-2 py-0.5 border border-accent/20">{cls.memberCount ?? '?'}</span>
+                </td>
+                <td className="py-2 px-2">
+                  <span className={`text-xs px-2 py-0.5 ${cls.published ? 'text-green-400' : 'text-hud-text/30'}`}>
+                    {cls.published ? '✓' : '✗'}
+                  </span>
+                </td>
+                <td className="py-2 px-2 text-xs text-hud-text/40">
+                  {cls.createdAt ? new Date(cls.createdAt).toLocaleDateString() : '—'}
+                </td>
+                <td className="py-2 px-2">
+                  <div className="flex gap-1">
+                    <button onClick={() => openEdit(cls)} className="text-xs px-2 py-1 border border-accent/20 text-accent hover:bg-accent/10">✏️</button>
+                    <button onClick={() => handleDelete(cls.id)} className="text-xs px-2 py-1 border border-danger/20 text-danger hover:bg-danger/10">🗑️</button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {classes.length === 0 && (
+        <p className="text-center text-hud-text/30 text-sm py-6">{t('admin.noClasses') || 'No classes yet'}</p>
+      )}
+    </HudPanel>
+  );
+}
+
+/* ─── Tags Tab ─── */
 function AdminTags() {
   const { t } = useTranslation();
   const [tags, setTags] = useState<any[]>([]);
@@ -1616,6 +1756,17 @@ function AdminTags() {
       <div className="flex gap-2 mb-4 flex-wrap">
         <NeonButton size="sm" variant="solid" onClick={() => { resetForm(); setShowForm(!showForm); }}>
           {showForm ? t('common.cancel') : `+ ${t('admin.createTag')}`}
+        </NeonButton>
+        <NeonButton size="sm" variant="ghost" onClick={async () => {
+          setLoading(true);
+          try {
+            const res = await apiPost('/admin/tags/seed-default', {});
+            flash(res.message || 'Default tags seeded');
+            await loadTags();
+          } catch (e: any) { flash(e.message); }
+          setLoading(false);
+        }} disabled={loading}>
+          🌱 {t('admin.seedDefaultTags') || 'Seed Default Tags'}
         </NeonButton>
       </div>
       {msg && <p className="text-accent text-xs mb-3">{msg}</p>}
@@ -2062,6 +2213,11 @@ function AdminSeedManager() {
 /* ─── Documentation / Guide ─── */
 function AdminDocs() {
   const [openSection, setOpenSection] = useState<string | null>('getting-started');
+  const [availableDocsTagList, setAvailableDocsTagList] = useState<any[]>([]);
+
+  useEffect(() => {
+    apiGet('/gamification/tags').then((res) => setAvailableDocsTagList(res.tags || [])).catch(() => {});
+  }, []);
 
   const toggle = (key: string) => setOpenSection(openSection === key ? null : key);
 
@@ -2315,8 +2471,8 @@ function AdminDocs() {
           </p>
           <h4 className="font-bold text-accent mt-3">Tags disponíveis:</h4>
           <div className="flex gap-2 flex-wrap mt-1">
-            {DEFAULT_CLASS_TYPES.map((ct) => (
-              <HudTag key={ct.value} color={getTagColor(ct.value)}>{ct.icon} {ct.label}</HudTag>
+            {availableDocsTagList.map((tag: any) => (
+              <HudTag key={tag.id} color={getTagColor(tag.name)}>{tag.icon} {tag.name}</HudTag>
             ))}
             <HudTag>+ Custom (admin cria)</HudTag>
           </div>

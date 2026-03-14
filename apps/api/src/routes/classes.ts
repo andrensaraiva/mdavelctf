@@ -215,6 +215,42 @@ classesRouter.get('/:classId', asyncHandler(async (req: AuthRequest, res: Respon
   });
 }));
 
+/* ─── Edit Class (owner instructor or admin) ─── */
+classesRouter.put('/:classId', requireInstructorOrAdmin, asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { classId } = req.params;
+  const db = getDb();
+
+  const classSnap = await db.collection('classes').doc(classId).get();
+  if (!classSnap.exists) return res.status(404).json({ error: 'Class not found' });
+
+  const classData = classSnap.data()!;
+  const isAdmin = req.userRole === 'admin' || req.userRole === 'superadmin';
+  if (!isAdmin && classData.ownerInstructorId !== req.uid) {
+    return res.status(403).json({ error: 'Only class owner or admin can edit' });
+  }
+
+  const before = classData;
+  const updates: Record<string, any> = {};
+  const allowed = ['name', 'description', 'classType', 'themeId', 'icon', 'tags', 'published', 'settings'];
+  for (const k of allowed) {
+    if (req.body[k] !== undefined) updates[k] = req.body[k];
+  }
+  if (updates.name !== undefined) {
+    if (typeof updates.name !== 'string' || updates.name.length < 2 || updates.name.length > 60) {
+      return res.status(400).json({ error: 'Class name must be 2-60 characters' });
+    }
+    updates.name = updates.name.trim();
+  }
+  if (updates.description !== undefined) {
+    updates.description = String(updates.description).trim().slice(0, 500);
+  }
+  if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'No fields to update' });
+
+  await db.collection('classes').doc(classId).update(updates);
+  await writeAuditLog(req.uid!, 'UPDATE_CLASS', `classes/${classId}`, before, updates);
+  return res.json({ id: classId, ...updates });
+}));
+
 /* ─── Rotate Invite Code (owner/admin) ─── */
 classesRouter.post('/:classId/rotate-code', requireInstructorOrAdmin, asyncHandler(async (req: AuthRequest, res: Response) => {
   const { classId } = req.params;

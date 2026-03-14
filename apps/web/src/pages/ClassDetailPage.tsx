@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { apiGet, apiPost } from '../lib/api';
+import { apiGet, apiPost, apiPut } from '../lib/api';
 import { HudPanel } from '../components/HudPanel';
 import { NeonButton } from '../components/NeonButton';
 import { HudTag } from '../components/HudTag';
@@ -47,6 +47,10 @@ export default function ClassDetailPage() {
   const [msg, setMsg] = useState('');
   const [tab, setTab] = useState('details');
   const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ name: '', description: '', classType: '', published: true });
+  const [saving, setSaving] = useState(false);
+  const [availableTags, setAvailableTags] = useState<any[]>([]);
 
   const load = async () => {
     if (!classId) return;
@@ -62,6 +66,9 @@ export default function ClassDetailPage() {
   };
 
   useEffect(() => { load(); }, [classId]);
+  useEffect(() => {
+    apiGet('/gamification/tags').then((res) => setAvailableTags(res.tags || [])).catch(() => {});
+  }, []);
 
   if (loading) {
     return (
@@ -99,6 +106,25 @@ export default function ClassDetailPage() {
     } catch (e: any) { setMsg(e.message); }
   };
 
+  const startEdit = () => {
+    if (!classData) return;
+    setEditForm({ name: classData.name, description: classData.description || '', classType: classData.classType || '', published: classData.published ?? true });
+    setEditing(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!classId || !editForm.name.trim()) return;
+    setSaving(true);
+    try {
+      await apiPut(`/classes/${classId}`, editForm);
+      setMsg(t('classes.classSaved') || 'Class updated');
+      setEditing(false);
+      await load();
+      setTimeout(() => setMsg(''), 3000);
+    } catch (e: any) { setMsg(e.message); }
+    setSaving(false);
+  };
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-5">
       {/* Header */}
@@ -130,7 +156,7 @@ export default function ClassDetailPage() {
       {/* Details Tab */}
       <TabPanel active={tab} tab="details">
         <HudPanel>
-          {isOwner && (
+          {isOwner && !editing && (
             <div className="space-y-3">
               <div className="flex items-center gap-3">
                 <span className="text-xs text-hud-text/50 uppercase tracking-wider font-medium">{t('classes.inviteCode')}:</span>
@@ -140,6 +166,41 @@ export default function ClassDetailPage() {
                 <NeonButton size="sm" variant="outline" onClick={handleRotateCode}>
                   {t('classes.rotateCode')}
                 </NeonButton>
+                <NeonButton size="sm" variant="solid" onClick={startEdit}>
+                  ✏️ {t('classes.editClass') || 'Edit Class'}
+                </NeonButton>
+              </div>
+            </div>
+          )}
+          {isOwner && editing && (
+            <div className="space-y-3">
+              <h3 className="text-sm font-bold text-accent">{t('classes.editClass') || 'Edit Class'}</h3>
+              <div>
+                <label className="text-xs text-hud-text/50 block mb-1">{t('common.name') || 'Name'}</label>
+                <input className="w-full bg-transparent border border-accent/20 px-3 py-2 text-sm" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
+              </div>
+              <div>
+                <label className="text-xs text-hud-text/50 block mb-1">{t('common.description') || 'Description'}</label>
+                <textarea className="w-full bg-transparent border border-accent/20 px-3 py-2 text-sm" rows={3} value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} />
+              </div>
+              <div>
+                <label className="text-xs text-hud-text/50 block mb-1">{t('classes.classType') || 'Type'}</label>
+                <select className="w-full bg-transparent border border-accent/20 px-3 py-2 text-sm" value={editForm.classType} onChange={(e) => setEditForm({ ...editForm, classType: e.target.value })}>
+                  <option value="">{t('common.select') || 'Select…'}</option>
+                  {availableTags.map((tag: any) => (
+                    <option key={tag.id} value={tag.name}>{tag.icon} {tag.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-hud-text/50">{t('admin.published') || 'Published'}</label>
+                <input type="checkbox" checked={editForm.published} onChange={(e) => setEditForm({ ...editForm, published: e.target.checked })} />
+              </div>
+              <div className="flex gap-2">
+                <NeonButton size="sm" variant="solid" onClick={handleSaveEdit} disabled={saving || !editForm.name.trim()}>
+                  {saving ? '...' : t('common.save') || 'Save'}
+                </NeonButton>
+                <NeonButton size="sm" variant="ghost" onClick={() => setEditing(false)}>{t('common.cancel') || 'Cancel'}</NeonButton>
               </div>
             </div>
           )}

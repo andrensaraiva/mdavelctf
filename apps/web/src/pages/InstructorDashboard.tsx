@@ -9,7 +9,7 @@ import { TabBar, TabPanel } from '../components/TabBar';
 import { PageHeader } from '../components/PageHeader';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { DEFAULT_CLASS_TYPES, getTagColor } from '@mdavelctf/shared';
+import { getTagColor } from '@mdavelctf/shared';
 
 interface ClassSummary {
   id: string;
@@ -426,7 +426,7 @@ export default function InstructorDashboard() {
               <div className="flex gap-2 items-center">
                 <select value={eventClassType} onChange={(e) => setEventClassType(e.target.value)} className="terminal-input w-full md:w-auto px-3 py-2 text-sm">
                   <option value="">Select class type...</option>
-                  {DEFAULT_CLASS_TYPES.map((ct) => <option key={ct.value} value={ct.value}>{ct.icon} {ct.label}</option>)}
+                  {availableTags.map((tag: any) => <option key={tag.id} value={tag.name}>{tag.icon} {tag.name}</option>)}
                   <option value="__custom__">+ Custom type...</option>
                 </select>
                 {eventClassType === '__custom__' && (
@@ -528,9 +528,6 @@ export default function InstructorDashboard() {
                       <select value={chalCategory} onChange={(e) => setChalCategory(e.target.value)} className="terminal-input w-full px-3 py-2 text-sm">
                         <option value="">Select tag...</option>
                         {availableTags.map((tag) => <option key={tag.id} value={tag.name}>{tag.icon} {tag.name}</option>)}
-                        {DEFAULT_CLASS_TYPES.map((ct) => (
-                          <option key={ct.value} value={ct.value}>{ct.icon} {ct.label}</option>
-                        ))}
                         <option value="__custom__">+ Custom tag...</option>
                       </select>
                       {chalCategory === '__custom__' && <input value={chalCustomCategory} onChange={(e) => setChalCustomCategory(e.target.value)} placeholder="Tag name" className="terminal-input w-full px-2 py-1 text-sm mt-1" />}
@@ -598,7 +595,7 @@ export default function InstructorDashboard() {
                     <div className="flex gap-2 items-center">
                       <select value={chalClassType} onChange={(e) => setChalClassType(e.target.value)} className="terminal-input px-3 py-2 text-sm">
                         <option value="">Select...</option>
-                        {DEFAULT_CLASS_TYPES.map((ct) => <option key={ct.value} value={ct.value}>{ct.icon} {ct.label}</option>)}
+                        {availableTags.map((tag: any) => <option key={tag.id} value={tag.name}>{tag.icon} {tag.name}</option>)}
                         <option value="__custom__">+ Custom...</option>
                       </select>
                       {chalClassType === '__custom__' && <input value={chalCustomClassType} onChange={(e) => setChalCustomClassType(e.target.value)} placeholder="Type name" className="terminal-input px-3 py-2 text-sm" />}

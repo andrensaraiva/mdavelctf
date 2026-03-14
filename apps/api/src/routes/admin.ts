@@ -813,6 +813,93 @@ function isSeedAllowed(req: AuthRequest): boolean {
   return false;
 }
 
+/* ─── Classes Management (admin) ─── */
+adminRouter.get('/classes', asyncHandler(async (_req: AuthRequest, res: Response) => {
+  const db = getDb();
+  const snap = await db.collection('classes').get();
+  const classes: any[] = [];
+  for (const doc of snap.docs) {
+    const data = doc.data();
+    const membersSnap = await doc.ref.collection('members').get();
+    classes.push({ id: doc.id, ...data, memberCount: membersSnap.size });
+  }
+  return res.json({ classes });
+}));
+
+adminRouter.put('/class/:classId', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { classId } = req.params;
+  const db = getDb();
+  const ref = db.collection('classes').doc(classId);
+  const snap = await ref.get();
+  if (!snap.exists) return res.status(404).json({ error: 'Class not found' });
+
+  const before = snap.data();
+  const updates: Record<string, any> = {};
+  const allowed = ['name', 'description', 'classType', 'themeId', 'icon', 'tags', 'published', 'settings'];
+  for (const k of allowed) {
+    if (req.body[k] !== undefined) updates[k] = req.body[k];
+  }
+  if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'No fields to update' });
+  await ref.update(updates);
+  await writeAuditLog(req.uid!, 'UPDATE_CLASS', `classes/${classId}`, before, updates);
+  return res.json({ id: classId, ...updates });
+}));
+
+adminRouter.delete('/class/:classId', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { classId } = req.params;
+  const db = getDb();
+  const ref = db.collection('classes').doc(classId);
+  const snap = await ref.get();
+  if (!snap.exists) return res.status(404).json({ error: 'Class not found' });
+
+  // Delete members subcollection
+  const membersSnap = await ref.collection('members').get();
+  for (const m of membersSnap.docs) {
+    // Remove classId from user
+    try {
+      const { FieldValue } = require('firebase-admin/firestore');
+      await db.collection('users').doc(m.id).update({ classIds: FieldValue.arrayRemove(classId) });
+    } catch {}
+    await m.ref.delete();
+  }
+  await ref.delete();
+  await writeAuditLog(req.uid!, 'DELETE_CLASS', `classes/${classId}`, snap.data(), null);
+  return res.json({ success: true });
+}));
+
+/* ─── Seed Default Tags ─── */
+adminRouter.post('/tags/seed-default', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const db = getDb();
+  const defaultTags = [
+    { name: 'WEB', icon: '🌐' },
+    { name: 'CRYPTO', icon: '🔐' },
+    { name: 'FORENSICS', icon: '🔍' },
+    { name: 'REVERSE', icon: '⚙️' },
+    { name: 'PWN', icon: '💀' },
+    { name: 'OSINT', icon: '🔎' },
+    { name: 'MISC', icon: '🧩' },
+    { name: 'STEGO', icon: '🎨' },
+    { name: 'NETWORK', icon: '📡' },
+    { name: 'MOBILE', icon: '📱' },
+    { name: 'HARDWARE', icon: '🔧' },
+    { name: 'CLOUD', icon: '☁️' },
+  ];
+  const batch = db.batch();
+  let count = 0;
+  for (const tag of defaultTags) {
+    // Check if tag with same name already exists
+    const existing = await db.collection('tags').where('name', '==', tag.name).limit(1).get();
+    if (existing.empty) {
+      const ref = db.collection('tags').doc();
+      batch.set(ref, { ...tag, createdAt: new Date().toISOString() });
+      count++;
+    }
+  }
+  await batch.commit();
+  await writeAuditLog(req.uid!, 'SEED_TAGS', 'tags/*', null, { count });
+  return res.json({ success: true, count });
+}));
+
 /* ─── Tags CRUD (admin only) ─── */
 adminRouter.get('/tags', asyncHandler(async (_req: AuthRequest, res: Response) => {
   const db = getDb();
